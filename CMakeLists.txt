@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.10)
+project(Advancing-Volumes)
+set(cinolib_DIR "/Users/federicomeloni/Documents/GitHub/cinolib")
+set(CINOLIB_USES_OPENGL_GLFW_IMGUI ON)
+find_package(cinolib REQUIRED)
+add_executable(${PROJECT_NAME} main.cpp sphere_util.h sphere_util.cpp text_util.h)
+target_link_libraries(${CMAKE_PROJECT_NAME} cinolib)
