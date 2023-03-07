@@ -11,22 +11,32 @@
 
 ## File structure
 ```
-.
-|
-│ Folders
-├── spheres             # tetrhedron spheres dataset
+·
+│
+│ CODE FILES
+├── main.cpp
+├── sphere.cpp/h        # utility functions for getting the sphere mesh
+├── text_utils.h        # utility macros for text output
+├── CMakeLists.txt
+│
+│ DATASET
+├── spheres
 │   ├── sphere18.mesh
 │   ├── sphere31.mesh
 │   ├── sphere40.mesh
 │   └── sphere50.mesh
 │
-│ Code file
-├── main.cpp
-├── sphere.cpp/h        # utility functions for getting the sphere mesh
-├── text_utils.h        # utility macros for text output
-│
-│ Markdown
+│ MARKDOWN & OTHER DOCUMENTATION STUFF
 ├── README.md
+│
+├── img                 # images for README.md
+│   └── sphere          # sphere placement images
+│       └── ···
+│
+│ OTHER
+├── .gitignore
+├── .gitattributes
+└── LICENSE
 ```
 
 ## Sphere placement
