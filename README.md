@@ -38,6 +38,6 @@ For now, 4 types of spheres with increasing detail (18 / 31 / 40 / 50 tetrahedra
 
 These spheres also are scaled so that the bounding box of the sphere is tangent to the surface of the model.
 
-| ![](img/sphere/kitty_model.png) | ![](img/sphere/kitty_model_transparent.png) | ![](img/sphere/kitty_model_transparent45.png) |
-|:-------------------------------:|:-------------------------------------------:|:---------------------------------------------:|
-| Model                           |     Model with sphere and bounding box      |      Model with sphere and bounding box       |
+| ![](img/sphere/kitty_model.png) | ![](img/sphere/kitty_model_trasparent.png) | ![](img/sphere/kitty_model_trasparent45.png) |
+|:-------------------------------:|:------------------------------------------:|:--------------------------------------------:|
+| Model                           |     Model with sphere and bounding box     |      Model with sphere and bounding box      |
