@@ -1,6 +1,7 @@
 #include <cinolib/gl/glcanvas.h>
 #include <cinolib/meshes/meshes.h>
 #include <cinolib/gl/volume_mesh_controls.h>
+#include <cinolib/gl/surface_mesh_controls.h>
 #include <cinolib/geodesics.h>
 #include <cinolib/split_separating_simplices.h>
 
@@ -42,15 +43,17 @@ int main(int argc, char *argv[])
             + pow(m.vert_data(center).uvw.z(),2));
 
 
-
     //sphere
     DrawableTetmesh<> sphere = get_sphere(m.vert(center), scale_factor, 18);
+    DrawableQuadmesh<> m_bbox = get_bbox_mesh(sphere);
 
     GLcanvas gui;
     gui.push(&m);
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&m,&gui));
     gui.push(&sphere);
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&sphere,&gui));
+    gui.push(&m_bbox);
+    gui.push(new SurfaceMeshControls<DrawableQuadmesh<>>(&m_bbox,&gui));
 
     return gui.launch();
 }

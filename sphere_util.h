@@ -13,6 +13,7 @@ using namespace cinolib;
 void trasl_center(DrawableTetmesh<> &m);
 void scale_unicube(DrawableTetmesh<> &m);
 void mesh_standardizer(DrawableTetmesh<> &m);
+DrawableQuadmesh<> get_bbox_mesh(DrawableTetmesh<> &m);
 
 DrawableTetmesh<> get_sphere(const vec3d &center = vec3d(0.0, 0.0, 0.0),
                              const double &scale_factor = 1.0,

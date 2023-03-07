@@ -65,6 +65,32 @@ void mesh_standardizer(DrawableTetmesh<> &m) {
     scale_unicube(m);
 }
 
+/// Get a quadmesh representing the bounding box of the mesh
+/// @param m a tet mesh
+/// @return a quad mesh representing the bounding box of the mesh
+DrawableQuadmesh<> get_bbox_mesh(DrawableTetmesh<> &m) {
+    AABB bbox = m.bbox();
+    DrawableQuadmesh<> m_bbox;
+
+    m_bbox.vert_add(vec3d(bbox.min.x(), bbox.min.y(), bbox.min.z())); //0
+    m_bbox.vert_add(vec3d(bbox.max.x(), bbox.min.y(), bbox.min.z())); //1
+    m_bbox.vert_add(vec3d(bbox.max.x(), bbox.min.y(), bbox.max.z())); //2
+    m_bbox.vert_add(vec3d(bbox.min.x(), bbox.min.y(), bbox.max.z())); //3
+    m_bbox.vert_add(vec3d(bbox.min.x(), bbox.max.y(), bbox.min.z())); //4
+    m_bbox.vert_add(vec3d(bbox.max.x(), bbox.max.y(), bbox.min.z())); //5
+    m_bbox.vert_add(vec3d(bbox.max.x(), bbox.max.y(), bbox.max.z())); //6
+    m_bbox.vert_add(vec3d(bbox.min.x(), bbox.max.y(), bbox.max.z())); //7
+
+    m_bbox.poly_add({0, 1, 2, 3});
+    m_bbox.poly_add({4, 5, 6, 7}); //idk why the face is not visible
+    m_bbox.poly_add({4, 5, 1, 0});
+    m_bbox.poly_add({5, 6, 2, 1});
+    m_bbox.poly_add({6, 7, 3, 2});
+    m_bbox.poly_add({7, 4, 0, 3});
+
+    return m_bbox;
+}
+
 /// get an hardcoded sphere
 /// @param center: center of the sphere (default: (0,0,0))
 /// @param scale_factor: scale factor of the sphere (default: 1.0)
