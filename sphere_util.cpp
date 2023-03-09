@@ -65,32 +65,6 @@ void mesh_standardizer(DrawableTetmesh<> &m) {
     scale_unicube(m);
 }
 
-/// Get a quadmesh representing the bounding box of the mesh
-/// @param m a tet mesh
-/// @return a quad mesh representing the bounding box of the mesh
-DrawableQuadmesh<> get_bbox_mesh(DrawableTetmesh<> &m) {
-    AABB bbox = m.bbox();
-    DrawableQuadmesh<> m_bbox;
-
-    m_bbox.vert_add(vec3d(bbox.min.x(), bbox.min.y(), bbox.min.z())); //0
-    m_bbox.vert_add(vec3d(bbox.max.x(), bbox.min.y(), bbox.min.z())); //1
-    m_bbox.vert_add(vec3d(bbox.max.x(), bbox.min.y(), bbox.max.z())); //2
-    m_bbox.vert_add(vec3d(bbox.min.x(), bbox.min.y(), bbox.max.z())); //3
-    m_bbox.vert_add(vec3d(bbox.min.x(), bbox.max.y(), bbox.min.z())); //4
-    m_bbox.vert_add(vec3d(bbox.max.x(), bbox.max.y(), bbox.min.z())); //5
-    m_bbox.vert_add(vec3d(bbox.max.x(), bbox.max.y(), bbox.max.z())); //6
-    m_bbox.vert_add(vec3d(bbox.min.x(), bbox.max.y(), bbox.max.z())); //7
-
-    m_bbox.poly_add({0, 1, 2, 3});
-    m_bbox.poly_add({4, 5, 6, 7}); //idk why the face is not visible
-    m_bbox.poly_add({4, 5, 1, 0});
-    m_bbox.poly_add({5, 6, 2, 1});
-    m_bbox.poly_add({6, 7, 3, 2});
-    m_bbox.poly_add({7, 4, 0, 3});
-
-    return m_bbox;
-}
-
 /// get an hardcoded sphere
 /// @param center: center of the sphere (default: (0,0,0))
 /// @param scale_factor: scale factor of the sphere (default: 1.0)
@@ -115,13 +89,18 @@ DrawableTetmesh<> get_sphere(const vec3d &center, const double &scale_factor, co
     }
 
     //scale the sphere to the desired size
-    coeff = scale_factor / sqrt(pow(sphere.bbox().delta().x(),2)
-           + pow(sphere.bbox().delta().y(),2)
-           + pow(sphere.bbox().delta().z(),2));
+    coeff = scale_factor / (sphere.bbox().delta_x() / 2.0);
+
+    std::cout << TXT_BOLDMAGENTA << "Raggio prima: " << TXT_RESET << std::endl << sphere.bbox().delta_x()/2.0 << std::endl;
+    std::cout << TXT_BOLDMAGENTA << "Coeff: " << TXT_RESET << std::endl << coeff << std::endl;
+
     sphere.scale(coeff);
     sphere.translate(center);
 
     sphere.updateGL();
+    sphere.update_bbox();
+
+    std::cout << TXT_BOLDGREEN << "Raggio dopo: " << TXT_RESET << std::endl << sphere.bbox().delta_x()/2.0 << std::endl;
 
     return sphere;
 }
@@ -392,3 +371,30 @@ DrawableTetmesh<> get_sphere50() {
     return DrawableTetmesh<>(vertices, polys);
 }
 
+/// Show all the spheres in the canvas
+/// @param gui
+void show_allspheres(GLcanvas &gui) {
+    DrawableTetmesh<> sphere18 = get_sphere18();
+    DrawableTetmesh<> sphere31 = get_sphere31();
+    DrawableTetmesh<> sphere40 = get_sphere40();
+    DrawableTetmesh<> sphere50 = get_sphere50();
+
+    sphere18.translate(vec3d(-2.25, 0.0, 0.0));
+    sphere31.translate(vec3d(-0.75, 0.0, 0.0));
+    sphere40.translate(vec3d( 0.75, 0.0, 0.0));
+    sphere50.translate(vec3d( 2.25, 0.0, 0.0));
+
+    sphere18.updateGL();
+    sphere31.updateGL();
+    sphere40.updateGL();
+    sphere50.updateGL();
+
+    gui.push(&sphere18);
+    gui.push(&sphere31);
+    gui.push(&sphere40);
+    gui.push(&sphere50);
+    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&sphere18,&gui));
+    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&sphere31,&gui));
+    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&sphere40,&gui));
+    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&sphere50,&gui));
+}

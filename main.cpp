@@ -1,7 +1,8 @@
 #include <cinolib/gl/glcanvas.h>
 #include <cinolib/meshes/meshes.h>
 #include <cinolib/gl/volume_mesh_controls.h>
-#include <cinolib/gl/surface_mesh_controls.h>
+#include <cinolib/drawable_segment_soup.h>
+
 #include <cinolib/geodesics.h>
 #include <cinolib/split_separating_simplices.h>
 
@@ -10,9 +11,9 @@
 using namespace cinolib;
 
 void get_df(DrawableTetmesh<> &m);
+uint min_df_point(DrawableTetmesh<> &m);
 uint max_df_point(DrawableTetmesh<> &m);
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+void remap_df(DrawableTetmesh<> &m, double shift);
 
 /*      Reference
  *      Tetrahedron:
@@ -26,61 +27,116 @@ uint max_df_point(DrawableTetmesh<> &m);
  *          v1
 */
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
 int main(int argc, char *argv[])
 {
-    //mesh
+    GLcanvas gui;
     DrawableTetmesh<> m("/Users/federicomeloni/Documents/GitHub/MeshRepository/Volume/L12014_polycubes/kitty.mesh");
 
-    //distance field
+    //surf_dist field
     get_df(m);
-    //max distance field point
-    uint center = max_df_point(m);
-    //magnitude of the vector
-    double scale_factor = sqrt(pow(m.vert_data(center).uvw.x(),2)
-            + pow(m.vert_data(center).uvw.y(),2)
-            + pow(m.vert_data(center).uvw.z(),2));
 
+    //max surf_dist field point
+    uint center = min_df_point(m);
+    //min surf_dist field point
+    uint close = max_df_point(m);
+    //remap and invert the surf_dist field
+    remap_df(m, m.vert_data(close).uvw[0]);
+
+    /*
+    uint adj_center = m.adj_v2v(center)[0];
+    double scale_factor = (m.vert_data(center).uvw[0] - );
+    */
+
+    uint surf_vert;
+    double surf_dist = inf_double;
+    for(uint vid : m.get_surface_verts()) {
+        double aux_distance = m.vert(center).dist(m.vert(vid));
+        if(m.vert(center).dist(m.vert(vid)) < surf_dist) {
+            surf_dist = aux_distance;
+            surf_vert = vid;
+        }
+    }
+    DrawableSegmentSoup r;
+    r.push_seg(m.vert(center), m.vert(surf_vert), Color::RED());
+    gui.push(&r);
 
     //sphere
-    DrawableTetmesh<> sphere = get_sphere(m.vert(center), scale_factor, 18);
-    DrawableQuadmesh<> m_bbox = get_bbox_mesh(sphere);
+    std::cout << std::endl << std::endl;
+    DrawableTetmesh<> sphere = get_sphere(m.vert(center), surf_dist, 50);
+    std::cout << std::endl << std::endl;
 
-    GLcanvas gui;
+    //canvas
     gui.push(&m);
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&m,&gui));
     gui.push(&sphere);
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&sphere,&gui));
-    gui.push(&m_bbox);
-    gui.push(new SurfaceMeshControls<DrawableQuadmesh<>>(&m_bbox,&gui));
 
     return gui.launch();
 }
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
 /** Map the distance field to the vertices of the mesh passed as argument
  * @param m a tet mesh **/
-void get_df(cinolib::DrawableTetmesh<> &m){
-
+void get_df(DrawableTetmesh<> &m){
     split_separating_simplices(m);
     std::vector<uint> bc = m.get_surface_verts();
     ScalarField d = compute_geodesics(m,bc,COTANGENT, 1.0, true);
     d.copy_to_mesh(m); //carica il campo scalare sui vertici (.vert_data(id).uvw)
-
 }
 
-/** Find the vertex with the maximum distance field value in the mesh passed as argument
- * @param m a tet mesh
- * @return the id of the vertex with the maximum distance from the surface **/
-uint max_df_point(cinolib::DrawableTetmesh<> &m){
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+/// Find the vertex with the minimum distance field value in the mesh passed as argument
+/// @param m a tet mesh
+/// @return the id of the vertex with the minimum distance from the surface
+uint max_df_point(DrawableTetmesh<> &m){
+
+    //trova il punto più vicino dalla superficie
+    uint point = 0;
+    for(int vid = 1; vid < m.num_verts(); vid++)
+        if(m.vert_data(vid).uvw[0] > m.vert_data(point).uvw[0])
+            point = vid;
+
+    m.vert_data(point).color = Color::BLUE();
+    m.show_in_vert_color();
+
+
+    std::cout << TXT_BOLDMAGENTA << "Vertice selezionato MIN: " << TXT_RESET << point << "\t";
+    std::cout << TXT_BOLDMAGENTA << "Valore del campo MIN: " << TXT_RESET << m.vert_data(point).uvw[0] << std::endl;
+
+    return point;
+}
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+/// Find the vertex with the maximum distance field value in the mesh passed as argument
+/// @param m a tet mesh
+/// @return the id of the vertex with the maximum distance from the surface
+uint min_df_point(DrawableTetmesh<> &m) {
 
     //trova il punto più lontano dalla superficie
-    uint center = 0;
+    uint point = 0;
     for(int vid = 1; vid < m.num_verts(); vid++)
-        if(m.vert_data(vid).uvw < m.vert_data(center).uvw)
-            center = vid;
+        if(m.vert_data(vid).uvw[0] < m.vert_data(point).uvw[0])
+            point = vid;
 
-    m.vert_data(center).color = Color::RED();
+    m.vert_data(point).color = Color::RED();
+    m.show_in_vert_color();
 
-    return center;
+    std::cout << TXT_BOLDBLUE << "Vertice selezionato MIN: " << TXT_RESET << point << "\t";
+    std::cout << TXT_BOLDBLUE << "Valore del campo MIN: " << TXT_RESET << m.vert_data(point).uvw[0] << std::endl;
+
+    return point;
+}
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+void remap_df(DrawableTetmesh<> &m, double shift) {
+
+    for(uint vid = 0; vid < m.num_verts(); vid++) {
+        m.vert_data(vid).uvw[0] *= -1.0;
+        m.vert_data(vid).uvw[0] += shift;
+    }
+
 }
