@@ -27,14 +27,30 @@ void remap_df(DrawableTetmesh<> &m, double shift);
  *          v1
 */
 
+//model macros
+#define ANT "../data/ant.mesh"
+#define ARMADILLO "../data/armadillo.mesh"
+#define BUNNY "../data/bunny.mesh"
+#define CHINESE_DRAGON "../data/chinese_dragon.mesh"
+#define DANCER_CHILDREN "../data/dancer_children.mesh"
+#define DAVID "../data/david.mesh"
+#define DRAGON "../data/dragon.mesh"
+#define GARGOYLE "../data/gargoyle.mesh"
+#define KITTEN "../data/kitten.mesh"
+#define KITTY "../data/kitty.mesh"
+#define MOUSE "../data/mouse.mesh"
+#define PIG "../data/pig.mesh"
+
 int main(int argc, char *argv[])
 {
     GLcanvas gui;
-    DrawableTetmesh<> m("/Users/federicomeloni/Documents/GitHub/MeshRepository/Volume/L12014_polycubes/kitty.mesh");
+    DrawableTetmesh<> m(ARMADILLO);
+    std::cout << std::endl;
 
     //surf_dist field
     get_df(m);
 
+    std::cout << std::endl << TXT_BOLDWHITE << "Pre remap:" << TXT_RESET << std::endl;
     //max surf_dist field point
     uint center = min_df_point(m);
     //min surf_dist field point
@@ -42,11 +58,19 @@ int main(int argc, char *argv[])
     //remap and invert the surf_dist field
     remap_df(m, m.vert_data(close).uvw[0]);
 
+    //check after remap
+    std::cout << std::endl << TXT_BOLDWHITE << "Post remap:" << TXT_RESET << std::endl;
+    std::cout << TXT_BOLDBLUE << "Vertice selezionato MIN: " << TXT_RESET << center << "\t";
+    std::cout << TXT_BOLDBLUE << "Valore del campo MIN: " << TXT_RESET << m.vert_data(center).uvw[0] << std::endl;
+    std::cout << TXT_BOLDBLUE << "Vertice selezionato MAX: " << TXT_RESET << close << "\t";
+    std::cout << TXT_BOLDBLUE << "Valore del campo MAX: " << TXT_RESET << m.vert_data(close).uvw[0] << std::endl;
+
     /*
     uint adj_center = m.adj_v2v(center)[0];
     double scale_factor = (m.vert_data(center).uvw[0] - );
     */
 
+    //find closest surface point and distance
     uint surf_vert;
     double surf_dist = inf_double;
     for(uint vid : m.get_surface_verts()) {
@@ -56,6 +80,8 @@ int main(int argc, char *argv[])
             surf_vert = vid;
         }
     }
+
+    //draw line between center of the sphere e che closest surface point
     DrawableSegmentSoup r;
     r.push_seg(m.vert(center), m.vert(surf_vert), Color::RED());
     gui.push(&r);
