@@ -20,11 +20,15 @@
 ├── CMakeLists.txt
 │
 │ DATASET
-├── spheres
+├── spheres                     # sphere models
+│   ├── sphere.mesh
+│   ├── sphere_coarse.mesh
 │   ├── sphere18.mesh
 │   ├── sphere31.mesh
 │   ├── sphere40.mesh
 │   └── sphere50.mesh
+├── data                        # tet models
+│   └── ···
 │
 │ MARKDOWN & OTHER DOCUMENTATION STUFF
 ├── README.md
