@@ -1,19 +1,16 @@
 #include <cinolib/gl/glcanvas.h>
+
 #include <cinolib/meshes/meshes.h>
 #include <cinolib/gl/volume_mesh_controls.h>
-#include <cinolib/drawable_segment_soup.h>
 
-#include <cinolib/geodesics.h>
-#include <cinolib/split_separating_simplices.h>
+#include <cinolib/drawable_octree.h>
+#include <cinolib/drawable_segment_soup.h>
+#include <cinolib/drawable_vector_field.h>
+#include <cinolib/drawable_arrow.h>
 
 #include "sphere_util.h"
 
 using namespace cinolib;
-
-void get_df(DrawableTetmesh<> &m);
-uint min_df_point(DrawableTetmesh<> &m);
-uint max_df_point(DrawableTetmesh<> &m);
-void remap_df(DrawableTetmesh<> &m, double shift);
 
 /*      Reference
  *      Tetrahedron:
@@ -43,126 +40,63 @@ void remap_df(DrawableTetmesh<> &m, double shift);
 
 int main(int argc, char *argv[])
 {
+    //UI
     GLcanvas gui;
-    DrawableTetmesh<> m(ARMADILLO);
-    std::cout << std::endl;
 
-    //surf_dist field
-    get_df(m);
+    //model
+    DrawableTetmesh<> m(KITTY);
+    gui.push(&m);
+    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&m, &gui));
+    //model srf
+    Trimesh<> srf;
+    export_surface(m, srf);
 
-    std::cout << std::endl << TXT_BOLDWHITE << "Pre remap:" << TXT_RESET << std::endl;
-    //max surf_dist field point
-    uint center = min_df_point(m);
-    //min surf_dist field point
-    uint close = max_df_point(m);
-    //remap and invert the surf_dist field
-    remap_df(m, m.vert_data(close).uvw[0]);
+    //octree build
+    Octree o;
+    o.build_from_mesh_polys(srf);
 
-    //check after remap
-    std::cout << std::endl << TXT_BOLDWHITE << "Post remap:" << TXT_RESET << std::endl;
-    std::cout << TXT_BOLDBLUE << "Vertice selezionato MIN: " << TXT_RESET << center << "\t";
-    std::cout << TXT_BOLDBLUE << "Valore del campo MIN: " << TXT_RESET << m.vert_data(center).uvw[0] << std::endl;
-    std::cout << TXT_BOLDBLUE << "Vertice selezionato MAX: " << TXT_RESET << close << "\t";
-    std::cout << TXT_BOLDBLUE << "Valore del campo MAX: " << TXT_RESET << m.vert_data(close).uvw[0] << std::endl;
-
-    /*
-    uint adj_center = m.adj_v2v(center)[0];
-    double scale_factor = (m.vert_data(center).uvw[0] - );
-    */
-
-    //find closest surface point and distance
-    uint surf_vert;
-    double surf_dist = inf_double;
-    for(uint vid : m.get_surface_verts()) {
-        double aux_distance = m.vert(center).dist(m.vert(vid));
-        if(m.vert(center).dist(m.vert(vid)) < surf_dist) {
-            surf_dist = aux_distance;
-            surf_vert = vid;
+    //distance field & sphere center/scale
+    uint center_vid = 0;
+    double center_dist = -inf_double;
+    for(uint vid=0; vid<m.num_verts(); vid++) {
+        //default
+        m.vert_data(vid).uvw[0] = 0;
+        //if not in the surface check the closest srf point and the distance to it
+        if(!m.vert_is_on_srf(vid)) {
+            m.vert_data(vid).uvw[0] = o.closest_point(m.vert(vid)).dist(m.vert(vid));
+            //check if its the max distance
+            if(m.vert_data(vid).uvw[0] > center_dist) {
+                center_vid = vid;
+                center_dist = m.vert_data(vid).uvw[0];
+            }
         }
     }
 
-    //draw line between center of the sphere e che closest surface point
-    DrawableSegmentSoup r;
-    r.push_seg(m.vert(center), m.vert(surf_vert), Color::RED());
-    gui.push(&r);
-
-    //sphere
+    //sphere build
     std::cout << std::endl << std::endl;
-    DrawableTetmesh<> sphere = get_sphere(m.vert(center), surf_dist, 50);
-    std::cout << std::endl << std::endl;
-
-    //canvas
-    gui.push(&m);
-    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&m,&gui));
+    DrawableTetmesh<> sphere = get_sphere(m.vert(center_vid), center_dist, 50);
+    std::cout << TXT_BOLDGREEN << "Centro: " << TXT_RESET << center_vid << " (" << m.vert(center_vid) << ")" << std::endl;
+    std::cout << TXT_BOLDGREEN << "Raggio sfera: " << TXT_RESET << center_dist << std::endl;
     gui.push(&sphere);
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&sphere,&gui));
 
-    return gui.launch();
-}
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-/** Map the distance field to the vertices of the mesh passed as argument
- * @param m a tet mesh **/
-void get_df(DrawableTetmesh<> &m){
-    split_separating_simplices(m);
-    std::vector<uint> bc = m.get_surface_verts();
-    ScalarField d = compute_geodesics(m,bc,COTANGENT, 1.0, true);
-    d.copy_to_mesh(m); //carica il campo scalare sui vertici (.vert_data(id).uvw)
-}
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-/// Find the vertex with the minimum distance field value in the mesh passed as argument
-/// @param m a tet mesh
-/// @return the id of the vertex with the minimum distance from the surface
-uint max_df_point(DrawableTetmesh<> &m){
-
-    //trova il punto più vicino dalla superficie
-    uint point = 0;
-    for(int vid = 1; vid < m.num_verts(); vid++)
-        if(m.vert_data(vid).uvw[0] > m.vert_data(point).uvw[0])
-            point = vid;
-
-    m.vert_data(point).color = Color::BLUE();
-    m.show_in_vert_color();
-
-
-    std::cout << TXT_BOLDMAGENTA << "Vertice selezionato MIN: " << TXT_RESET << point << "\t";
-    std::cout << TXT_BOLDMAGENTA << "Valore del campo MIN: " << TXT_RESET << m.vert_data(point).uvw[0] << std::endl;
-
-    return point;
-}
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-/// Find the vertex with the maximum distance field value in the mesh passed as argument
-/// @param m a tet mesh
-/// @return the id of the vertex with the maximum distance from the surface
-uint min_df_point(DrawableTetmesh<> &m) {
-
-    //trova il punto più lontano dalla superficie
-    uint point = 0;
-    for(int vid = 1; vid < m.num_verts(); vid++)
-        if(m.vert_data(vid).uvw[0] < m.vert_data(point).uvw[0])
-            point = vid;
-
-    m.vert_data(point).color = Color::RED();
-    m.show_in_vert_color();
-
-    std::cout << TXT_BOLDBLUE << "Vertice selezionato MIN: " << TXT_RESET << point << "\t";
-    std::cout << TXT_BOLDBLUE << "Valore del campo MIN: " << TXT_RESET << m.vert_data(point).uvw[0] << std::endl;
-
-    return point;
-}
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-void remap_df(DrawableTetmesh<> &m, double shift) {
-
-    for(uint vid = 0; vid < m.num_verts(); vid++) {
-        m.vert_data(vid).uvw[0] *= -1.0;
-        m.vert_data(vid).uvw[0] += shift;
+    //vector field for visualizing sphere normals
+    std::vector<vec3d> srf_verts;
+    std::vector<vec3d> srf_normals;
+    for(uint vid : sphere.get_surface_verts()) {
+        srf_verts.push_back(sphere.vert(vid));
+        srf_normals.push_back(sphere.vert_data(vid).normal * o.closest_point(sphere.vert(vid)).dist(sphere.vert(vid)));
     }
+    //DrawableVectorField vf(srf_normals,srf_verts);
+    //vf.set_arrow_size(0.1);
+    //gui.push(&vf);
 
+    std::vector<DrawableArrow> da;
+    for(uint vid = 0; vid < srf_verts.size(); vid++)
+        da.emplace_back(srf_verts[vid], srf_verts[vid] + srf_normals[vid] * o.closest_point(sphere.vert(vid)).dist(sphere.vert(vid)) * 10);
+
+    for(auto & id : da)
+        gui.push(&id);
+
+    return gui.launch();
 }

@@ -91,16 +91,12 @@ DrawableTetmesh<> get_sphere(const vec3d &center, const double &scale_factor, co
     //scale the sphere to the desired size
     coeff = scale_factor / (sphere.bbox().delta_x() / 2.0);
 
-    std::cout << TXT_BOLDMAGENTA << "Raggio prima: " << TXT_RESET << std::endl << sphere.bbox().delta_x()/2.0 << std::endl;
-    std::cout << TXT_BOLDMAGENTA << "Coeff: " << TXT_RESET << std::endl << coeff << std::endl;
-
     sphere.scale(coeff);
     sphere.translate(center);
 
     sphere.updateGL();
     sphere.update_bbox();
-
-    std::cout << TXT_BOLDGREEN << "Raggio dopo: " << TXT_RESET << std::endl << sphere.bbox().delta_x()/2.0 << std::endl;
+    sphere.mesh_data().filename = "sfera";
 
     return sphere;
 }
