@@ -13,18 +13,19 @@
 
 using namespace cinolib;
 
-void trasl_center(DrawableTetmesh<> &m);
+void transl_center(DrawableTetmesh<> &m);
 void scale_unicube(DrawableTetmesh<> &m);
 void mesh_standardizer(DrawableTetmesh<> &m);
 
 DrawableTetmesh<> get_sphere(const vec3d &center = vec3d(0.0, 0.0, 0.0),
                              const double &scale_factor = 1.0,
-                             const int &num_polys = 18);
+                             const int &num_polys = 252);
 
 DrawableTetmesh<> get_sphere18();
 DrawableTetmesh<> get_sphere31();
 DrawableTetmesh<> get_sphere40();
 DrawableTetmesh<> get_sphere50();
+DrawableTetmesh<> get_sphere252();
 
 void show_allspheres(GLcanvas &gui);
 

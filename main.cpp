@@ -1,4 +1,5 @@
 #include <cinolib/gl/glcanvas.h>
+#include <cinolib/gl/camera.h>
 
 #include <cinolib/meshes/meshes.h>
 #include <cinolib/gl/volume_mesh_controls.h>
@@ -38,18 +39,24 @@ using namespace cinolib;
 #define MOUSE "../data/mouse.mesh"
 #define PIG "../data/pig.mesh"
 
+#define PRINT_SPHERERADIUS 0
 #define PRINT_VECTORFIELD 0
-#define PRINT_ARROW 1
+#define PRINT_ARROW 0
 
 int main(int argc, char *argv[]) {
 
     //UI
     GLcanvas gui;
+    gui.show_side_bar = true;
+    gui.side_bar_alpha = 0.5;
+    // 1800 1035 -0.002324 -0.004054 -0.00237851 0.642835 0.435 -0.775047 0.631089 -0.0320702 0.000680942 -0.12701 -0.105865 0.986236 0.00162142 0.619007 0.768453 0.162205 0.00493968 0 0 0 1 1 0 0 -0 0 1 0 -0 0 0 1 -2.57134 0 0 0 1 1.02813 0 0 -0 0 1.78806 0 -0 0 0 -0.777805 -2 0 0 0 1
 
-    //model
+    //model vol
     DrawableTetmesh<> m(KITTY);
+    m.show_mesh_points();
     gui.push(&m);
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&m, &gui));
+
     //model srf
     Trimesh<> srf;
     export_surface(m, srf);
@@ -77,12 +84,18 @@ int main(int argc, char *argv[]) {
 
     //sphere build
     std::cout << std::endl << std::endl;
-    DrawableTetmesh<> sphere = get_sphere(m.vert(center_vid), center_dist, 50);
-    std::cout << TXT_BOLDGREEN << "Centro: " << TXT_RESET << center_vid << " (" << m.vert(center_vid) << ")"
-              << std::endl;
-    std::cout << TXT_BOLDGREEN << "Raggio sfera: " << TXT_RESET << center_dist << std::endl;
+    DrawableTetmesh<> sphere = get_sphere(m.vert(center_vid), center_dist);
     gui.push(&sphere, false);
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&sphere, &gui));
+
+    std::cout << TXT_BOLDGREEN << "Raggio sfera: " << TXT_RESET << sphere.bbox().delta_x() << std::endl;
+    std::cout << TXT_BOLDGREEN << "Centro: " << TXT_RESET << center_vid << " (" << sphere.centroid() << ")" << std::endl;
+
+#if PRINT_SPHERERADIUS == 1
+    DrawableSegmentSoup radius;
+    radius.push_seg(m.vert(center_vid), o.closest_point(m.vert(center_vid)));
+    gui.push(&radius);
+#endif
 
     //dir and vel of the movement
     std::vector<vec3d> srf_verts;
@@ -92,14 +105,14 @@ int main(int argc, char *argv[]) {
         srf_normals.push_back(sphere.vert_data(vid).normal * o.closest_point(sphere.vert(vid)).dist(sphere.vert(vid)));
     }
 
-    //print as vectorfield
+//print as vectorfield
 #if PRINT_VECTORFIELD == 1
     DrawableVectorField vf(srf_normals,srf_verts);
     vf.set_arrow_size(0.1);
     gui.push(&vf);
 #endif
 
-    //print as vector of arrows
+//print as vector of arrows
 #if PRINT_ARROW == 1
     std::vector<DrawableArrow> da;
     for (uint vid = 0; vid < srf_verts.size(); vid++)
