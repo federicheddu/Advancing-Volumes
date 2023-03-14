@@ -41,6 +41,7 @@ using namespace cinolib;
 
 #define PRINT_SPHERERADIUS 0
 #define PRINT_VECTORFIELD 0
+#define PRINT_SEGMENTS 0
 #define PRINT_ARROW 0
 
 int main(int argc, char *argv[]) {
@@ -110,6 +111,13 @@ int main(int argc, char *argv[]) {
     DrawableVectorField vf(srf_normals,srf_verts);
     vf.set_arrow_size(0.1);
     gui.push(&vf);
+#endif
+
+#if PRINT_SEGMENTS == 1
+    DrawableSegmentSoup segs;
+    for (uint vid = 0; vid < srf_verts.size(); vid++)
+        segs.push_seg(srf_verts[vid], srf_verts[vid] + srf_normals[vid]);
+    gui.push(&segs, false);
 #endif
 
 //print as vector of arrows
