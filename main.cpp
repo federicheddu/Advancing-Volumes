@@ -102,7 +102,8 @@ int main(int argc, char *argv[]) {
     //TODO [X] split su faccia con tasto
     //TODO [X] visualizzare info come vertici e facce inattive
 
-    //arrow visualization
+    //visualization
+    bool show_target = true;
     bool inactive_visual = false;
     bool dir_visual = false;
     std::vector<DrawableArrow> dir_arrows;
@@ -142,6 +143,12 @@ int main(int argc, char *argv[]) {
             sp.updateGL();
         }
 
+        //target visualization
+        if(key == GLFW_KEY_L) {
+            show_target = !show_target;
+            m.show_mesh(show_target);
+        }
+
         //vert movement
         if(key == GLFW_KEY_N) {
             std::cout << TXT_BOLDMAGENTA << "Vert advancement" << TXT_RESET << std::endl;
@@ -177,12 +184,34 @@ int main(int argc, char *argv[]) {
         if(key == GLFW_KEY_M) {
             std::cout << TXT_BOLDMAGENTA << "Surface poly split" << TXT_RESET << std::endl;
 
+            std::set<uint> edges_to_split;
+            std::map<uint, ipair> vert_map;
+
+            //from every surface get the surface poly
             for(uint fid : sp.get_surface_faces()) {
-                if(DOES_NOT_CONTAIN(inactive_faces, fid) && oct.closest_point(sp.face_centroid(fid)).dist(sp.face_centroid(fid)) > eps_inactive) {
-                    sp.face_split(fid);
-                } else {
-                    std::cout << TXT_BOLDBLUE << "Face inactive: " << fid << std::endl;
-                    inactive_faces.insert(fid);
+                uint pid = sp.adj_f2p(fid)[0];
+
+                //if the face is active
+                if(DOES_NOT_CONTAIN(inactive_faces, fid)) {
+                    edges_to_split.insert(sp.adj_p2e(pid).begin(), sp.adj_p2e(pid).end());
+                }
+            }
+
+            //split the edges
+            for(uint eid : edges_to_split) {
+                ipair og_edge = std::make_pair(sp.edge_vert_id(eid, 0), sp.edge_vert_id(eid, 1));
+                uint new_vert = sp.edge_split(eid);
+                vert_map.insert(std::make_pair(new_vert, og_edge));
+            }
+
+            //for every new vert
+            for(auto map_elem : vert_map) {
+                for(auto adj_vid : sp.adj_v2v(map_elem.first)) {
+                    //if the adj vert isn't new && isn't from the original edge
+                    if(vert_map.find(adj_vid) != vert_map.end() && adj_vid != map_elem.second.first && adj_vid != map_elem.second.second) {
+                        sp.edge_flip(sp.edge_id(map_elem.first, adj_vid));
+                        std::cout << TXT_BOLDBLUE << "Edge flip: " << sp.edge_id(map_elem.first, adj_vid) << std::endl;
+                    }
                 }
             }
 
