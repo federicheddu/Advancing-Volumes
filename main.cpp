@@ -36,6 +36,8 @@ using namespace cinolib;
 #define MOUSE "../data/mouse.mesh"
 #define PIG "../data/pig.mesh"
 
+uint query_map(std::map<ipair, uint> &vert_map, Tetmesh<> &m, uint pid, uint off0, uint off1);
+
 int main(int argc, char *argv[]) {
 
     //UI
@@ -101,6 +103,8 @@ int main(int argc, char *argv[]) {
     //TODO [X] fronte facce inattive
     //TODO [X] split su faccia con tasto
     //TODO [X] visualizzare info come vertici e facce inattive
+
+    //TODO [ ] propagazione su facce interne con la sostituzione del poliedro
 
     //visualization
     bool show_target = true;
@@ -184,36 +188,107 @@ int main(int argc, char *argv[]) {
         if(key == GLFW_KEY_M) {
             std::cout << TXT_BOLDMAGENTA << "Surface poly split" << TXT_RESET << std::endl;
 
-            std::set<uint> edges_to_split;
-            std::map<uint, ipair> vert_map;
+            std::set<uint> poly_to_split;
+            std::set<uint> poly_expansion;
+            std::map<ipair, uint> vert_map;
+            std::set<uint> poly_to_remove;
 
             //from every surface get the surface poly
             for(uint fid : sp.get_surface_faces()) {
-                uint pid = sp.adj_f2p(fid)[0];
-
-                //if the face is active
+                //if the face is active take the poly
                 if(DOES_NOT_CONTAIN(inactive_faces, fid)) {
-                    edges_to_split.insert(sp.adj_p2e(pid).begin(), sp.adj_p2e(pid).end());
-                }
-            }
-
-            //split the edges
-            for(uint eid : edges_to_split) {
-                ipair og_edge = std::make_pair(sp.edge_vert_id(eid, 0), sp.edge_vert_id(eid, 1));
-                uint new_vert = sp.edge_split(eid);
-                vert_map.insert(std::make_pair(new_vert, og_edge));
-            }
-
-            //for every new vert
-            for(auto map_elem : vert_map) {
-                for(auto adj_vid : sp.adj_v2v(map_elem.first)) {
-                    //if the adj vert isn't new && isn't from the original edge
-                    if(vert_map.find(adj_vid) != vert_map.end() && adj_vid != map_elem.second.first && adj_vid != map_elem.second.second) {
-                        sp.edge_flip(sp.edge_id(map_elem.first, adj_vid));
-                        std::cout << TXT_BOLDBLUE << "Edge flip: " << sp.edge_id(map_elem.first, adj_vid) << std::endl;
+                    poly_to_split.insert(sp.adj_f2p(fid)[0]);
+                    //for every edge of the poly
+                    for(uint eid : sp.adj_p2e(sp.adj_f2p(fid)[0])) {
+                        //save og edge as ordered pair
+                        ipair og_edge = std::make_pair(sp.edge_vert_id(eid, 0), sp.edge_vert_id(eid, 1));
+                        if (og_edge.first > og_edge.second)
+                            std::swap(og_edge.first, og_edge.second);
+                        //ad new vert in the middl of the edge and save it in the map with the og edge as key
+                        uint new_vert = sp.vert_add((sp.vert(og_edge.first) + sp.vert(og_edge.second)) / 2);
+                        vert_map.insert(std::make_pair(og_edge, new_vert));
                     }
                 }
             }
+
+            //for every poly to split
+            for(uint pid : poly_to_split) {
+
+                //for every poly edge
+                for(uint eid : sp.adj_p2e(pid))
+                    //check every adjacent poly
+                    for(uint adj_pid : sp.adj_e2p(eid))
+                        //if the poly is not on the surface
+                        if (DOES_NOT_CONTAIN(poly_to_split, adj_pid))
+                            //add the poly to the expansion set
+                            poly_expansion.insert(adj_pid);
+
+                //new polys following the template
+                std::vector<uint> poly_verts(4);
+
+                /// === upper tet ======================================================================================
+                poly_verts[0] = query_map(vert_map, sp, pid, 0, 3);     /*mid 0-3*/
+                poly_verts[1] = query_map(vert_map, sp, pid, 1, 3);     /*mid 1-3*/
+                poly_verts[2] = query_map(vert_map, sp, pid, 2, 3);     /*mid 2-3*/
+                poly_verts[3] = sp.poly_vert_id(pid, 3);                          /*vert 3*/
+                sp.poly_add(poly_verts);                                           /*poly add*/
+
+                /// === left tet =======================================================================================
+                poly_verts[0] = sp.poly_vert_id(pid, 0);                          /*vert 0*/
+                poly_verts[0] = query_map(vert_map, sp, pid, 0, 1);     /*mid 0-1*/
+                poly_verts[0] = query_map(vert_map, sp, pid, 0, 2);     /*mid 0-2*/
+                poly_verts[0] = query_map(vert_map, sp, pid, 0, 3);     /*mid 0-3*/
+                sp.poly_add(poly_verts);                                           /*poly add*/
+
+                /// === right tet ======================================================================================
+                poly_verts[0] = query_map(vert_map, sp, pid, 0, 2);     /*mid 0-2*/
+                poly_verts[1] = query_map(vert_map, sp, pid, 1, 2);     /*mid 1-2*/
+                poly_verts[2] = sp.poly_vert_id(pid, 2);                          /*vert 2*/
+                poly_verts[3] = query_map(vert_map, sp, pid, 2, 3);     /*mid 2-3*/
+                sp.poly_add(poly_verts);                                           /*poly add*/
+
+                /// === front tet ======================================================================================
+                poly_verts[0] = query_map(vert_map, sp, pid, 0, 1);     /*mid 0-1*/
+                poly_verts[1] = sp.poly_vert_id(pid, 1);                          /*vert 1*/
+                poly_verts[2] = query_map(vert_map, sp, pid, 1, 2);     /*mid 1-2*/
+                poly_verts[3] = query_map(vert_map, sp, pid, 1, 3);     /*mid 1-3*/
+                sp.poly_add(poly_verts);                                           /*poly add*/
+
+                /// === lower face tet =================================================================================
+                poly_verts[0] = query_map(vert_map, sp, pid, 0, 1);     /*mid 0-1*/
+                poly_verts[1] = query_map(vert_map, sp, pid, 0, 2);     /*mid 0-2*/
+                poly_verts[2] = query_map(vert_map, sp, pid, 1, 2);     /*mid 1-2*/
+                poly_verts[3] = query_map(vert_map, sp, pid, 1, 3);     /*mid 1-3*/
+                sp.poly_add(poly_verts);                                           /*poly add*/
+
+                /// === left face tet ==================================================================================
+                poly_verts[0] = query_map(vert_map, sp, pid, 0, 1);     /*mid 0-1*/
+                poly_verts[1] = query_map(vert_map, sp, pid, 1, 3);     /*mid 1-3*/
+                poly_verts[2] = query_map(vert_map, sp, pid, 0, 3);     /*mid 0-3*/
+                poly_verts[3] = query_map(vert_map, sp, pid, 0, 2);     /*mid 0-2*/
+                sp.poly_add(poly_verts);                                           /*poly add*/
+
+                /// === right face tet =================================================================================
+                poly_verts[0] = query_map(vert_map, sp, pid, 1, 2);     /*mid 1-2*/
+                poly_verts[1] = query_map(vert_map, sp, pid, 2, 3);     /*mid 2-3*/
+                poly_verts[2] = query_map(vert_map, sp, pid, 1, 3);     /*mid 1-3*/
+                poly_verts[3] = query_map(vert_map, sp, pid, 0, 2);     /*mid 0-2*/
+                sp.poly_add(poly_verts);                                           /*poly add*/
+
+                /// === back face tet ==================================================================================
+                poly_verts[0] = query_map(vert_map, sp, pid, 0, 3);     /*mid 0-3*/
+                poly_verts[1] = query_map(vert_map, sp, pid, 2, 3);     /*mid 2-3*/
+                poly_verts[2] = query_map(vert_map, sp, pid, 0, 2);     /*mid 0-2*/
+                poly_verts[3] = query_map(vert_map, sp, pid, 1, 3);     /*mid 1-3*/
+                sp.poly_add(poly_verts);                                           /*poly add*/
+
+            }
+
+            // expand to the adj to the surf polys
+            for(uint pid : poly_expansion) {
+                
+            }
+
 
             if(dir_visual)
                 updateArrows(sp, oct, dir_arrows, gui);
@@ -227,4 +302,14 @@ int main(int argc, char *argv[]) {
     };
 
     return gui.launch();
+}
+
+uint query_map(std::map<ipair, uint> &vert_map, Tetmesh<> &m, uint pid, uint off0, uint off1) {
+    ipair query_pair;
+    if(m.poly_vert_id(pid, off0) < m.poly_vert_id(pid, off1))
+        query_pair = std::make_pair(m.poly_vert_id(pid, off0) , m.poly_vert_id(pid, off1));
+    else
+        query_pair = std::make_pair(m.poly_vert_id(pid, off1) , m.poly_vert_id(pid, off0));
+
+    return vert_map.at(query_pair);
 }
