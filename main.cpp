@@ -36,6 +36,9 @@ using namespace cinolib;
 #define MOUSE "../data/mouse.mesh"
 #define PIG "../data/pig.mesh"
 
+bool flip2to2(Tetmesh<> &m, uint eid);
+bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1);
+
 int main(int argc, char *argv[]) {
 
     //UI
@@ -227,4 +230,86 @@ int main(int argc, char *argv[]) {
     };
 
     return gui.launch();
+}
+
+bool flip2to2(Tetmesh<> &m, uint eid) {
+    //edge must be on the surface and with only two polys adj
+    if(!m.edge_is_on_srf(eid)) return false;
+    if(m.adj_e2p(eid).size() != 2) return false;
+
+    uint pid_of = m.adj_e2p(eid).front(); //need the opp faces
+    uint pid_ov = m.adj_e2p(eid).back(); //need the opp vert of the non shared face
+    uint opp;
+
+    //for every adj face to the edge
+    for(uint fid : m.adj_e2f(eid))
+        //if its not the face shared between the polys
+        if(!m.poly_shared_face(pid_of, pid_ov) && m.poly_contains_face(fid, pid_ov))
+            opp = m.face_vert_opposite_to(fid, eid);
+
+    // construct all new elements
+    uint tets[2][4];
+    uint tet_id = 0;
+    for(uint fid : m.poly_faces_opposite_to(pid_of,eid)) {
+        tets[tet_id][0] = m.face_vert_id(fid, 0),
+        tets[tet_id][1] = m.face_vert_id(fid, 1),
+        tets[tet_id][2] = m.face_vert_id(fid, 2),
+        tets[tet_id][3] = opp;
+        if(m.poly_face_is_CCW(pid_of,fid)) std::swap(tets[tet_id][0], tets[tet_id][1]);
+        tet_id++;
+    }
+    assert(tet_id == 2);
+
+    // add new elements to the mesh
+    for(tet_id=0; tet_id < 2; tet_id++) {
+        uint new_pid = m.poly_add({tets[tet_id][0],
+                                       tets[tet_id][1],
+                                       tets[tet_id][2],
+                                       tets[tet_id][3]});
+        m.update_p_quality(new_pid);
+    }
+
+    m.edge_remove(eid);
+    return true;
+}
+
+bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1) {
+    std::vector<uint> cluster = m.adj_e2p(eid);
+    if(cluster.size() == 4) return false;
+
+    uint tet_id = 0;
+    uint tets[4][4];
+    //for every face adj to vid0
+    for(uint fid : m.adj_v2f(vid0)) {
+        //if the face doesnt contain the edge to flip
+        if (!m.face_contains_edge(fid, eid)) {
+            //check for every tet in the cluster
+            for (uint pid: cluster) {
+                //if the face is from one of the tets of the cluster
+                if (m.poly_contains_face(pid, fid)) {
+                    //every tet if formed from the face + vid1
+                    tets[tet_id][0] = m.face_vert_id(fid, 0),
+                    tets[tet_id][1] = m.face_vert_id(fid, 1),
+                    tets[tet_id][2] = m.face_vert_id(fid, 2),
+                    tets[tet_id][3] = vid1;
+                    //winding check
+                    if(m.poly_face_is_CCW(pid,fid)) std::swap(tets[tet_id][0], tets[tet_id][1]);
+                    tet_id++;
+                }
+            }
+        }
+    }
+    assert(tet_id==4);
+
+    // add new elements to the mesh
+    for(tet_id=0; tet_id < 4; tet_id++) {
+        uint new_pid = m.poly_add({tets[tet_id][0],
+                                   tets[tet_id][1],
+                                   tets[tet_id][2],
+                                   tets[tet_id][3]});
+        m.update_p_quality(new_pid);
+    }
+
+    m.edge_remove(eid);
+    return true;
 }
