@@ -36,6 +36,11 @@ using namespace cinolib;
 #define MOUSE "../data/mouse.mesh"
 #define PIG "../data/pig.mesh"
 
+typedef struct {
+    uint opp_vid;
+    ipair og_edge;
+} edge_to_flip;
+
 bool flip2to2(Tetmesh<> &m, uint eid);
 bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1);
 
@@ -194,72 +199,42 @@ int main( /* int argc, char *argv[] */ ) {
                 }
             }
 
-            //allocation for vert -> og edge map
-            uint map_size = edges_to_split.size();
-            uint** v_map = new uint*[map_size];
-            for (uint i = 0; i < map_size; i++)
-                v_map[i] = new uint[2];
-
             //spit the edges
-            int idx = 0;
+            uint new_vid;
+            ipair og_edge;
+            std::map<ipair, uint> v_map;
+            std::vector<edge_to_flip> edges_to_flip;
             for(uint eid : edges_to_split) {
-                v_map[idx][0] = sp.edge_vert_id(eid, 0);
-                v_map[idx][1] = sp.edge_vert_id(eid, 1);
-                sp.edge_split(eid);
-                idx++;
+                og_edge = unique_pair(sp.edge_vert_id(eid, 0), sp.edge_vert_id(eid, 1));
+
+                //check if the edges created will need to be flipped
+                for(uint fid : sp.adj_e2f(eid))
+                    if(sp.face_vert_opposite_to(fid, eid) < offset) {
+                        edge_to_flip etf;
+                        etf.opp_vid = sp.face_vert_opposite_to(fid, eid);
+                        etf.og_edge = og_edge;
+                        edges_to_flip.emplace_back(etf);
+                    }
+
+                new_vid = sp.edge_split(eid);
+                v_map.emplace(og_edge,new_vid);
             }
 
             uint num_verts = sp.num_verts();
             std::cout << TXT_BOLDWHITE << "Num verts after split: " << num_verts << TXT_RESET << std::endl;
 
-
             //for every new vert
-            for(uint vid = offset; vid < num_verts; vid++) {
-                std::cout << std::endl << TXT_BOLDYELLOW << "vid: " << vid << TXT_RESET << std::endl;
-                uint map_vid = vid - offset;
+            for(auto etf : edges_to_flip) {
+                uint vid = v_map.at(etf.og_edge);
+                uint eid = sp.edge_id(vid, etf.opp_vid);
 
-                for(uint adj_vid : sp.adj_v2v(vid)) {
-                    std::cout << TXT_BOLDWHITE << "Adj vid: " << adj_vid << TXT_RESET << std::endl;
-
-                    //if the adj vert isn't new && isn't from the original edge
-                    if(adj_vid < offset && adj_vid != v_map[map_vid][0] && adj_vid != v_map[map_vid][1]) {
-                        uint eid = sp.edge_id(vid, adj_vid);
-                        std::cout << TXT_BOLDWHITE << "Edge ID: " << eid << TXT_RESET << std::endl;
-
-                        //if the edge isnt on the surface flip 4-4 else 2-2
-                        if(!sp.edge_is_on_srf(eid)) {
-                            std::cout << TXT_BOLDWHITE << "Flip 4-4" << TXT_RESET << std::endl;
-                            uint vid0 = 0, vid1 = 0;
-
-                            for(uint i = 0; i < offset && vid0*vid1 == 0; i++) {
-                                if (v_map[i][0] == adj_vid || v_map[i][1] == adj_vid) {
-                                    std::cout << TXT_GREEN << "Vid0/1 candidate found" << TXT_RESET << std::endl;
-                                    if (v_map[i][0] == v_map[map_vid][0] || v_map[i][1] == v_map[map_vid][0]) {
-                                        std::cout << TXT_BOLDWHITE << "Vid0 found" << TXT_RESET << std::endl;
-                                        vid0 = i+offset;
-                                    } else if (v_map[i][0] == v_map[map_vid][1] || v_map[i][1] == v_map[map_vid][1]) {
-                                        std::cout << TXT_BOLDWHITE << "Vid1 found" << TXT_RESET << std::endl;
-                                        vid1 = i+offset;
-                                    }
-                                }
-                            }
-
-                            std::cout << TXT_BOLDBLUE << "Flip 4-4 - eid: " << eid << " - Result: " << flip4to4(sp, eid, vid0, vid1) << TXT_RESET << std::endl;
-
-                        } else {
-
-                            std::cout << TXT_BOLDWHITE << "Flit 2-2" << TXT_RESET << std::endl;
-                            std::cout << TXT_BOLDBLUE << "Flip 2-2 - eid: " << eid << " - Result: " << flip2to2(sp, eid) << TXT_RESET << std::endl;
-
-                        }
-                    }
-                }
+                if(!sp.edge_is_on_srf(eid)) {
+                    uint vid0 = v_map.at(unique_pair(etf.og_edge.first, etf.opp_vid));
+                    uint vid1 = v_map.at(unique_pair(etf.og_edge.second, etf.opp_vid));
+                    flip4to4(sp, eid, vid0, vid1);
+                } else
+                    flip2to2(sp, eid);
             }
-
-            //deallocation of the vert map
-            for (int i = 0; i < map_size; ++i)
-                delete [] v_map[i];
-            delete [] v_map;
 
             if(dir_visual)
                 updateArrows(sp, oct, dir_arrows, gui);
