@@ -39,7 +39,7 @@ using namespace cinolib;
 bool flip2to2(Tetmesh<> &m, uint eid);
 bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1);
 
-int main(int argc, char *argv[]) {
+int main( /* int argc, char *argv[] */ ) {
 
     //UI
     GLcanvas gui;
@@ -97,13 +97,6 @@ int main(int argc, char *argv[]) {
 // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    //TODO [X] avanzamento 25% freccia con tasto
-    //TODO [X] definire distanza inattività del fronte
-    //TODO [X] fronte vertici inattivi
-    //TODO [X] fronte facce inattive
-    //TODO [X] split su faccia con tasto
-    //TODO [X] visualizzare info come vertici e facce inattive
 
     //visualization
     bool show_target = true;
@@ -187,8 +180,9 @@ int main(int argc, char *argv[]) {
         if(key == GLFW_KEY_M) {
             std::cout << TXT_BOLDMAGENTA << "Surface poly split" << TXT_RESET << std::endl;
 
+            uint offset = sp.num_verts();
+            std::cout << TXT_BOLDWHITE << "Num verts pre split: " << offset << TXT_RESET << std::endl;
             std::set<uint> edges_to_split;
-            std::map<uint, ipair> vert_map;
 
             //from every surface get the surface poly
             for(uint fid : sp.get_surface_faces()) {
@@ -200,23 +194,72 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            //split the edges
+            //allocation for vert -> og edge map
+            uint map_size = edges_to_split.size();
+            uint** v_map = new uint*[map_size];
+            for (uint i = 0; i < map_size; i++)
+                v_map[i] = new uint[2];
+
+            //spit the edges
+            int idx = 0;
             for(uint eid : edges_to_split) {
-                ipair og_edge = std::make_pair(sp.edge_vert_id(eid, 0), sp.edge_vert_id(eid, 1));
-                uint new_vert = sp.edge_split(eid);
-                vert_map.insert(std::make_pair(new_vert, og_edge));
+                v_map[idx][0] = sp.edge_vert_id(eid, 0);
+                v_map[idx][1] = sp.edge_vert_id(eid, 1);
+                sp.edge_split(eid);
+                idx++;
             }
 
+            uint num_verts = sp.num_verts();
+            std::cout << TXT_BOLDWHITE << "Num verts after split: " << num_verts << TXT_RESET << std::endl;
+
+
             //for every new vert
-            for(auto map_elem : vert_map) {
-                for(auto adj_vid : sp.adj_v2v(map_elem.first)) {
+            for(uint vid = offset; vid < num_verts; vid++) {
+                std::cout << std::endl << TXT_BOLDYELLOW << "vid: " << vid << TXT_RESET << std::endl;
+                uint map_vid = vid - offset;
+
+                for(uint adj_vid : sp.adj_v2v(vid)) {
+                    std::cout << TXT_BOLDWHITE << "Adj vid: " << adj_vid << TXT_RESET << std::endl;
+
                     //if the adj vert isn't new && isn't from the original edge
-                    if(vert_map.find(adj_vid) != vert_map.end() && adj_vid != map_elem.second.first && adj_vid != map_elem.second.second) {
-                        sp.edge_flip(sp.edge_id(map_elem.first, adj_vid));
-                        std::cout << TXT_BOLDBLUE << "Edge flip: " << sp.edge_id(map_elem.first, adj_vid) << std::endl;
+                    if(adj_vid < offset && adj_vid != v_map[map_vid][0] && adj_vid != v_map[map_vid][1]) {
+                        uint eid = sp.edge_id(vid, adj_vid);
+                        std::cout << TXT_BOLDWHITE << "Edge ID: " << eid << TXT_RESET << std::endl;
+
+                        //if the edge isnt on the surface flip 4-4 else 2-2
+                        if(!sp.edge_is_on_srf(eid)) {
+                            std::cout << TXT_BOLDWHITE << "Flip 4-4" << TXT_RESET << std::endl;
+                            uint vid0 = 0, vid1 = 0;
+
+                            for(uint i = 0; i < offset && vid0*vid1 == 0; i++) {
+                                if (v_map[i][0] == adj_vid || v_map[i][1] == adj_vid) {
+                                    std::cout << TXT_GREEN << "Vid0/1 candidate found" << TXT_RESET << std::endl;
+                                    if (v_map[i][0] == v_map[map_vid][0] || v_map[i][1] == v_map[map_vid][0]) {
+                                        std::cout << TXT_BOLDWHITE << "Vid0 found" << TXT_RESET << std::endl;
+                                        vid0 = i+offset;
+                                    } else if (v_map[i][0] == v_map[map_vid][1] || v_map[i][1] == v_map[map_vid][1]) {
+                                        std::cout << TXT_BOLDWHITE << "Vid1 found" << TXT_RESET << std::endl;
+                                        vid1 = i+offset;
+                                    }
+                                }
+                            }
+
+                            std::cout << TXT_BOLDBLUE << "Flip 4-4 - eid: " << eid << " - Result: " << flip4to4(sp, eid, vid0, vid1) << TXT_RESET << std::endl;
+
+                        } else {
+
+                            std::cout << TXT_BOLDWHITE << "Flit 2-2" << TXT_RESET << std::endl;
+                            std::cout << TXT_BOLDBLUE << "Flip 2-2 - eid: " << eid << " - Result: " << flip2to2(sp, eid) << TXT_RESET << std::endl;
+
+                        }
                     }
                 }
             }
+
+            //deallocation of the vert map
+            for (int i = 0; i < map_size; ++i)
+                delete [] v_map[i];
+            delete [] v_map;
 
             if(dir_visual)
                 updateArrows(sp, oct, dir_arrows, gui);
@@ -237,14 +280,13 @@ bool flip2to2(Tetmesh<> &m, uint eid) {
     if(!m.edge_is_on_srf(eid)) return false;
     if(m.adj_e2p(eid).size() != 2) return false;
 
-    uint pid_of = m.adj_e2p(eid).front(); //need the opp faces
-    uint pid_ov = m.adj_e2p(eid).back(); //need the opp vert of the non shared face
+    uint pid_of = m.adj_e2p(eid)[0]; //need the opp faces
+    uint pid_ov = m.adj_e2p(eid)[1]; //need the opp vert of the non shared face
     uint opp;
 
     //for every adj face to the edge
-    for(uint fid : m.adj_e2f(eid))
-        //if its not the face shared between the polys
-        if(!m.poly_shared_face(pid_of, pid_ov) && m.poly_contains_face(fid, pid_ov))
+    for(uint fid : m.poly_e2f(pid_ov, eid))
+        if(m.face_is_on_srf(fid))
             opp = m.face_vert_opposite_to(fid, eid);
 
     // construct all new elements
@@ -262,6 +304,7 @@ bool flip2to2(Tetmesh<> &m, uint eid) {
 
     // add new elements to the mesh
     for(tet_id=0; tet_id < 2; tet_id++) {
+        std::cout << TXT_BOLDYELLOW << "Adding new tet w/ verts: " << tets[tet_id][0] << " - " << tets[tet_id][1] << " - " << tets[tet_id][2] << " - " << tets[tet_id][3] << TXT_RESET << std::endl;
         uint new_pid = m.poly_add({tets[tet_id][0],
                                        tets[tet_id][1],
                                        tets[tet_id][2],
@@ -276,6 +319,7 @@ bool flip2to2(Tetmesh<> &m, uint eid) {
 bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1) {
     std::vector<uint> cluster = m.adj_e2p(eid);
     if(cluster.size() == 4) return false;
+    if(vid0*vid1 == 0) return false;
 
     uint tet_id = 0;
     uint tets[4][4];
@@ -284,13 +328,13 @@ bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1) {
         //if the face doesnt contain the edge to flip
         if (!m.face_contains_edge(fid, eid)) {
             //check for every tet in the cluster
-            for (uint pid: cluster) {
+            for (uint pid : cluster) {
                 //if the face is from one of the tets of the cluster
                 if (m.poly_contains_face(pid, fid)) {
                     //every tet if formed from the face + vid1
-                    tets[tet_id][0] = m.face_vert_id(fid, 0),
-                    tets[tet_id][1] = m.face_vert_id(fid, 1),
-                    tets[tet_id][2] = m.face_vert_id(fid, 2),
+                    tets[tet_id][0] = m.face_vert_id(fid, 0);
+                    tets[tet_id][1] = m.face_vert_id(fid, 1);
+                    tets[tet_id][2] = m.face_vert_id(fid, 2);
                     tets[tet_id][3] = vid1;
                     //winding check
                     if(m.poly_face_is_CCW(pid,fid)) std::swap(tets[tet_id][0], tets[tet_id][1]);
@@ -299,10 +343,11 @@ bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1) {
             }
         }
     }
-    assert(tet_id==4);
+    assert(tet_id == 4);
 
     // add new elements to the mesh
     for(tet_id=0; tet_id < 4; tet_id++) {
+        // std::cout << TXT_BOLDYELLOW << "Adding new tet w/ verts: " << tets[tet_id][0] << " - " << tets[tet_id][1] << " - " << tets[tet_id][2] << " - " << tets[tet_id][3] << TXT_RESET << std::endl;
         uint new_pid = m.poly_add({tets[tet_id][0],
                                    tets[tet_id][1],
                                    tets[tet_id][2],
