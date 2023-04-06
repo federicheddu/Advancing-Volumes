@@ -41,8 +41,9 @@ typedef struct {
     ipair og_edge;
 } edge_to_flip;
 
-bool flip2to2(Tetmesh<> &m, uint eid);
-bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1);
+void split_n_flip(DrawableTetmesh<> &m);
+bool flip2to2(DrawableTetmesh<> &m, uint eid);
+bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
 
 int main( /* int argc, char *argv[] */ ) {
 
@@ -58,45 +59,45 @@ int main( /* int argc, char *argv[] */ ) {
     std::cout << std::endl << TXT_BOLDMAGENTA << "Model loading" << TXT_RESET << std::endl;
 
     //model vol
-    DrawableTetmesh<> m(KITTY);
-    m.show_mesh_points();
-    gui.push(&m);
-    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&m, &gui));
+    DrawableTetmesh<> vol(KITTY);
+    vol.show_mesh_points();
+    gui.push(&vol);
+    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&vol, &gui));
 
     //model srf
     Trimesh<> srf;
-    export_surface(m, srf);
+    export_surface(vol, srf);
 
     //octree build
     Octree oct;
     oct.build_from_mesh_polys(srf);
 
-    //distance field & sp center/scale
+    //distance field & m center/scale
     uint center_vid = 0;
     double center_dist = -inf_double;
-    for (uint vid = 0; vid < m.num_verts(); vid++) {
+    for (uint vid = 0; vid < vol.num_verts(); vid++) {
         //default
-        m.vert_data(vid).uvw[0] = 0;
+        vol.vert_data(vid).uvw[0] = 0;
         //if not in the surface check the closest srf point and the distance to it
-        if (!m.vert_is_on_srf(vid)) {
-            m.vert_data(vid).uvw[0] = oct.closest_point(m.vert(vid)).dist(m.vert(vid));
+        if (!vol.vert_is_on_srf(vid)) {
+            vol.vert_data(vid).uvw[0] = oct.closest_point(vol.vert(vid)).dist(vol.vert(vid));
             //check if its max distance
-            if (m.vert_data(vid).uvw[0] > center_dist) {
+            if (vol.vert_data(vid).uvw[0] > center_dist) {
                 center_vid = vid;
-                center_dist = m.vert_data(vid).uvw[0];
+                center_dist = vol.vert_data(vid).uvw[0];
             }
         }
     }
 
-    //sp build
+    //m build
     std::cout << std::endl << TXT_BOLDMAGENTA << "Sphere loading" << TXT_RESET << std::endl;
-    DrawableTetmesh<> sp = get_sphere(m.vert(center_vid), center_dist);
-    sp.poly_set_color(Color::PASTEL_YELLOW());
-    gui.push(&sp, false);
-    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&sp, &gui));
+    DrawableTetmesh<> m = get_sphere(vol.vert(center_vid), center_dist);
+    m.poly_set_color(Color::PASTEL_YELLOW());
+    gui.push(&m, false);
+    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&m, &gui));
 
-    std::cout << TXT_BOLDGREEN << "Raggio sfera: " << TXT_RESET << sp.bbox().delta_x() << std::endl;
-    std::cout << TXT_BOLDGREEN << "Centro: " << TXT_RESET << center_vid << " (" << sp.centroid() << ")" << std::endl;
+    std::cout << TXT_BOLDGREEN << "Raggio sfera: " << TXT_RESET << m.bbox().delta_x() << std::endl;
+    std::cout << TXT_BOLDGREEN << "Centro: " << TXT_RESET << center_vid << " (" << m.centroid() << ")" << std::endl;
     std::cout << std::endl << std::endl;
 
 // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -124,7 +125,7 @@ int main( /* int argc, char *argv[] */ ) {
 
             if(dir_visual) {
                 std::cout << TXT_BOLDMAGENTA << "Movement direction: ON" << TXT_RESET << std::endl;
-                showArrows(sp, oct, dir_arrows, gui);
+                showArrows(m, oct, dir_arrows, gui);
             } else {
                 std::cout << TXT_BOLDMAGENTA << "Movement direction: OFF" << TXT_RESET << std::endl;
                 deleteArrows(dir_arrows, gui);
@@ -137,17 +138,17 @@ int main( /* int argc, char *argv[] */ ) {
             inactive_visual = !inactive_visual;
 
             if(inactive_visual)
-                showInactive(sp, inactive_verts, inactive_faces);
+                showInactive(m, inactive_verts, inactive_faces);
             else
-                hideInactive(sp, inactive_verts, inactive_faces);
+                hideInactive(m, inactive_verts, inactive_faces);
 
-            sp.updateGL();
+            m.updateGL();
         }
 
         //target visualization
         if(key == GLFW_KEY_L) {
             show_target = !show_target;
-            m.show_mesh(show_target);
+            vol.show_mesh(show_target);
         }
 
         //vert movement
@@ -155,17 +156,17 @@ int main( /* int argc, char *argv[] */ ) {
             std::cout << TXT_BOLDMAGENTA << "Vert advancement" << TXT_RESET << std::endl;
 
             //every vert on the surf is moved
-            for(uint vid : sp.get_surface_verts()) {
+            for(uint vid : m.get_surface_verts()) {
 
                 // if the vert is active
                 if(DOES_NOT_CONTAIN(inactive_verts, vid)) {
 
                     // vert moved
-                    sp.vert(vid) += sp.vert_data(vid).normal * oct.closest_point(sp.vert(vid)).dist(sp.vert(vid)) * mov_speed;
+                    m.vert(vid) += m.vert_data(vid).normal * oct.closest_point(m.vert(vid)).dist(m.vert(vid)) * mov_speed;
 
 
                     //if the distance from the target is under the eps the vert becomes inactive
-                    if (oct.closest_point(sp.vert(vid)).dist(sp.vert(vid)) * mov_speed < eps_inactive) {
+                    if (oct.closest_point(m.vert(vid)).dist(m.vert(vid)) * mov_speed < eps_inactive) {
                         std::cout << TXT_BOLDBLUE << "Vert inactive: " << vid << std::endl;
                         inactive_verts.insert(vid);
                     }
@@ -175,73 +176,15 @@ int main( /* int argc, char *argv[] */ ) {
             }
 
             if(dir_visual)
-                updateArrows(sp, oct, dir_arrows, gui);
+                updateArrows(m, oct, dir_arrows, gui);
             if(inactive_visual)
-                showInactive(sp, inactive_verts, inactive_faces);
-            sp.updateGL();
+                showInactive(m, inactive_verts, inactive_faces);
+            m.updateGL();
         }
 
         //poly split
-        if(key == GLFW_KEY_M) {
-            std::cout << TXT_BOLDMAGENTA << "Surface poly split" << TXT_RESET << std::endl;
-
-            uint offset = sp.num_verts();
-            std::cout << TXT_BOLDWHITE << "Num verts pre split: " << offset << TXT_RESET << std::endl;
-            std::set<uint> edges_to_split;
-
-            //from every surface get the surface poly
-            for(uint fid : sp.get_surface_faces()) {
-                uint pid = sp.adj_f2p(fid)[0];
-
-                //if the face is active
-                if(DOES_NOT_CONTAIN(inactive_faces, fid)) {
-                    edges_to_split.insert(sp.adj_p2e(pid).begin(), sp.adj_p2e(pid).end());
-                }
-            }
-
-            //spit the edges
-            uint new_vid;
-            ipair og_edge;
-            std::map<ipair, uint> v_map;
-            std::vector<edge_to_flip> edges_to_flip;
-            for(uint eid : edges_to_split) {
-                og_edge = unique_pair(sp.edge_vert_id(eid, 0), sp.edge_vert_id(eid, 1));
-
-                //check if the edges created will need to be flipped
-                for(uint fid : sp.adj_e2f(eid))
-                    if(sp.face_vert_opposite_to(fid, eid) < offset) {
-                        edge_to_flip etf;
-                        etf.opp_vid = sp.face_vert_opposite_to(fid, eid);
-                        etf.og_edge = og_edge;
-                        edges_to_flip.emplace_back(etf);
-                    }
-
-                new_vid = sp.edge_split(eid);
-                v_map.emplace(og_edge,new_vid);
-            }
-
-            uint num_verts = sp.num_verts();
-            std::cout << TXT_BOLDWHITE << "Num verts after split: " << num_verts << TXT_RESET << std::endl;
-
-            //for every new vert
-            for(auto etf : edges_to_flip) {
-                uint vid = v_map.at(etf.og_edge);
-                uint eid = sp.edge_id(vid, etf.opp_vid);
-
-                if(!sp.edge_is_on_srf(eid)) {
-                    uint vid0 = v_map.at(unique_pair(etf.og_edge.first, etf.opp_vid));
-                    uint vid1 = v_map.at(unique_pair(etf.og_edge.second, etf.opp_vid));
-                    flip4to4(sp, eid, vid0, vid1);
-                } else
-                    flip2to2(sp, eid);
-            }
-
-            if(dir_visual)
-                updateArrows(sp, oct, dir_arrows, gui);
-            if(inactive_visual)
-                showInactive(sp, inactive_verts, inactive_faces);
-            sp.updateGL();
-        }
+        if(key == GLFW_KEY_M)
+            split_n_flip(m);
 
 
         return false;
@@ -250,10 +193,109 @@ int main( /* int argc, char *argv[] */ ) {
     return gui.launch();
 }
 
-bool flip2to2(Tetmesh<> &m, uint eid) {
+void split_n_flip(DrawableTetmesh<> &m) {
+    std::cout << TXT_BOLDMAGENTA << "Surface poly split" << TXT_RESET << std::endl;
+
+    uint offset = m.num_verts();
+    std::cout << TXT_BOLDWHITE << "Num verts pre split: " << offset << TXT_RESET << std::endl;
+    std::set<uint> edges_to_split;
+
+    //from every surface get the surface poly
+    for(uint fid : m.get_surface_faces()) {
+        uint pid = m.adj_f2p(fid)[0];
+
+        edges_to_split.insert(m.adj_p2e(pid).begin(), m.adj_p2e(pid).end());
+    }
+
+    //split parameters
+    uint new_vid;
+    ipair og_edge;
+    std::map<ipair, uint> v_map;
+    std::queue<edge_to_flip> edges_to_flip;
+    //split all the edges in the set
+    for(uint eid : edges_to_split) {
+        og_edge = unique_pair(m.edge_vert_id(eid, 0), m.edge_vert_id(eid, 1));
+
+        //check if the edges created will need to be flipped
+        for(uint fid : m.adj_e2f(eid))
+            if(m.face_vert_opposite_to(fid, eid) < offset) {
+                edge_to_flip etf;
+                etf.opp_vid = m.face_vert_opposite_to(fid, eid);
+                etf.og_edge = og_edge;
+                edges_to_flip.push(etf);
+            }
+
+        //split and map update
+        new_vid = m.edge_split(eid);
+        v_map.emplace(og_edge,new_vid);
+    }
+
+    //some info
+    uint num_verts = m.num_verts();
+    std::cout << TXT_BOLDWHITE << "Num verts after split: " << num_verts << TXT_RESET << std::endl;
+
+    //flip every edge we need to
+    while(!edges_to_flip.empty()) {
+
+        //retrieve the info
+        edge_to_flip etf = edges_to_flip.front();
+        uint vid = v_map.at(etf.og_edge);
+        uint eid = m.edge_id(vid, etf.opp_vid);
+
+        //if the edge isnt on the srf we do the flip 4-4
+        if(!m.edge_is_on_srf(eid)) {
+
+            //flip parameters
+            uint vid0, vid1;
+            ipair query_pair;
+
+            //query for the parameter vids for the flip
+            query_pair = unique_pair(etf.og_edge.first, etf.opp_vid);
+            vid0 = v_map.count(query_pair) ? v_map.at(query_pair) : 0;
+            query_pair = unique_pair(etf.og_edge.second, etf.opp_vid);
+            vid1 = v_map.count(query_pair) ? v_map.at(query_pair) : 0;
+
+            //if the vids are both found we can do the flip
+            if(vid0 * vid1 != 0) {
+                //flip
+                std::cout << TXT_BOLDBLUE << "Flip 4-4 : edge " << m.edge_vert_id(eid, 0) << " - " << m.edge_vert_id(eid, 1) << std::endl;
+                bool result = flip4to4(m, eid, vid0, vid1);
+                std::cout << (result ? TXT_BOLDGREEN : TXT_BOLDRED) << "Result " << result << TXT_RESET << std::endl << std::endl;
+                //if we cant do the flip now we can do it in the future
+                if(!result) edges_to_flip.push(etf);
+            }
+
+        //if not we do the flip 2-2
+        } else {
+
+            //flip
+            std::cout << TXT_BOLDBLUE << "Flip 2-2 : edge " << m.edge_vert_id(eid, 0) << " - " << m.edge_vert_id(eid, 1) << std::endl;
+            bool result = flip2to2(m, eid);
+            std::cout << (result ? TXT_BOLDGREEN : TXT_BOLDRED) << "Result " << result << TXT_RESET << std::endl << std::endl;
+            //if we cant do the flip now we can to id in the future
+            if(!result) edges_to_flip.push(etf);
+
+        }
+
+        edges_to_flip.pop();
+    }
+
+    m.updateGL();
+}
+
+bool flip2to2(DrawableTetmesh<> &m, uint eid) {
+
     //edge must be on the surface and with only two polys adj
-    if(!m.edge_is_on_srf(eid)) return false;
-    if(m.adj_e2p(eid).size() != 2) return false;
+    if(!m.edge_is_on_srf(eid)) {
+        std::cout << TXT_BOLDRED << "edge not on the srf" << TXT_RESET << std::endl;
+        return false;
+    }
+    if(m.adj_e2p(eid).size() != 2) {
+        std::cout << TXT_BOLDRED << "cluster size is not 2 -> edge " << m.edge_vert_id(eid, 0) << " - " << m.edge_vert_id(eid, 1) << " / size: " << m.adj_e2p(eid).size() << TXT_RESET << std::endl;
+        //for(uint pid : m.adj_e2p(eid))
+        //    std::cout << m.poly_vert_id(pid, 0) << " - " << m.poly_vert_id(pid, 1) << " - " << m.poly_vert_id(pid, 2) << " - " << m.poly_vert_id(pid, 3) << std::endl;
+        return false;
+    }
 
     uint pid_of = m.adj_e2p(eid)[0]; //need the opp faces
     uint pid_ov = m.adj_e2p(eid)[1]; //need the opp vert of the non shared face
@@ -279,11 +321,11 @@ bool flip2to2(Tetmesh<> &m, uint eid) {
 
     // add new elements to the mesh
     for(tet_id=0; tet_id < 2; tet_id++) {
-        std::cout << TXT_BOLDYELLOW << "Adding new tet w/ verts: " << tets[tet_id][0] << " - " << tets[tet_id][1] << " - " << tets[tet_id][2] << " - " << tets[tet_id][3] << TXT_RESET << std::endl;
+        //std::cout << TXT_BOLDYELLOW << "Adding new tet w/ verts: " << tets[tet_id][0] << " - " << tets[tet_id][1] << " - " << tets[tet_id][2] << " - " << tets[tet_id][3] << TXT_RESET << std::endl;
         uint new_pid = m.poly_add({tets[tet_id][0],
-                                       tets[tet_id][1],
-                                       tets[tet_id][2],
-                                       tets[tet_id][3]});
+                                   tets[tet_id][1],
+                                   tets[tet_id][2],
+                                   tets[tet_id][3]});
         m.update_p_quality(new_pid);
     }
 
@@ -291,10 +333,18 @@ bool flip2to2(Tetmesh<> &m, uint eid) {
     return true;
 }
 
-bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1) {
+bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
     std::vector<uint> cluster = m.adj_e2p(eid);
-    if(cluster.size() == 4) return false;
-    if(vid0*vid1 == 0) return false;
+    if(cluster.size() != 4) {
+        std::cout << TXT_BOLDRED << "cluster size is not 4 -> edge " << m.edge_vert_id(eid, 0) << " - " << m.edge_vert_id(eid, 1) << " / size: " << m.adj_e2p(eid).size() << TXT_RESET << std::endl;
+        //for(uint pid : m.adj_e2p(eid))
+        //    std::cout << m.poly_vert_id(pid, 0) << " - " << m.poly_vert_id(pid, 1) << " - " << m.poly_vert_id(pid, 2) << " - " << m.poly_vert_id(pid, 3) << std::endl;
+        return false;
+    }
+    if(vid0*vid1 == 0) {
+        std::cout << TXT_BOLDRED << "edge on the srf" << TXT_RESET << std::endl;
+        return false;
+    }
 
     uint tet_id = 0;
     uint tets[4][4];
