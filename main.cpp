@@ -203,7 +203,6 @@ void split_n_flip(DrawableTetmesh<> &m) {
     //from every surface get the surface poly
     for(uint fid : m.get_surface_faces()) {
         uint pid = m.adj_f2p(fid)[0];
-
         edges_to_split.insert(m.adj_p2e(pid).begin(), m.adj_p2e(pid).end());
     }
 
@@ -234,7 +233,7 @@ void split_n_flip(DrawableTetmesh<> &m) {
     uint num_verts = m.num_verts();
     std::cout << TXT_BOLDWHITE << "Num verts after split: " << num_verts << TXT_RESET << std::endl;
 
-    //flip every edge we need to
+    //* flip every edge we need to
     std::map<ipair, uint> try_again;
     while(!edges_to_flip.empty()) {
 
@@ -265,7 +264,7 @@ void split_n_flip(DrawableTetmesh<> &m) {
 
                 //if the flip is good and is a 'try again' the edge is removed
                 if(result && try_again.count(unique_pair(vid, etf.opp_vid)) != 0) try_again.erase(unique_pair(vid, etf.opp_vid));
-                //if we cant do the flip now we can do it in the future
+                //if we cant do the flip now we can do it in the future (hopefully)
                 if(!result) {
                     if (try_again.count(unique_pair(vid, etf.opp_vid)) == 1) {
                         if (m.edge_valence(eid) != try_again.at(unique_pair(vid, etf.opp_vid))) {
@@ -273,7 +272,9 @@ void split_n_flip(DrawableTetmesh<> &m) {
                             try_again[unique_pair(vid, etf.opp_vid)] = m.edge_valence(eid);
                         } else {
                             std::cout << TXT_BOLDRED << "already tried to flip this and he had the same valence, we are in a mexican standoff" << TXT_RESET << std::endl;
-                            break;
+                            for(auto p : m.adj_e2p(eid))
+                                m.poly_data(p).color = Color::RED();
+                            //break;
                         }
                     } else {
                         edges_to_flip.push(etf);
@@ -282,20 +283,39 @@ void split_n_flip(DrawableTetmesh<> &m) {
                 }
             }
 
-        //if not we do the flip 2-2
+            //if not we do the flip 2-2
         } else {
 
             //flip
             std::cout << TXT_BOLDBLUE << "Flip 2-2 : edge " << m.edge_vert_id(eid, 0) << " - " << m.edge_vert_id(eid, 1) << std::endl;
             bool result = flip2to2(m, eid);
             std::cout << (result ? TXT_BOLDGREEN : TXT_BOLDRED) << "Result " << result << TXT_RESET << std::endl << std::endl;
-            //if we cant do the flip now we can to id in the future
-            if(!result) edges_to_flip.push(etf);
+
+            //if the flip is good and is a 'try again' the edge is removed
+            if(result && try_again.count(unique_pair(vid, etf.opp_vid)) != 0) try_again.erase(unique_pair(vid, etf.opp_vid));
+            //if we cant do the flip now we can do it in the future (hopefully)
+            if(!result) {
+                if (try_again.count(unique_pair(vid, etf.opp_vid)) == 1) {
+                    if (m.edge_valence(eid) != try_again.at(unique_pair(vid, etf.opp_vid))) {
+                        edges_to_flip.push(etf);
+                        try_again[unique_pair(vid, etf.opp_vid)] = m.edge_valence(eid);
+                    } else {
+                        std::cout << TXT_BOLDRED << "already tried to flip this and he had the same valence, we are in a mexican standoff" << TXT_RESET << std::endl << std::endl;
+                        for(auto p : m.adj_e2p(eid))
+                            m.poly_data(p).color = Color::RED();
+                        //break;
+                    }
+                } else {
+                    edges_to_flip.push(etf);
+                    try_again.insert({unique_pair(vid, etf.opp_vid), m.edge_valence(eid)});
+                }
+            }
 
         }
 
         edges_to_flip.pop();
     }
+    /**/
 
     m.updateGL();
 }
