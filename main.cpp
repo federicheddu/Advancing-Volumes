@@ -410,8 +410,8 @@ void expand(DrawableTetmesh<> &m, Target &target, std::vector<bool> &active_mask
 
     //for every active front
     for(std::vector<uint> &front : active_fronts) {
-        //
-        for (uint vid: front) {
+        //for every vid in the front
+        for (uint vid : front) {
             //move the vert
             m.vert(vid) += m.vert_data(vid).normal * target.oct.closest_point(m.vert(vid)).dist(m.vert(vid)) * target.mov_speed;
             //update the mask
@@ -436,6 +436,7 @@ void update_fronts(DrawableTetmesh<> &m, std::vector<bool> &active_mask, std::ve
     std::cout << TXT_CYAN << "Updating the fronts... ";
 
     //parameters
+    uint active_counter = 0;
     std::vector<std::vector<uint>> new_fronts;
     std::unordered_set<uint> dect_front;
 
@@ -447,7 +448,7 @@ void update_fronts(DrawableTetmesh<> &m, std::vector<bool> &active_mask, std::ve
 
         //find an idx in the front outside the visited ones
         // -> if query_front is already visited or is inactive (and we are not out-of-bounds) increase query_front
-        while((CONTAINS(visited_front, front.at(query_front)) || !active_mask.at(front.at(query_front))) && query_front < front.size()) query_front++;
+        while(query_front < front.size() && (CONTAINS(visited_front, front.at(query_front)) || active_mask.at(front.at(query_front)))) query_front++;
 
         //check for every new front inside the old one (could be no one)
         while(query_front < front.size()) {
@@ -459,9 +460,10 @@ void update_fronts(DrawableTetmesh<> &m, std::vector<bool> &active_mask, std::ve
             //add the front to the new vec
             std::vector<uint> new_front(dect_front.begin(), dect_front.end());
             new_fronts.emplace_back(new_front);
+            active_counter += new_front.size();
 
             //find the next idx
-            while((CONTAINS(visited_front, front.at(query_front)) || !active_mask.at(front.at(query_front))) && query_front < front.size()) query_front++;
+            while(query_front < front.size() && (CONTAINS(visited_front, front.at(query_front)) || active_mask.at(front.at(query_front)))) query_front++;
 
         }
     }
@@ -469,5 +471,5 @@ void update_fronts(DrawableTetmesh<> &m, std::vector<bool> &active_mask, std::ve
     //give back the new active fronts
     active_fronts = new_fronts;
 
-    std::cout << "DONE" << TXT_RESET << std::endl;
+    std::cout << "DONE - active verts left: " << active_counter << TXT_RESET << std::endl;
 }
