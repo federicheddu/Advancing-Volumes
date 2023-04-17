@@ -1,8 +1,7 @@
 #include <cinolib/gl/glcanvas.h>
-
 #include <cinolib/meshes/meshes.h>
 #include <cinolib/gl/volume_mesh_controls.h>
-
+#include <cinolib/bfs.h>
 #include <cinolib/find_intersections.h>
 
 #include "sphere_util.h"
@@ -36,14 +35,37 @@ using namespace cinolib;
 #define MOUSE "../data/mouse.mesh"
 #define PIG "../data/pig.mesh"
 
-typedef struct {
-    uint opp_vid;
-    ipair og_edge;
+//debug prints
+#define DEBUG_PRINT 0
+
+//struct to store the target model and parameters
+typedef struct Target {
+    //structures
+    DrawableTetmesh<> vol;
+    DrawableTrimesh<> srf;
+    Octree oct;
+    //parameters
+    double mov_speed = 0.25;
+    double eps_percent = 0.1;
+    double eps_inactive;
+} Target;
+
+//struct to query the edges to flip after the split
+typedef struct edge_to_flip {
+    uint opp_vid = 0;
+    ipair og_edge = {0, 0};
 } edge_to_flip;
 
+//init
+Target get_target();
+void get_center(Target &target, uint &center_vid, double &center_dist);
+//topological operations
 void split_n_flip(DrawableTetmesh<> &m);
 bool flip2to2(DrawableTetmesh<> &m, uint eid);
 bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
+//movement operations
+void expand(DrawableTetmesh<> &m, Target &target, std::vector<bool> &active_mask, std::vector<std::vector<uint>> &active_fronts);
+void update_fronts(DrawableTetmesh<> &m, std::vector<bool> &active_mask, std::vector<std::vector<uint>> &active_fronts);
 
 int main( /* int argc, char *argv[] */ ) {
 
@@ -52,52 +74,23 @@ int main( /* int argc, char *argv[] */ ) {
     gui.show_side_bar = true;
     gui.side_bar_alpha = 0.5;
 
-    /*
-    1800 1035 -0.002324 -0.004054 -0.00237851 0.642835 0.435 -0.775047 0.631089 -0.0320702 0.000680942 -0.12701 -0.105865 0.986236 0.00162142 0.619007 0.768453 0.162205 0.00493968 0 0 0 1 1 0 0 -0 0 1 0 -0 0 0 1 -2.57134 0 0 0 1 1.02813 0 0 -0 0 1.78806 0 -0 0 0 -0.777805 -2 0 0 0 1
-    */
-
-    std::cout << std::endl << TXT_BOLDMAGENTA << "Model loading" << TXT_RESET << std::endl;
-
-    //model vol
-    DrawableTetmesh<> vol(KITTY);
-    vol.show_mesh_points();
-    gui.push(&vol);
-    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&vol, &gui));
-
-    //model srf
-    Trimesh<> srf;
-    export_surface(vol, srf);
-
-    //octree build
-    Octree oct;
-    oct.build_from_mesh_polys(srf);
+    //load & push the target model
+    Target target = get_target();
+    gui.push(&target.vol);
+    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&target.vol, &gui));
 
     //distance field & m center/scale
     uint center_vid = 0;
     double center_dist = -inf_double;
-    for (uint vid = 0; vid < vol.num_verts(); vid++) {
-        //default
-        vol.vert_data(vid).uvw[0] = 0;
-        //if not in the surface check the closest srf point and the distance to it
-        if (!vol.vert_is_on_srf(vid)) {
-            vol.vert_data(vid).uvw[0] = oct.closest_point(vol.vert(vid)).dist(vol.vert(vid));
-            //check if its max distance
-            if (vol.vert_data(vid).uvw[0] > center_dist) {
-                center_vid = vid;
-                center_dist = vol.vert_data(vid).uvw[0];
-            }
-        }
-    }
+    get_center(target, center_vid, center_dist);
 
     //m build
     std::cout << std::endl << TXT_BOLDMAGENTA << "Sphere loading" << TXT_RESET << std::endl;
-    DrawableTetmesh<> m = get_sphere(vol.vert(center_vid), center_dist);
+    DrawableTetmesh<> m = get_sphere(target.vol.vert(center_vid), center_dist / 2);
     m.poly_set_color(Color::PASTEL_YELLOW());
     gui.push(&m, false);
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&m, &gui));
 
-    std::cout << TXT_BOLDGREEN << "Raggio sfera: " << TXT_RESET << m.bbox().delta_x() << std::endl;
-    std::cout << TXT_BOLDGREEN << "Centro: " << TXT_RESET << center_vid << " (" << m.centroid() << ")" << std::endl;
     std::cout << std::endl << std::endl;
 
 // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -109,88 +102,76 @@ int main( /* int argc, char *argv[] */ ) {
     bool inactive_visual = false;
     bool dir_visual = false;
     std::vector<DrawableArrow> dir_arrows;
-    //vert movement & face split
-    double mov_speed = 0.25 ;
-    double eps_percent = 0.1;
-    double eps_inactive = srf.edge_min_length() * eps_percent;
-    std::set<uint> inactive_verts;
-    std::set<uint> inactive_faces;
+    //vert movement parameters
+    std::vector<bool> active_mask(m.num_verts());
+    std::vector<std::vector<uint>> active_fronts;
+    active_fronts.emplace_back(m.get_surface_verts());
 
     //comandi tastiera
     gui.callback_key_pressed = [&](int key, int modifier) {
 
         //arrow visualization
-        if(key == GLFW_KEY_V) {
+        if (key == GLFW_KEY_V)
             dir_visual = !dir_visual;
 
-            if(dir_visual) {
-                std::cout << TXT_BOLDMAGENTA << "Movement direction: ON" << TXT_RESET << std::endl;
-                showArrows(m, oct, dir_arrows, gui);
-            } else {
-                std::cout << TXT_BOLDMAGENTA << "Movement direction: OFF" << TXT_RESET << std::endl;
-                deleteArrows(dir_arrows, gui);
-            }
-        }
-
-        //inactive visualization
-        if(key == GLFW_KEY_B) {
-            std::cout << TXT_BOLDMAGENTA << "Visual inactive vert and polys" << TXT_RESET << std::endl;
-            inactive_visual = !inactive_visual;
-
-            if(inactive_visual)
-                showInactive(m, inactive_verts, inactive_faces);
-            else
-                hideInactive(m, inactive_verts, inactive_faces);
-
-            m.updateGL();
-        }
-
-        //target visualization
-        if(key == GLFW_KEY_L) {
-            show_target = !show_target;
-            vol.show_mesh(show_target);
-        }
+        //Target visualization
+        if (key == GLFW_KEY_L)
+            target.vol.show_mesh(show_target = !show_target);
 
         //vert movement
-        if(key == GLFW_KEY_N) {
-            std::cout << TXT_BOLDMAGENTA << "Vert advancement" << TXT_RESET << std::endl;
-
-            //every vert on the surf is moved
-            for(uint vid : m.get_surface_verts()) {
-
-                // if the vert is active
-                if(DOES_NOT_CONTAIN(inactive_verts, vid)) {
-
-                    // vert moved
-                    m.vert(vid) += m.vert_data(vid).normal * oct.closest_point(m.vert(vid)).dist(m.vert(vid)) * mov_speed;
-
-
-                    //if the distance from the target is under the eps the vert becomes inactive
-                    if (oct.closest_point(m.vert(vid)).dist(m.vert(vid)) * mov_speed < eps_inactive) {
-                        std::cout << TXT_BOLDBLUE << "Vert inactive: " << vid << std::endl;
-                        inactive_verts.insert(vid);
-                    }
-
-                }
-
-            }
-
-            if(dir_visual)
-                updateArrows(m, oct, dir_arrows, gui);
-            if(inactive_visual)
-                showInactive(m, inactive_verts, inactive_faces);
-            m.updateGL();
-        }
+        if (key == GLFW_KEY_N)
+            expand(m, target, active_mask, active_fronts);
 
         //poly split
-        if(key == GLFW_KEY_M)
+        if (key == GLFW_KEY_M)
             split_n_flip(m);
 
+        //visualization of arrows
+        dir_visual ? updateArrows(m, target.oct, dir_arrows, active_fronts, gui) : deleteArrows(dir_arrows, gui);
 
         return false;
     };
 
     return gui.launch();
+}
+
+Target get_target() {
+    Target target;
+
+    std::cout << std::endl << TXT_BOLDMAGENTA << "Target loading" << TXT_RESET << std::endl;
+
+    //model vol
+    target.vol = DrawableTetmesh<>(BUNNY);
+    target.vol.show_mesh_points();
+
+    //model srf
+    export_surface(target.vol, target.srf);
+
+    //octree build
+    target.oct.build_from_mesh_polys(target.srf);
+
+    //inactive threshold
+    target.eps_inactive = target.srf.edge_min_length() * target.eps_percent;
+
+    return target;
+}
+
+void get_center(Target &target, uint &center_vid, double &center_dist) {
+
+    for (uint vid = 0; vid < target.vol.num_verts(); vid++) {
+        //default
+        target.vol.vert_data(vid).uvw[0] = 0;
+        //if not in the surface check the closest srf point and the distance to it
+        if (!target.vol.vert_is_on_srf(vid)) {
+            target.vol.vert_data(vid).uvw[0] = target.oct.closest_point(target.vol.vert(vid)).dist(target.vol.vert(vid));
+            //check if its max distance
+            if (target.vol.vert_data(vid).uvw[0] > center_dist) {
+                center_vid = vid;
+                center_dist = target.vol.vert_data(vid).uvw[0];
+            }
+        }
+    }
+
 }
 
 void split_n_flip(DrawableTetmesh<> &m) {
@@ -283,7 +264,7 @@ void split_n_flip(DrawableTetmesh<> &m) {
                 }
             }
 
-            //if not we do the flip 2-2
+        //if not we do the flip 2-2
         } else {
 
             //flip
@@ -317,6 +298,7 @@ void split_n_flip(DrawableTetmesh<> &m) {
     }
     /**/
 
+    m.update_normals();
     m.updateGL();
 }
 
@@ -419,4 +401,73 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 
     m.edge_remove(eid);
     return true;
+}
+
+void expand(DrawableTetmesh<> &m, Target &target, std::vector<bool> &active_mask, std::vector<std::vector<uint>> &active_fronts) {
+
+    //start
+    std::cout << TXT_CYAN << "Expanding the model... ";
+
+    //for every active front
+    for(std::vector<uint> &front : active_fronts) {
+        //
+        for (uint vid: front) {
+            //move the vert
+            m.vert(vid) += m.vert_data(vid).normal * target.oct.closest_point(m.vert(vid)).dist(m.vert(vid)) * target.mov_speed;
+            //update the mask
+            if(target.oct.closest_point(m.vert(vid)).dist(m.vert(vid)) < target.eps_inactive)
+                active_mask[vid] = true;
+        }
+    }
+
+    //job done
+    std::cout << "DONE" << TXT_RESET << std::endl;
+
+    //update che fronts
+    update_fronts(m, active_mask, active_fronts);
+
+    //update the model
+    m.update_normals();
+    m.updateGL();
+}
+
+void update_fronts(DrawableTetmesh<> &m, std::vector<bool> &active_mask, std::vector<std::vector<uint>> &active_fronts) {
+
+    std::cout << TXT_CYAN << "Updating the fronts... ";
+
+    //parameters
+    std::vector<std::vector<uint>> new_fronts;
+    std::unordered_set<uint> dect_front;
+
+    //for every front active front
+    for(std::vector<uint> &front : active_fronts) {
+
+        uint query_front = 0;                       //index to query the og front and check for new fronts
+        std::unordered_set<uint> visited_front;     //need to compare with the og
+
+        //find an idx in the front outside the visited ones
+        // -> if query_front is already visited or is inactive (and we are not out-of-bounds) increase query_front
+        while((CONTAINS(visited_front, front.at(query_front)) || !active_mask.at(front.at(query_front))) && query_front < front.size()) query_front++;
+
+        //check for every new front inside the old one (could be no one)
+        while(query_front < front.size()) {
+
+            //get the front
+            bfs_srf_only(m, front.at(query_front), active_mask, dect_front);
+            visited_front.insert(dect_front.begin(), dect_front.end());
+
+            //add the front to the new vec
+            std::vector<uint> new_front(dect_front.begin(), dect_front.end());
+            new_fronts.emplace_back(new_front);
+
+            //find the next idx
+            while((CONTAINS(visited_front, front.at(query_front)) || !active_mask.at(front.at(query_front))) && query_front < front.size()) query_front++;
+
+        }
+    }
+
+    //give back the new active fronts
+    active_fronts = new_fronts;
+
+    std::cout << "DONE" << TXT_RESET << std::endl;
 }

@@ -8,14 +8,10 @@
 
 using namespace cinolib;
 
-void showArrows(Tetmesh<> &sp, Octree &oct, std::vector<DrawableArrow> &dir_arrows, GLcanvas &gui);
+void showArrows(Tetmesh<> &m, Octree &oct, std::vector<DrawableArrow> &dir_arrows, std::vector<std::vector<uint>> &active_fronts, GLcanvas &gui);
 
 void deleteArrows(std::vector<DrawableArrow> &dir_arrows, GLcanvas &gui);
 
-void updateArrows(Tetmesh<> &sp, Octree &oct, std::vector<DrawableArrow> &dir_arrows, GLcanvas &gui);
-
-void showInactive(DrawableTetmesh<> &sp, std::set<uint> &inactive_verts, std::set<uint> &inactive_faces);
-
-void hideInactive(DrawableTetmesh<> &sp, std::set<uint> &inactive_verts, std::set<uint> &inactive_faces);
+void updateArrows(Tetmesh<> &m, Octree &oct, std::vector<DrawableArrow> &dir_arrows, std::vector<std::vector<uint>> &active_fronts, GLcanvas &gui);
 
 #endif //ADVANCING_VOLUMES_UI_TOOLS_H
