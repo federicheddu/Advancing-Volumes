@@ -63,8 +63,7 @@ typedef struct edge_to_flip {
 } edge_to_flip;
 
 //init
-Data get_target();
-void get_center(Data &d, uint &center_vid, double &center_dist);
+Data setup(const char *path);
 //topological operations
 void split_n_flip(Data &d);
 bool flip2to2(DrawableTetmesh<> &m, uint eid);
@@ -80,22 +79,15 @@ int main( /* int argc, char *argv[] */ ) {
     gui.show_side_bar = true;
     gui.side_bar_alpha = 0.5;
 
-    //load & push the data model
-    Data data = get_target();
-    gui.push(&data.vol);
-    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&data.vol, &gui));
+    //load the data
+    char path[] = BUNNY;
+    Data data = setup(path);
 
-    //distance field & m center/scale
-    uint center_vid = 0;
-    double center_dist = -inf_double;
-    get_center(data, center_vid, center_dist);
-
-    //m build
-    std::cout << std::endl << TXT_BOLDMAGENTA << "Sphere loading" << TXT_RESET << std::endl;
-    data.m = get_sphere(data.vol.vert(center_vid), center_dist / 2);
-    data.m.poly_set_color(Color::PASTEL_YELLOW());
+    //gui push
     gui.push(&data.m, false);
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&data.m, &gui));
+    gui.push(&data.vol, true);
+    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&data.vol, &gui));
 
     std::cout << std::endl << std::endl;
 
@@ -180,43 +172,49 @@ int main( /* int argc, char *argv[] */ ) {
     return gui.launch();
 }
 
-Data get_target() {
-    Data target;
+Data setup(const char *path) {
+    Data data;
 
-    std::cout << std::endl << TXT_BOLDMAGENTA << "Data loading" << TXT_RESET << std::endl;
+    std::cout << std::endl << TXT_BOLDMAGENTA << "Data loading... ";
 
     //model vol
-    target.vol = DrawableTetmesh<>(BUNNY);
-    target.vol.show_mesh_points();
+    data.vol = DrawableTetmesh<>(path);
+    data.vol.show_mesh_points();
 
     //model srf
-    export_surface(target.vol, target.srf);
+    export_surface(data.vol, data.srf);
 
     //octree build
-    target.oct.build_from_mesh_polys(target.srf);
+    data.oct.build_from_mesh_polys(data.srf);
 
     //inactive threshold
-    target.eps_inactive = target.srf.edge_min_length() * target.eps_percent;
+    data.eps_inactive = data.srf.edge_min_length() * data.eps_percent;
 
-    return target;
-}
-
-void get_center(Data &d, uint &center_vid, double &center_dist) {
-
-    for (uint vid = 0; vid < d.vol.num_verts(); vid++) {
+    //get info for placing the sphere
+    uint center_vid = 0;
+    double center_dist = -inf_double;
+    //for every vid in the vol
+    for (uint vid = 0; vid < data.vol.num_verts(); vid++) {
         //default
-        d.vol.vert_data(vid).uvw[0] = 0;
+        data.vol.vert_data(vid).uvw[0] = 0;
         //if not in the surface check the closest srf point and the distance to it
-        if (!d.vol.vert_is_on_srf(vid)) {
-            d.vol.vert_data(vid).uvw[0] = d.oct.closest_point(d.vol.vert(vid)).dist(d.vol.vert(vid));
+        if (!data.vol.vert_is_on_srf(vid)) {
+            data.vol.vert_data(vid).uvw[0] = data.oct.closest_point(data.vol.vert(vid)).dist(data.vol.vert(vid));
             //check if its max distance
-            if (d.vol.vert_data(vid).uvw[0] > center_dist) {
+            if (data.vol.vert_data(vid).uvw[0] > center_dist) {
                 center_vid = vid;
-                center_dist = d.vol.vert_data(vid).uvw[0];
+                center_dist = data.vol.vert_data(vid).uvw[0];
             }
         }
     }
 
+    //sphere build
+    data.m = get_sphere(data.vol.vert(center_vid), center_dist / 2);
+    data.m.poly_set_color(Color::PASTEL_YELLOW());
+
+    std::cout << "DONE" << TXT_RESET << std::endl;
+
+    return data;
 }
 
 void split_n_flip(Data &d) {
