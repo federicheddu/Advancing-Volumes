@@ -126,6 +126,8 @@ int main( /* int argc, char *argv[] */ ) {
 
         //vert movement
         if (key == GLFW_KEY_N && (handled = true)) {
+            std::cout << std::endl <<TXT_BOLDMAGENTA << "Model expansion" << TXT_RESET << std::endl;
+
             //update undo
             undo_data = data;
             //move the verts
@@ -137,6 +139,8 @@ int main( /* int argc, char *argv[] */ ) {
 
         //poly split
         if (key == GLFW_KEY_M && (handled = true)) {
+            std::cout << std::endl << TXT_BOLDMAGENTA << "Poly split" << TXT_RESET << std::endl;
+
             //update undo
             undo_data = data;
             //split and flip polys in the surface
@@ -148,6 +152,8 @@ int main( /* int argc, char *argv[] */ ) {
 
         //undo
         if(key == GLFW_KEY_K && (handled = true)) {
+            std::cout << std::endl << TXT_BOLDYELLOW << "UNDO" << TXT_RESET << std::endl;
+
             //pop of all
             gui.pop(&data.m);
 
@@ -175,7 +181,7 @@ int main( /* int argc, char *argv[] */ ) {
 Data setup(const char *path) {
     Data data;
 
-    std::cout << std::endl << TXT_BOLDMAGENTA << "Data loading... ";
+    std::cout << std::endl << TXT_BOLDMAGENTA << "Data loading... " << std::endl;
 
     //model vol
     data.vol = DrawableTetmesh<>(path);
@@ -218,7 +224,9 @@ Data setup(const char *path) {
 }
 
 void split_n_flip(Data &d) {
-    std::cout << TXT_BOLDMAGENTA << "Surface poly split" << TXT_RESET << std::endl;
+
+    //start of split
+    std::cout << TXT_CYAN << "Splitting the polys... ";
 
     //data that we need for later
     uint offset = d.m.num_verts();
@@ -258,6 +266,12 @@ void split_n_flip(Data &d) {
         new_vid = d.m.edge_split(eid);
         v_map.emplace(og_edge,new_vid);
     }
+
+    //end of split
+    std::cout << "DONE" << TXT_RESET << std::endl;
+
+    //start of flipping
+    std::cout << TXT_CYAN << "Flipping the edges... ";
 
     //new verts size & cluster update
     uint num_verts = d.m.num_verts();
@@ -336,6 +350,9 @@ void split_n_flip(Data &d) {
         edges_to_flip.pop();
     }
     /**/
+
+    //end of flipping
+    std::cout << "DONE" << TXT_RESET << std::endl;
 
     //update the fronts
     update_fronts(d);
