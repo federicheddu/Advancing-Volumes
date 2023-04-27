@@ -35,9 +35,6 @@ using namespace cinolib;
 #define MOUSE "../data/mouse.mesh"
 #define PIG "../data/pig.mesh"
 
-//debug prints
-#define DEBUG_PRINT 0
-
 //struct to store the target model and parameters
 typedef struct data {
     //structures
@@ -62,7 +59,7 @@ typedef struct edge_to_flip {
     ipair og_edge = {0, 0};
 } edge_to_flip;
 
-//init
+//setup of the env
 Data setup(const char *path);
 //topological operations
 void split_n_flip(Data &d);
@@ -71,6 +68,8 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
 //movement operations
 void expand(Data &d);
 void update_fronts(Data &d);
+
+
 
 int main( /* int argc, char *argv[] */ ) {
 
@@ -89,12 +88,6 @@ int main( /* int argc, char *argv[] */ ) {
     gui.push(&data.vol, true);
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&data.vol, &gui));
 
-    std::cout << std::endl << std::endl;
-
-// :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-// :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-// :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
     //visualization
     bool show_target = true;
     bool show_fronts = false;
@@ -107,77 +100,99 @@ int main( /* int argc, char *argv[] */ ) {
     //undo object
     Data undo_data = data;
 
-    //comandi tastiera
+    //keyboard commands
     gui.callback_key_pressed = [&](int key, int modifier) {
 
-        bool handled = false;
+        bool handled = true;
 
-        //arrow visualization
-        if (key == GLFW_KEY_V && (handled = true))
-            (show_arrows = !show_arrows) ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
+        switch (key) {
+            //arrow visualization
+            case GLFW_KEY_V: {
+                show_arrows = !show_arrows;
+                if (show_arrows) updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui);
+                else deleteArrows(dir_arrows, gui);
+                break;
+            }
 
-        //fronts visualization
-        if (key == GLFW_KEY_B && (handled = true))
-            (show_fronts = !show_fronts) ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
+            //fronts visualization
+            case GLFW_KEY_B: {
+                show_fronts = !show_fronts;
+                if (show_fronts) showFronts(data.m, data.active_mask);
+                else deleteFronts(data.m);
+                break;
+            }
 
-        //target visualization
-        if (key == GLFW_KEY_L && (handled = true))
-            data.vol.show_mesh(show_target = !show_target);
+            //target visualization
+            case GLFW_KEY_L: {
+                data.vol.show_mesh(show_target = !show_target);
+                break;
+            }
 
-        //vert movement
-        if (key == GLFW_KEY_N && (handled = true)) {
-            std::cout << std::endl <<TXT_BOLDMAGENTA << "Model expansion" << TXT_RESET << std::endl;
+            //vert movement
+            case GLFW_KEY_N: {
+                std::cout << std::endl <<TXT_BOLDMAGENTA << "Model expansion" << TXT_RESET << std::endl;
 
-            //update undo
-            undo_data = data;
-            //move the verts
-            expand(data);
-            //UI
-            show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-            show_fronts ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
-        }
+                //update undo
+                undo_data = data;
+                //move the verts
+                expand(data);
+                //UI
+                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
+                show_fronts ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
+                break;
+            }
 
-        //poly split
-        if (key == GLFW_KEY_M && (handled = true)) {
-            std::cout << std::endl << TXT_BOLDMAGENTA << "Poly split" << TXT_RESET << std::endl;
+            //poly split
+            case GLFW_KEY_M: {
+                std::cout << std::endl << TXT_BOLDMAGENTA << "Poly split" << TXT_RESET << std::endl;
 
-            //update undo
-            undo_data = data;
-            //split and flip polys in the surface
-            split_n_flip(data);
-            //UI
-            show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-            show_fronts ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
-        }
+                //update undo
+                undo_data = data;
+                //split and flip polys in the surface
+                split_n_flip(data);
+                //UI
+                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
+                show_fronts ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
+                break;
+            }
 
-        //undo
-        if(key == GLFW_KEY_K && (handled = true)) {
-            std::cout << std::endl << TXT_BOLDYELLOW << "UNDO" << TXT_RESET << std::endl;
+            //undo
+            case GLFW_KEY_K: {
+                std::cout << std::endl << TXT_BOLDYELLOW << "UNDO" << TXT_RESET << std::endl;
 
-            //pop of all
-            gui.pop(&data.m);
+                //pop of all
+                gui.pop(&data.m);
 
-            //data recover
-            data.m = undo_data.m;
-            data.fronts_active = undo_data.fronts_active;
-            data.fronts_bounds = undo_data.fronts_bounds;
-            data.active_mask = undo_data.active_mask;
+                //data recover
+                data.m = undo_data.m;
+                data.fronts_active = undo_data.fronts_active;
+                data.fronts_bounds = undo_data.fronts_bounds;
+                data.active_mask = undo_data.active_mask;
 
-            //re-push on gui
-            gui.push(&data.m, false);
-            data.m.updateGL();
+                //re-push on gui
+                gui.push(&data.m, false);
+                data.m.updateGL();
 
-            //UI
-            show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-            show_fronts ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
+                //UI
+                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
+                show_fronts ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
+                break;
+            }
+
+            default:
+                handled = false;
         }
 
         return handled;
+
     };
 
     return gui.launch();
 }
 
+
+
+//setup the env with model, target, oct etc...
 Data setup(const char *path) {
     Data data;
 
@@ -223,6 +238,7 @@ Data setup(const char *path) {
     return data;
 }
 
+//split all the edges in the active front and flip who needs to be flipped
 void split_n_flip(Data &d) {
 
     //start of split
@@ -361,6 +377,7 @@ void split_n_flip(Data &d) {
     d.m.updateGL();
 }
 
+//edge flip 2-2 (must: surf & srf faces coplanar)
 bool flip2to2(DrawableTetmesh<> &m, uint eid) {
 
     //edge must be on the surface and with only two polys adj
@@ -408,6 +425,7 @@ bool flip2to2(DrawableTetmesh<> &m, uint eid) {
     return true;
 }
 
+//edge flip 4-4
 bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
     std::vector<uint> cluster = m.adj_e2p(eid);
     if(cluster.size() != 4) {
@@ -456,6 +474,7 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
     return true;
 }
 
+//move the verts toward the target
 void expand(Data &d) {
 
     //start
@@ -482,6 +501,7 @@ void expand(Data &d) {
     d.m.updateGL();
 }
 
+//update the front (must be called after every variation of the model)
 void update_fronts(Data &d) {
 
     std::cout << TXT_CYAN << "Updating the fronts... ";
