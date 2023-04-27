@@ -476,7 +476,7 @@ void update_fronts(Data &d) {
     std::unordered_set<uint> dect_front;
 
     //worst case scenario
-    new_fronts.reserve(d.m.num_srf_verts());
+    new_fronts.reserve(d.fronts_active.size() + d.m.get_surface_edges().size());
 
     //index to query the og front and check for new fronts_active
     uint query_front = 0;
