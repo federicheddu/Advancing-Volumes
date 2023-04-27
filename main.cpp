@@ -482,7 +482,67 @@ void expand(Data &d) {
 
     //for every active front
     for(uint vid : d.fronts_active) {
+        //get info
+        vec3d og_pos = d.m.vert(vid);
+        double dist = d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid));
+        //move the vert
+        d.m.vert(vid) += d.m.vert_data(vid).normal * dist * d.mov_speed;
 
+        //check intersection
+        uint iter_counter = 0;
+        std::unordered_set<uint> intersect_ids;
+        bool check_intersection;
+
+        //check edge intersection
+        do {
+            //param default
+            check_intersection = false;
+
+            //check the umbrella
+            for (uint fid: d.m.vert_adj_srf_faces(vid)) {
+                vec3d verts[] = {d.m.face_verts(fid)[0], d.m.face_verts(fid)[1], d.m.face_verts(fid)[2]};
+                check_intersection = d.oct.intersects_triangle(verts, false, intersect_ids) || check_intersection;
+            }
+
+            //go back by half distance
+            d.m.vert(vid) -= d.m.vert_data(vid).normal * (dist/2) * d.mov_speed;
+
+            //counter increase
+            iter_counter++;
+
+        } while(check_intersection && iter_counter < 5);
+
+        //if edge still outside get back the vid
+        if(check_intersection)
+            d.m.vert(vid) = og_pos;
+
+        //update the mask
+        if(!check_intersection && d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid)) < d.eps_inactive)
+            d.active_mask[vid] = true;
+    }
+
+    //job done
+    std::cout << "DONE" << TXT_RESET << std::endl;
+
+    //update che fronts_active
+    update_fronts(d);
+
+    //update the model
+    d.m.update_normals();
+    d.m.updateGL();
+}
+
+/*
+//move the verts toward the target
+void parallel_expand(Data &d) {
+
+    //start
+    std::cout << TXT_CYAN << "Expanding the model... ";
+
+    PARALLEL_FOR(d.fronts_bounds.begin(), d.fronts_bounds )
+
+    //for every active front
+    for(uint vid : d.fronts_active) {
         //move the vert
         d.m.vert(vid) += d.m.vert_data(vid).normal * d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid)) * d.mov_speed;
         //update the mask
@@ -500,6 +560,7 @@ void expand(Data &d) {
     d.m.update_normals();
     d.m.updateGL();
 }
+*/
 
 //update the front (must be called after every variation of the model)
 void update_fronts(Data &d) {
