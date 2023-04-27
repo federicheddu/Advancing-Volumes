@@ -39,16 +39,22 @@ using namespace cinolib;
 #define DEBUG_PRINT 0
 
 //struct to store the target model and parameters
-typedef struct Target {
+typedef struct data {
     //structures
     DrawableTetmesh<> vol;
     DrawableTrimesh<> srf;
     Octree oct;
+    //model (sphere)
+    DrawableTetmesh<> m;
     //parameters
     double mov_speed = 0.25;
     double eps_percent = 0.1;
-    double eps_inactive;
-} Target;
+    double eps_inactive = 0.01;
+    //fronts_active
+    std::vector<bool> active_mask;
+    std::vector<uint> fronts_active;
+    std::vector<uint> fronts_bounds;
+} Data;
 
 //struct to query the edges to flip after the split
 typedef struct edge_to_flip {
@@ -57,15 +63,15 @@ typedef struct edge_to_flip {
 } edge_to_flip;
 
 //init
-Target get_target();
-void get_center(Target &target, uint &center_vid, double &center_dist);
+Data get_target();
+void get_center(Data &d, uint &center_vid, double &center_dist);
 //topological operations
-void split_n_flip(DrawableTetmesh<> &m);
+void split_n_flip(Data &d);
 bool flip2to2(DrawableTetmesh<> &m, uint eid);
 bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
 //movement operations
-void expand(DrawableTetmesh<> &m, Target &target, std::vector<bool> &active_mask, std::vector<std::vector<uint>> &active_fronts);
-void update_fronts(DrawableTetmesh<> &m, std::vector<bool> &active_mask, std::vector<std::vector<uint>> &active_fronts);
+void expand(Data &d);
+void update_fronts(Data &d);
 
 int main( /* int argc, char *argv[] */ ) {
 
@@ -74,22 +80,22 @@ int main( /* int argc, char *argv[] */ ) {
     gui.show_side_bar = true;
     gui.side_bar_alpha = 0.5;
 
-    //load & push the target model
-    Target target = get_target();
-    gui.push(&target.vol);
-    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&target.vol, &gui));
+    //load & push the data model
+    Data data = get_target();
+    gui.push(&data.vol);
+    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&data.vol, &gui));
 
     //distance field & m center/scale
     uint center_vid = 0;
     double center_dist = -inf_double;
-    get_center(target, center_vid, center_dist);
+    get_center(data, center_vid, center_dist);
 
     //m build
     std::cout << std::endl << TXT_BOLDMAGENTA << "Sphere loading" << TXT_RESET << std::endl;
-    DrawableTetmesh<> m = get_sphere(target.vol.vert(center_vid), center_dist / 2);
-    m.poly_set_color(Color::PASTEL_YELLOW());
-    gui.push(&m, false);
-    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&m, &gui));
+    data.m = get_sphere(data.vol.vert(center_vid), center_dist / 2);
+    data.m.poly_set_color(Color::PASTEL_YELLOW());
+    gui.push(&data.m, false);
+    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&data.m, &gui));
 
     std::cout << std::endl << std::endl;
 
@@ -99,46 +105,85 @@ int main( /* int argc, char *argv[] */ ) {
 
     //visualization
     bool show_target = true;
-    bool inactive_visual = false;
-    bool dir_visual = false;
+    bool show_fronts = false;
+    bool show_arrows = false;
     std::vector<DrawableArrow> dir_arrows;
     //vert movement parameters
-    std::vector<bool> active_mask(m.num_verts());
-    std::vector<std::vector<uint>> active_fronts;
-    active_fronts.emplace_back(m.get_surface_verts());
+    data.active_mask.resize(data.m.num_verts());
+    data.fronts_active = data.m.get_surface_verts();
+    data.fronts_bounds.emplace_back(data.m.num_srf_verts());
+    //undo object
+    Data undo_data = data;
 
     //comandi tastiera
     gui.callback_key_pressed = [&](int key, int modifier) {
 
-        //arrow visualization
-        if (key == GLFW_KEY_V)
-            dir_visual = !dir_visual;
+        bool handled = false;
 
-        //Target visualization
-        if (key == GLFW_KEY_L)
-            target.vol.show_mesh(show_target = !show_target);
+        //arrow visualization
+        if (key == GLFW_KEY_V && (handled = true))
+            (show_arrows = !show_arrows) ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
+
+        //fronts visualization
+        if (key == GLFW_KEY_B && (handled = true))
+            (show_fronts = !show_fronts) ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
+
+        //target visualization
+        if (key == GLFW_KEY_L && (handled = true))
+            data.vol.show_mesh(show_target = !show_target);
 
         //vert movement
-        if (key == GLFW_KEY_N)
-            expand(m, target, active_mask, active_fronts);
+        if (key == GLFW_KEY_N && (handled = true)) {
+            //update undo
+            undo_data = data;
+            //move the verts
+            expand(data);
+            //UI
+            show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
+            show_fronts ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
+        }
 
         //poly split
-        if (key == GLFW_KEY_M)
-            split_n_flip(m);
+        if (key == GLFW_KEY_M && (handled = true)) {
+            //update undo
+            undo_data = data;
+            //split and flip polys in the surface
+            split_n_flip(data);
+            //UI
+            show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
+            show_fronts ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
+        }
 
-        //visualization of arrows
-        dir_visual ? updateArrows(m, target.oct, dir_arrows, active_fronts, gui) : deleteArrows(dir_arrows, gui);
+        //undo
+        if(key == GLFW_KEY_K && (handled = true)) {
+            //pop of all
+            gui.pop(&data.m);
 
-        return false;
+            //data recover
+            data.m = undo_data.m;
+            data.fronts_active = undo_data.fronts_active;
+            data.fronts_bounds = undo_data.fronts_bounds;
+            data.active_mask = undo_data.active_mask;
+
+            //re-push on gui
+            gui.push(&data.m, false);
+            data.m.updateGL();
+
+            //UI
+            show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
+            show_fronts ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
+        }
+
+        return handled;
     };
 
     return gui.launch();
 }
 
-Target get_target() {
-    Target target;
+Data get_target() {
+    Data target;
 
-    std::cout << std::endl << TXT_BOLDMAGENTA << "Target loading" << TXT_RESET << std::endl;
+    std::cout << std::endl << TXT_BOLDMAGENTA << "Data loading" << TXT_RESET << std::endl;
 
     //model vol
     target.vol = DrawableTetmesh<>(BUNNY);
@@ -156,36 +201,42 @@ Target get_target() {
     return target;
 }
 
-void get_center(Target &target, uint &center_vid, double &center_dist) {
+void get_center(Data &d, uint &center_vid, double &center_dist) {
 
-    for (uint vid = 0; vid < target.vol.num_verts(); vid++) {
+    for (uint vid = 0; vid < d.vol.num_verts(); vid++) {
         //default
-        target.vol.vert_data(vid).uvw[0] = 0;
+        d.vol.vert_data(vid).uvw[0] = 0;
         //if not in the surface check the closest srf point and the distance to it
-        if (!target.vol.vert_is_on_srf(vid)) {
-            target.vol.vert_data(vid).uvw[0] = target.oct.closest_point(target.vol.vert(vid)).dist(target.vol.vert(vid));
+        if (!d.vol.vert_is_on_srf(vid)) {
+            d.vol.vert_data(vid).uvw[0] = d.oct.closest_point(d.vol.vert(vid)).dist(d.vol.vert(vid));
             //check if its max distance
-            if (target.vol.vert_data(vid).uvw[0] > center_dist) {
+            if (d.vol.vert_data(vid).uvw[0] > center_dist) {
                 center_vid = vid;
-                center_dist = target.vol.vert_data(vid).uvw[0];
+                center_dist = d.vol.vert_data(vid).uvw[0];
             }
         }
     }
 
 }
 
-void split_n_flip(DrawableTetmesh<> &m) {
+void split_n_flip(Data &d) {
     std::cout << TXT_BOLDMAGENTA << "Surface poly split" << TXT_RESET << std::endl;
 
-    uint offset = m.num_verts();
-    std::cout << TXT_BOLDWHITE << "Num verts pre split: " << offset << TXT_RESET << std::endl;
-    std::set<uint> edges_to_split;
+    //data that we need for later
+    uint offset = d.m.num_verts();
 
-    //from every surface get the surface poly
-    for(uint fid : m.get_surface_faces()) {
-        uint pid = m.adj_f2p(fid)[0];
-        edges_to_split.insert(m.adj_p2e(pid).begin(), m.adj_p2e(pid).end());
-    }
+    //search of the edges to split inside the front
+    std::set<uint> edges_to_split;
+    //for every vid in active fronts_active
+    for(uint vid : d.fronts_active)
+        //for every adj face
+        for(uint fid : d.m.adj_v2f(vid))
+            //if is a surface face from the active front (check if the adj vids of the face are also in the front)
+            if(d.m.face_is_on_srf(fid)
+            && CONTAINS_VEC(d.fronts_active, d.m.face_v2v(fid, vid)[0])
+            && CONTAINS_VEC(d.fronts_active, d.m.face_v2v(fid, vid)[1]))
+                //add every edge of the active poly to the split list
+                edges_to_split.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(), d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
 
     //split parameters
     uint new_vid;
@@ -194,25 +245,25 @@ void split_n_flip(DrawableTetmesh<> &m) {
     std::queue<edge_to_flip> edges_to_flip;
     //split all the edges in the set
     for(uint eid : edges_to_split) {
-        og_edge = unique_pair(m.edge_vert_id(eid, 0), m.edge_vert_id(eid, 1));
+        og_edge = unique_pair(d.m.edge_vert_id(eid, 0), d.m.edge_vert_id(eid, 1));
 
         //check if the edges created will need to be flipped
-        for(uint fid : m.adj_e2f(eid))
-            if(m.face_vert_opposite_to(fid, eid) < offset) {
+        for(uint fid : d.m.adj_e2f(eid))
+            if(d.m.face_vert_opposite_to(fid, eid) < offset) {
                 edge_to_flip etf;
-                etf.opp_vid = m.face_vert_opposite_to(fid, eid);
+                etf.opp_vid = d.m.face_vert_opposite_to(fid, eid);
                 etf.og_edge = og_edge;
                 edges_to_flip.push(etf);
             }
 
         //split and map update
-        new_vid = m.edge_split(eid);
+        new_vid = d.m.edge_split(eid);
         v_map.emplace(og_edge,new_vid);
     }
 
-    //some info
-    uint num_verts = m.num_verts();
-    std::cout << TXT_BOLDWHITE << "Num verts after split: " << num_verts << TXT_RESET << std::endl;
+    //new verts size & cluster update
+    uint num_verts = d.m.num_verts();
+    d.active_mask.resize(num_verts);
 
     //* flip every edge we need to
     std::map<ipair, uint> try_again;
@@ -221,10 +272,10 @@ void split_n_flip(DrawableTetmesh<> &m) {
         //retrieve the info
         edge_to_flip etf = edges_to_flip.front();
         uint vid = v_map.at(etf.og_edge);
-        uint eid = m.edge_id(vid, etf.opp_vid);
+        uint eid = d.m.edge_id(vid, etf.opp_vid);
 
         //if the edge isnt on the srf we do the flip 4-4
-        if(!m.edge_is_on_srf(eid)) {
+        if(!d.m.edge_is_on_srf(eid)) {
 
             //flip parameters
             uint vid0, vid1;
@@ -238,57 +289,47 @@ void split_n_flip(DrawableTetmesh<> &m) {
 
             //if the vids are both found we can do the flip
             if(vid0 * vid1 != 0) {
+
                 //flip
-                std::cout << TXT_BOLDBLUE << "Flip 4-4 : edge " << m.edge_vert_id(eid, 0) << " - " << m.edge_vert_id(eid, 1) << std::endl;
-                bool result = flip4to4(m, eid, vid0, vid1);
-                std::cout << (result ? TXT_BOLDGREEN : TXT_BOLDRED) << "Result " << result << TXT_RESET << std::endl << std::endl;
+                bool result = flip4to4(d.m, eid, vid0, vid1);
 
                 //if the flip is good and is a 'try again' the edge is removed
-                if(result && try_again.count(unique_pair(vid, etf.opp_vid)) != 0) try_again.erase(unique_pair(vid, etf.opp_vid));
+                if(result && try_again.count(unique_pair(vid, etf.opp_vid)) != 0)
+                    try_again.erase(unique_pair(vid, etf.opp_vid));
+
                 //if we cant do the flip now we can do it in the future (hopefully)
                 if(!result) {
                     if (try_again.count(unique_pair(vid, etf.opp_vid)) == 1) {
-                        if (m.edge_valence(eid) != try_again.at(unique_pair(vid, etf.opp_vid))) {
+                        if (d.m.edge_valence(eid) != try_again.at(unique_pair(vid, etf.opp_vid))) {
                             edges_to_flip.push(etf);
-                            try_again[unique_pair(vid, etf.opp_vid)] = m.edge_valence(eid);
-                        } else {
-                            std::cout << TXT_BOLDRED << "already tried to flip this and he had the same valence, we are in a mexican standoff" << TXT_RESET << std::endl;
-                            for(auto p : m.adj_e2p(eid))
-                                m.poly_data(p).color = Color::RED();
-                            //break;
+                            try_again[unique_pair(vid, etf.opp_vid)] = d.m.edge_valence(eid);
                         }
                     } else {
                         edges_to_flip.push(etf);
-                        try_again.insert({unique_pair(vid, etf.opp_vid), m.edge_valence(eid)});
+                        try_again.insert({unique_pair(vid, etf.opp_vid), d.m.edge_valence(eid)});
                     }
                 }
+
             }
 
-        //if not we do the flip 2-2
-        } else {
+        //if not we do the flip 2-2 (we need to check if the edge is from an active face)
+        } else if(!d.active_mask[etf.opp_vid]) {
 
             //flip
-            std::cout << TXT_BOLDBLUE << "Flip 2-2 : edge " << m.edge_vert_id(eid, 0) << " - " << m.edge_vert_id(eid, 1) << std::endl;
-            bool result = flip2to2(m, eid);
-            std::cout << (result ? TXT_BOLDGREEN : TXT_BOLDRED) << "Result " << result << TXT_RESET << std::endl << std::endl;
+            bool result = flip2to2(d.m, eid);
 
             //if the flip is good and is a 'try again' the edge is removed
             if(result && try_again.count(unique_pair(vid, etf.opp_vid)) != 0) try_again.erase(unique_pair(vid, etf.opp_vid));
             //if we cant do the flip now we can do it in the future (hopefully)
             if(!result) {
                 if (try_again.count(unique_pair(vid, etf.opp_vid)) == 1) {
-                    if (m.edge_valence(eid) != try_again.at(unique_pair(vid, etf.opp_vid))) {
+                    if (d.m.edge_valence(eid) != try_again.at(unique_pair(vid, etf.opp_vid))) {
                         edges_to_flip.push(etf);
-                        try_again[unique_pair(vid, etf.opp_vid)] = m.edge_valence(eid);
-                    } else {
-                        std::cout << TXT_BOLDRED << "already tried to flip this and he had the same valence, we are in a mexican standoff" << TXT_RESET << std::endl << std::endl;
-                        for(auto p : m.adj_e2p(eid))
-                            m.poly_data(p).color = Color::RED();
-                        //break;
+                        try_again[unique_pair(vid, etf.opp_vid)] = d.m.edge_valence(eid);
                     }
                 } else {
                     edges_to_flip.push(etf);
-                    try_again.insert({unique_pair(vid, etf.opp_vid), m.edge_valence(eid)});
+                    try_again.insert({unique_pair(vid, etf.opp_vid), d.m.edge_valence(eid)});
                 }
             }
 
@@ -298,21 +339,22 @@ void split_n_flip(DrawableTetmesh<> &m) {
     }
     /**/
 
-    m.update_normals();
-    m.updateGL();
+    //update the fronts
+    update_fronts(d);
+
+    d.m.update_normals();
+    d.m.updateGL();
 }
 
 bool flip2to2(DrawableTetmesh<> &m, uint eid) {
 
     //edge must be on the surface and with only two polys adj
     if(!m.edge_is_on_srf(eid)) {
-        std::cout << TXT_BOLDRED << "edge not on the srf" << TXT_RESET << std::endl;
+        //std::cout << TXT_BOLDRED << "edge not on the srf" << TXT_RESET << std::endl;
         return false;
     }
     if(m.adj_e2p(eid).size() != 2) {
-        std::cout << TXT_BOLDRED << "cluster size is not 2 -> edge " << m.edge_vert_id(eid, 0) << " - " << m.edge_vert_id(eid, 1) << " / size: " << m.adj_e2p(eid).size() << TXT_RESET << std::endl;
-        //for(uint pid : m.adj_e2p(eid))
-        //    std::cout << m.poly_vert_id(pid, 0) << " - " << m.poly_vert_id(pid, 1) << " - " << m.poly_vert_id(pid, 2) << " - " << m.poly_vert_id(pid, 3) << std::endl;
+        //std::cout << TXT_BOLDRED << "cluster size is not 2 -> edge " << m.edge_vert_id(eid, 0) << " - " << m.edge_vert_id(eid, 1) << " / size: " << m.adj_e2p(eid).size() << TXT_RESET << std::endl;
         return false;
     }
 
@@ -340,7 +382,6 @@ bool flip2to2(DrawableTetmesh<> &m, uint eid) {
 
     // add new elements to the mesh
     for(tet_id=0; tet_id < 2; tet_id++) {
-        //std::cout << TXT_BOLDYELLOW << "Adding new tet w/ verts: " << tets[tet_id][0] << " - " << tets[tet_id][1] << " - " << tets[tet_id][2] << " - " << tets[tet_id][3] << TXT_RESET << std::endl;
         uint new_pid = m.poly_add({tets[tet_id][0],
                                    tets[tet_id][1],
                                    tets[tet_id][2],
@@ -355,13 +396,11 @@ bool flip2to2(DrawableTetmesh<> &m, uint eid) {
 bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
     std::vector<uint> cluster = m.adj_e2p(eid);
     if(cluster.size() != 4) {
-        std::cout << TXT_BOLDRED << "cluster size is not 4 -> edge " << m.edge_vert_id(eid, 0) << " - " << m.edge_vert_id(eid, 1) << " / size: " << m.adj_e2p(eid).size() << TXT_RESET << std::endl;
-        //for(uint pid : m.adj_e2p(eid))
-        //    std::cout << m.poly_vert_id(pid, 0) << " - " << m.poly_vert_id(pid, 1) << " - " << m.poly_vert_id(pid, 2) << " - " << m.poly_vert_id(pid, 3) << std::endl;
+        //std::cout << TXT_BOLDRED << "cluster size is not 4 -> edge " << m.edge_vert_id(eid, 0) << " - " << m.edge_vert_id(eid, 1) << " / size: " << m.adj_e2p(eid).size() << TXT_RESET << std::endl;
         return false;
     }
     if(vid0*vid1 == 0) {
-        std::cout << TXT_BOLDRED << "edge on the srf" << TXT_RESET << std::endl;
+        //std::cout << TXT_BOLDRED << "edge on the srf" << TXT_RESET << std::endl;
         return false;
     }
 
@@ -391,7 +430,6 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 
     // add new elements to the mesh
     for(tet_id=0; tet_id < 4; tet_id++) {
-        // std::cout << TXT_BOLDYELLOW << "Adding new tet w/ verts: " << tets[tet_id][0] << " - " << tets[tet_id][1] << " - " << tets[tet_id][2] << " - " << tets[tet_id][3] << TXT_RESET << std::endl;
         uint new_pid = m.poly_add({tets[tet_id][0],
                                    tets[tet_id][1],
                                    tets[tet_id][2],
@@ -403,73 +441,74 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
     return true;
 }
 
-void expand(DrawableTetmesh<> &m, Target &target, std::vector<bool> &active_mask, std::vector<std::vector<uint>> &active_fronts) {
+void expand(Data &d) {
 
     //start
     std::cout << TXT_CYAN << "Expanding the model... ";
 
     //for every active front
-    for(std::vector<uint> &front : active_fronts) {
-        //for every vid in the front
-        for (uint vid : front) {
-            //move the vert
-            m.vert(vid) += m.vert_data(vid).normal * target.oct.closest_point(m.vert(vid)).dist(m.vert(vid)) * target.mov_speed;
-            //update the mask
-            if(target.oct.closest_point(m.vert(vid)).dist(m.vert(vid)) < target.eps_inactive)
-                active_mask[vid] = true;
-        }
+    for(uint vid : d.fronts_active) {
+
+        //move the vert
+        d.m.vert(vid) += d.m.vert_data(vid).normal * d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid)) * d.mov_speed;
+        //update the mask
+        if(d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid)) < d.eps_inactive)
+            d.active_mask[vid] = true;
     }
 
     //job done
     std::cout << "DONE" << TXT_RESET << std::endl;
 
-    //update che fronts
-    update_fronts(m, active_mask, active_fronts);
+    //update che fronts_active
+    update_fronts(d);
 
     //update the model
-    m.update_normals();
-    m.updateGL();
+    d.m.update_normals();
+    d.m.updateGL();
 }
 
-void update_fronts(DrawableTetmesh<> &m, std::vector<bool> &active_mask, std::vector<std::vector<uint>> &active_fronts) {
+void update_fronts(Data &d) {
 
     std::cout << TXT_CYAN << "Updating the fronts... ";
 
     //parameters
     uint active_counter = 0;
-    std::vector<std::vector<uint>> new_fronts;
+    std::vector<uint> new_fronts;
+    std::vector<uint> new_bounds;
     std::unordered_set<uint> dect_front;
 
-    //for every front active front
-    for(std::vector<uint> &front : active_fronts) {
+    //worst case scenario
+    new_fronts.reserve(d.m.num_srf_verts());
 
-        uint query_front = 0;                       //index to query the og front and check for new fronts
-        std::unordered_set<uint> visited_front;     //need to compare with the og
+    //index to query the og front and check for new fronts_active
+    uint query_front = 0;
 
-        //find an idx in the front outside the visited ones
-        // -> if query_front is already visited or is inactive (and we are not out-of-bounds) increase query_front
-        while(query_front < front.size() && (CONTAINS(visited_front, front.at(query_front)) || active_mask.at(front.at(query_front)))) query_front++;
+    //find an idx in the front outside the visited ones
+    // -> if query_front is already visited or is inactive (and we are not out-of-bounds) increase query_front
+    while (query_front < d.fronts_active.size() && (CONTAINS_VEC(new_fronts, d.fronts_active[query_front]) || d.active_mask[d.fronts_active[query_front]]))
+        query_front++;
 
-        //check for every new front inside the old one (could be no one)
-        while(query_front < front.size()) {
+    //check for every new front inside the old one (could be no one)
+    while (query_front < d.fronts_active.size()) {
 
-            //get the front
-            bfs_srf_only(m, front.at(query_front), active_mask, dect_front);
-            visited_front.insert(dect_front.begin(), dect_front.end());
+        //get the front
+        bfs_srf_only(d.m, d.fronts_active[query_front], d.active_mask, dect_front);
 
-            //add the front to the new vec
-            std::vector<uint> new_front(dect_front.begin(), dect_front.end());
-            new_fronts.emplace_back(new_front);
-            active_counter += new_front.size();
+        //add the front to the new vec
+        new_fronts.insert(new_fronts.end(), dect_front.begin(), dect_front.end());
+        new_bounds.emplace_back(new_fronts.size());
 
-            //find the next idx
-            while(query_front < front.size() && (CONTAINS(visited_front, front.at(query_front)) || active_mask.at(front.at(query_front)))) query_front++;
-
-        }
+        //find the next idx
+        while (query_front < d.fronts_active.size() && (CONTAINS_VEC(new_fronts, d.fronts_active[query_front]) || d.active_mask[d.fronts_active[query_front]]))
+            query_front++;
     }
 
-    //give back the new active fronts
-    active_fronts = new_fronts;
+    //resize of the front vector
+    new_fronts.shrink_to_fit();
 
-    std::cout << "DONE - active verts left: " << active_counter << TXT_RESET << std::endl;
+    //give back the new active front and bounds
+    d.fronts_active = new_fronts;
+    d.fronts_bounds = new_bounds;
+
+    std::cout << "DONE - F: " << d.fronts_bounds.size() << " V: " << d.fronts_active.size() << TXT_RESET << std::endl;
 }
