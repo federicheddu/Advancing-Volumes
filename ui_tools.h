@@ -14,7 +14,7 @@ void deleteArrows(std::vector<DrawableArrow> &dir_arrows, GLcanvas &gui);
 
 void updateArrows(Tetmesh<> &m, Octree &oct, std::vector<DrawableArrow> &dir_arrows, std::vector<uint> &active_fronts, GLcanvas &gui);
 
-void showFronts(DrawableTetmesh<> &m, std::vector<bool> &active_mask);
+void showFronts(DrawableTetmesh<> &m);
 
 void deleteFronts(DrawableTetmesh<> &m);
 

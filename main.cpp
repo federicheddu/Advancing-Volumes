@@ -48,7 +48,6 @@ typedef struct data {
     double eps_percent = 0.1;
     double eps_inactive = 0.01;
     //fronts_active
-    std::vector<bool> active_mask;
     std::vector<uint> fronts_active;
     std::vector<uint> fronts_bounds;
 } Data;
@@ -67,7 +66,9 @@ bool flip2to2(DrawableTetmesh<> &m, uint eid);
 bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
 //movement operations
 void expand(Data &d);
+//front management
 void update_fronts(Data &d);
+void front_from_seed(Data &d, uint seed, std::unordered_set<uint> &front);
 
 
 
@@ -90,11 +91,11 @@ int main( /* int argc, char *argv[] */ ) {
 
     //visualization
     bool show_target = true;
+    bool show_target_matte = false;
     bool show_fronts = false;
     bool show_arrows = false;
     std::vector<DrawableArrow> dir_arrows;
     //vert movement parameters
-    data.active_mask.resize(data.m.num_verts());
     data.fronts_active = data.m.get_surface_verts();
     data.fronts_bounds.emplace_back(data.m.num_srf_verts());
     //undo object
@@ -117,7 +118,7 @@ int main( /* int argc, char *argv[] */ ) {
             //fronts visualization
             case GLFW_KEY_B: {
                 show_fronts = !show_fronts;
-                if (show_fronts) showFronts(data.m, data.active_mask);
+                if (show_fronts) showFronts(data.m);
                 else deleteFronts(data.m);
                 break;
             }
@@ -138,7 +139,7 @@ int main( /* int argc, char *argv[] */ ) {
                 expand(data);
                 //UI
                 show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-                show_fronts ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
+                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
                 break;
             }
 
@@ -152,7 +153,7 @@ int main( /* int argc, char *argv[] */ ) {
                 split_n_flip(data);
                 //UI
                 show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-                show_fronts ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
+                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
                 break;
             }
 
@@ -167,7 +168,6 @@ int main( /* int argc, char *argv[] */ ) {
                 data.m = undo_data.m;
                 data.fronts_active = undo_data.fronts_active;
                 data.fronts_bounds = undo_data.fronts_bounds;
-                data.active_mask = undo_data.active_mask;
 
                 //re-push on gui
                 gui.push(&data.m, false);
@@ -175,7 +175,15 @@ int main( /* int argc, char *argv[] */ ) {
 
                 //UI
                 show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-                show_fronts ? showFronts(data.m, data.active_mask) : deleteFronts(data.m);
+                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
+                break;
+            }
+
+            //show full target
+            case GLFW_KEY_J: {
+                show_target_matte = !show_target_matte;
+                if(show_target_matte) data.vol.show_mesh_flat();
+                else data.vol.show_mesh_points();
                 break;
             }
 
@@ -233,6 +241,9 @@ Data setup(const char *path) {
     data.m = get_sphere(data.vol.vert(center_vid), center_dist / 2);
     data.m.poly_set_color(Color::PASTEL_YELLOW());
 
+    for(uint vid : data.m.get_surface_verts())
+        data.m.vert_data(vid).label = false;
+
     std::cout << "DONE" << TXT_RESET << std::endl;
 
     return data;
@@ -281,6 +292,9 @@ void split_n_flip(Data &d) {
         //split and map update
         new_vid = d.m.edge_split(eid);
         v_map.emplace(og_edge,new_vid);
+
+        //set the activity
+        d.m.vert_data(new_vid).label = false;
     }
 
     //end of split
@@ -288,10 +302,6 @@ void split_n_flip(Data &d) {
 
     //start of flipping
     std::cout << TXT_CYAN << "Flipping the edges... ";
-
-    //new verts size & cluster update
-    uint num_verts = d.m.num_verts();
-    d.active_mask.resize(num_verts);
 
     //* flip every edge we need to
     std::map<ipair, uint> try_again;
@@ -341,7 +351,7 @@ void split_n_flip(Data &d) {
             }
 
         //if not we do the flip 2-2 (we need to check if the edge is from an active face)
-        } else if(!d.active_mask[etf.opp_vid]) {
+        } else if(!d.m.vert_data(etf.opp_vid).label) {
 
             //flip
             bool result = flip2to2(d.m, eid);
@@ -518,7 +528,7 @@ void expand(Data &d) {
 
         //update the mask
         if(!check_intersection && d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid)) < d.eps_inactive)
-            d.active_mask[vid] = true;
+            d.m.vert_data(vid).label = true;
     }
 
     //job done
@@ -531,36 +541,6 @@ void expand(Data &d) {
     d.m.update_normals();
     d.m.updateGL();
 }
-
-/*
-//move the verts toward the target
-void parallel_expand(Data &d) {
-
-    //start
-    std::cout << TXT_CYAN << "Expanding the model... ";
-
-    PARALLEL_FOR(d.fronts_bounds.begin(), d.fronts_bounds )
-
-    //for every active front
-    for(uint vid : d.fronts_active) {
-        //move the vert
-        d.m.vert(vid) += d.m.vert_data(vid).normal * d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid)) * d.mov_speed;
-        //update the mask
-        if(d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid)) < d.eps_inactive)
-            d.active_mask[vid] = true;
-    }
-
-    //job done
-    std::cout << "DONE" << TXT_RESET << std::endl;
-
-    //update che fronts_active
-    update_fronts(d);
-
-    //update the model
-    d.m.update_normals();
-    d.m.updateGL();
-}
-*/
 
 //update the front (must be called after every variation of the model)
 void update_fronts(Data &d) {
@@ -581,21 +561,21 @@ void update_fronts(Data &d) {
 
     //find an idx in the front outside the visited ones
     // -> if query_front is already visited or is inactive (and we are not out-of-bounds) increase query_front
-    while (query_front < d.fronts_active.size() && (CONTAINS_VEC(new_fronts, d.fronts_active[query_front]) || d.active_mask[d.fronts_active[query_front]]))
+    while (query_front < d.fronts_active.size() && (CONTAINS_VEC(new_fronts, d.fronts_active[query_front]) || d.m.vert_data(d.fronts_active[query_front]).label))
         query_front++;
 
     //check for every new front inside the old one (could be no one)
     while (query_front < d.fronts_active.size()) {
 
         //get the front
-        bfs_srf_only(d.m, d.fronts_active[query_front], d.active_mask, dect_front);
+        front_from_seed(d, d.fronts_active[query_front], dect_front);
 
         //add the front to the new vec
         new_fronts.insert(new_fronts.end(), dect_front.begin(), dect_front.end());
         new_bounds.emplace_back(new_fronts.size());
 
         //find the next idx
-        while (query_front < d.fronts_active.size() && (CONTAINS_VEC(new_fronts, d.fronts_active[query_front]) || d.active_mask[d.fronts_active[query_front]]))
+        while (query_front < d.fronts_active.size() && (CONTAINS_VEC(new_fronts, d.fronts_active[query_front]) || d.m.vert_data(d.fronts_active[query_front]).label))
             query_front++;
     }
 
@@ -607,4 +587,25 @@ void update_fronts(Data &d) {
     d.fronts_bounds = new_bounds;
 
     std::cout << "DONE - F: " << d.fronts_bounds.size() << " V: " << d.fronts_active.size() << TXT_RESET << std::endl;
+}
+
+void front_from_seed(Data &d, uint seed, std::unordered_set<uint> &front) {
+    front.clear();
+    front.insert(seed);
+
+    std::queue<uint> q;
+    q.push(seed);
+
+    while(!q.empty()) {
+        uint vid = q.front();
+        q.pop();
+
+        for(uint adj_vid : d.m.vert_adj_srf_verts(vid)) {
+            if (!d.m.vert_data(adj_vid).label && DOES_NOT_CONTAIN(front, adj_vid)) {
+                front.insert(adj_vid);
+                q.push(adj_vid);
+            }
+        }
+    }
+
 }

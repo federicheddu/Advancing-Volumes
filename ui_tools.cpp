@@ -29,12 +29,12 @@ void updateArrows(Tetmesh<> &m, Octree &oct, std::vector<DrawableArrow> &dir_arr
     showArrows(m, oct, dir_arrows, active_fronts, gui);
 }
 
-void showFronts(DrawableTetmesh<> &m, std::vector<bool> &active_mask) {
+void showFronts(DrawableTetmesh<> &m) {
 
     uint pid = 0;
     for (uint fid : m.get_surface_faces())
         //if one of the three verts are not active the poly is not active (true in the mask is inactive)
-        if(active_mask[m.face_verts_id(fid)[0]] || active_mask[m.face_verts_id(fid)[1]] || active_mask[m.face_verts_id(fid)[2]])
+        if(m.vert_data(m.face_verts_id(fid)[0]).label || m.vert_data(m.face_verts_id(fid)[1]).label || m.vert_data(m.face_verts_id(fid)[2]).label)
             m.poly_data(m.adj_f2p(fid)[0]).color = Color::PASTEL_YELLOW();
         else
             m.poly_data(m.adj_f2p(fid)[0]).color = Color::PASTEL_ORANGE();
