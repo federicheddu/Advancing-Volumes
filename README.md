@@ -6,10 +6,9 @@
 |----------------------|-------------|-----------------------------------|
 | Federico Meloni      | 60/73/65243 | <f.meloni62@studenti.unica.it>    |
 
-## TODO
-- [ ] check sphere scaling
+<details>
+<summary><b>File Structure</b></summary>
 
-## File structure
 ```
 ·
 │
@@ -34,8 +33,7 @@
 ├── README.md
 │
 ├── img                 # images for README.md
-│   └── sphere          # sphere placement images
-│       └── ···
+│   └── ···
 │
 │ OTHER
 ├── .gitignore
@@ -43,19 +41,38 @@
 └── LICENSE
 ```
 
-## Sphere placement
-A sphere is placed inside the model at the point of maximum value of the distance field inside the model.
-The point of maximum value of the distance field is the point at which there is the maximum minimum distance
-from the surface (in our case among all the points at which the space inside the model was sampled).
+</details>
 
-For now, 4 types of spheres with increasing detail (18 / 31 / 40 / 50 tetrahedra) are made available.
+## What is this project about
+This thesis project aims to create a tet-mesh by placing a starting model *- a sphere in our case, but it can be any model -*
+inside a surface target mesh and deforming/refining it so that it fills the target volume.  
+This process can be done simultaneously on two models in order to create a map between them
+(starting from the same model and doing the same refinement steps).
 
-|       ![](img/sphere/all_spheres.png)        |
-|:--------------------------------------------:|
-| *From right: 18, 31, 40 and 50 tets spheres* |
+## Keyboard commands
 
-These spheres also are scaled so that one of the bounding box vertices of the sphere is tangent to the surface of the model.
+| **Key** | **Action**                                       | **Type** |
+|:-------:|--------------------------------------------------|:--------:|
+|  **J**  | Target visualization mode (transparent or matte) |  Toggle  |
+|  **K**  | Undo (only 1 action)                             |  Action  |
+|  **L**  | Show the target                                  |  Toggle  |
+|  **V**  | Show the direction where the verts will move     |  Toggle  |
+|  **B**  | Show the inactive fronts in a different color    |  Toggle  |
+|  **N**  | Expand the model moving the verts                |  Action  |
+|  **M**  | Refine the model in the active front             |  Action  |
 
-| ![](img/sphere/kitty_model.png) | ![](img/sphere/kitty_model_transparent.png) | ![](img/sphere/kitty_model_transparent45.png) |
-|:-------------------------------:|:------------------------------------------:|:--------------------------------------------:|
-|           Kitty Model           |     Transparent model with sphere+bbox     |      Transparent model with sphere+bbox      |
+## Starting model placement
+Our starting model is a sphere with 67V / 358E / 544F / 252P.  
+This is placed at the point where the minimum distance from the target surface is the greatest,
+with the radius of half of that distance.
+
+We can potentially go on to select even different resolution spheres with 18/31/40/50 vertices as the starting model.
+
+## Expanding the model
+The model is expanded by going to move each vertex in the direction of its normal by a distance proportional 
+to its minimum distance from the surface until a minimum stop distance is reached.
+
+In case during the expansion the model intersects the target, the vertex that caused this intersection is moved 
+back by half of its displacement up to 5 times, after which it is returned to its starting position if it continues 
+to make the model intersect the target in any way.
+
