@@ -1,7 +1,7 @@
 #include <cinolib/gl/glcanvas.h>
 #include <cinolib/meshes/meshes.h>
 #include <cinolib/gl/volume_mesh_controls.h>
-#include <cinolib/bfs.h>
+#include <cinolib/gl/surface_mesh_controls.h>
 #include <cinolib/find_intersections.h>
 
 #include "sphere_util.h"
@@ -43,10 +43,12 @@ typedef struct data {
     Octree oct;
     //model (sphere)
     DrawableTetmesh<> m;
+    DrawableTrimesh<> m_srf;
     //parameters
     double mov_speed = 0.25;
     double eps_percent = 0.1;
     double eps_inactive = 0.01;
+    double edge_threshold = 0.01;
     //fronts_active
     std::vector<uint> fronts_active;
     std::vector<uint> fronts_bounds;
@@ -61,11 +63,11 @@ typedef struct edge_to_flip {
 //setup of the env
 Data setup(const char *path);
 //topological operations
-void split_n_flip(Data &d);
+void split_n_flip(Data &d, bool selective = false);
 bool flip2to2(DrawableTetmesh<> &m, uint eid);
 bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
 //movement operations
-void expand(Data &d);
+void expand(Data &d, bool refine = false);
 //front management
 void update_fronts(Data &d);
 void front_from_seed(Data &d, uint seed, std::unordered_set<uint> &front);
@@ -80,7 +82,7 @@ int main( /* int argc, char *argv[] */ ) {
     gui.side_bar_alpha = 0.5;
 
     //load the data
-    char path[] = BUNNY;
+    char path[] = PIG;
     Data data = setup(path);
 
     //gui push
@@ -92,6 +94,7 @@ int main( /* int argc, char *argv[] */ ) {
     //visualization
     bool show_target = true;
     bool show_target_matte = false;
+    bool show_model = true;
     bool show_fronts = false;
     bool show_arrows = false;
     std::vector<DrawableArrow> dir_arrows;
@@ -99,6 +102,7 @@ int main( /* int argc, char *argv[] */ ) {
     data.fronts_active = data.m.get_surface_verts();
     data.fronts_bounds.emplace_back(data.m.num_srf_verts());
     //undo object
+    Data reset_data = data;
     Data undo_data = data;
 
     //keyboard commands
@@ -187,6 +191,72 @@ int main( /* int argc, char *argv[] */ ) {
                 break;
             }
 
+            //vert movement with edge split by length
+            case GLFW_KEY_G: {
+                std::cout << std::endl <<TXT_BOLDMAGENTA << "Model expansion" << TXT_RESET << std::endl;
+
+                //update undo
+                undo_data = data;
+                //move the verts
+                expand(data, true);
+                //UI
+                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
+                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
+                break;
+            }
+
+                //poly split
+            case GLFW_KEY_H: {
+                std::cout << std::endl << TXT_BOLDMAGENTA << "Poly split" << TXT_RESET << std::endl;
+
+                //update undo
+                undo_data = data;
+                //split and flip polys in the surface
+                split_n_flip(data, true);
+                //UI
+                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
+                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
+                break;
+            }
+
+            case GLFW_KEY_P: {
+                std::cout << std::endl << TXT_BOLDYELLOW << "RESET" << TXT_RESET << std::endl;
+
+                //pop of all
+                gui.pop(&data.m);
+
+                //data recover
+                data.m = reset_data.m;
+                data.fronts_active = reset_data.fronts_active;
+                data.fronts_bounds = reset_data.fronts_bounds;
+
+                //re-push on gui
+                gui.push(&data.m, false);
+                data.m.updateGL();
+
+                //UI
+                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
+                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
+                break;
+            }
+
+            case GLFW_KEY_COMMA: {
+                export_surface(data.m, data.m_srf);
+                gui.push(&data.m_srf, false);
+                data.m_srf.updateGL();
+                gui.push(new SurfaceMeshControls<DrawableTrimesh<>>(&data.m_srf, &gui));
+                break;
+            }
+
+            case GLFW_KEY_PERIOD: {
+                gui.pop(&data.m_srf);
+            }
+
+            case GLFW_KEY_0: {
+                data.m.show_mesh(show_model = !show_model);
+                break;
+            }
+
             default:
                 handled = false;
         }
@@ -200,7 +270,7 @@ int main( /* int argc, char *argv[] */ ) {
 
 
 
-//setup the env with model, target, oct etc...
+//set up the env with model, target, oct etc...
 Data setup(const char *path) {
     Data data;
 
@@ -218,6 +288,9 @@ Data setup(const char *path) {
 
     //inactive threshold
     data.eps_inactive = data.srf.edge_min_length() * data.eps_percent;
+
+    //edge length threshold
+    data.edge_threshold = data.srf.edge_max_length() * 1.5;
 
     //get info for placing the sphere
     uint center_vid = 0;
@@ -250,7 +323,7 @@ Data setup(const char *path) {
 }
 
 //split all the edges in the active front and flip who needs to be flipped
-void split_n_flip(Data &d) {
+void split_n_flip(Data &d, bool selective) {
 
     //start of split
     std::cout << TXT_CYAN << "Splitting the polys... ";
@@ -260,16 +333,32 @@ void split_n_flip(Data &d) {
 
     //search of the edges to split inside the front
     std::set<uint> edges_to_split;
-    //for every vid in active fronts_active
-    for(uint vid : d.fronts_active)
-        //for every adj face
-        for(uint fid : d.m.adj_v2f(vid))
-            //if is a surface face from the active front (check if the adj vids of the face are also in the front)
-            if(d.m.face_is_on_srf(fid)
-            && CONTAINS_VEC(d.fronts_active, d.m.face_v2v(fid, vid)[0])
-            && CONTAINS_VEC(d.fronts_active, d.m.face_v2v(fid, vid)[1]))
-                //add every edge of the active poly to the split list
-                edges_to_split.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(), d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
+
+    //if we have to refine only were the edges are too long
+    if(selective)
+        //for every vid in active fronts
+        for(uint vid : d.fronts_active)
+            //check the edge (surface) umbrella
+            for(uint eid : d.m.vert_adj_srf_edges(vid))
+                //check if the threshold is passed
+                if(d.m.edge_length(eid) > d.edge_threshold)
+                    //for every adj srf poly (face then poly) get the edges
+                    for(uint fid : d.m.edge_adj_srf_faces(eid))
+                        edges_to_split.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(), d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
+
+
+    //if we have to refine all the active front
+    if(!selective)
+        //for every vid in active fronts
+        for(uint vid : d.fronts_active)
+            //for every adj face
+            for(uint fid : d.m.adj_v2f(vid))
+                //if is a surface face from the active front (check if the adj vids of the face are also in the front)
+                if(d.m.face_is_on_srf(fid)
+                && CONTAINS_VEC(d.fronts_active, d.m.face_v2v(fid, vid)[0])
+                && CONTAINS_VEC(d.fronts_active, d.m.face_v2v(fid, vid)[1]))
+                    //add every edge of the active poly to the split list
+                    edges_to_split.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(), d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
 
     //split parameters
     uint new_vid;
@@ -295,6 +384,10 @@ void split_n_flip(Data &d) {
 
         //set the activity
         d.m.vert_data(new_vid).label = false;
+        if(selective && d.m.verts_are_adjacent(new_vid, d.fronts_active.back())) {
+            d.fronts_active.emplace_back(new_vid);
+            d.fronts_bounds.emplace_back(d.fronts_active.size());
+        }
     }
 
     //end of split
@@ -312,7 +405,7 @@ void split_n_flip(Data &d) {
         uint vid = v_map.at(etf.og_edge);
         uint eid = d.m.edge_id(vid, etf.opp_vid);
 
-        //if the edge isnt on the srf we do the flip 4-4
+        //if the edge isn't on the srf we do the flip 4-4
         if(!d.m.edge_is_on_srf(eid)) {
 
             //flip parameters
@@ -401,7 +494,7 @@ bool flip2to2(DrawableTetmesh<> &m, uint eid) {
     }
 
     uint pid_of = m.adj_e2p(eid)[0]; //need the opp faces
-    uint pid_ov = m.adj_e2p(eid)[1]; //need the opp vert of the non shared face
+    uint pid_ov = m.adj_e2p(eid)[1]; //need the opp vert of the non-shared face
     uint opp;
 
     //for every adj face to the edge
@@ -451,7 +544,7 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
     uint tets[4][4];
     //for every face adj to vid0
     for(uint fid : m.adj_v2f(vid0)) {
-        //if the face doesnt contain the edge to flip
+        //if the face doesn't contain the edge to flip
         if (!m.face_contains_edge(fid, eid)) {
             //check for every tet in the cluster
             for (uint pid : cluster) {
@@ -485,7 +578,7 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 }
 
 //move the verts toward the target
-void expand(Data &d) {
+void expand(Data &d, bool refine) {
 
     //start
     std::cout << TXT_CYAN << "Expanding the model... ";
@@ -534,8 +627,11 @@ void expand(Data &d) {
     //job done
     std::cout << "DONE" << TXT_RESET << std::endl;
 
-    //update che fronts_active
-    update_fronts(d);
+    //refine where the edges are too long or simply update the front
+    if(refine)
+        split_n_flip(d, true);
+    else
+        update_fronts(d);
 
     //update the model
     d.m.update_normals();
