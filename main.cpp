@@ -91,6 +91,12 @@ int main( /* int argc, char *argv[] */ ) {
     gui.push(&data.vol, true);
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&data.vol, &gui));
 
+    GLcanvas gui_debug;
+    export_surface(data.m, data.m_srf);
+    data.m_srf.updateGL();
+    gui_debug.push(&data.m_srf);
+    gui.push(new SurfaceMeshControls<DrawableTrimesh<>>(&data.m_srf, &gui_debug));
+
     //visualization
     bool show_target = true;
     bool show_target_matte = false;
@@ -205,7 +211,7 @@ int main( /* int argc, char *argv[] */ ) {
                 break;
             }
 
-                //poly split
+            //poly split
             case GLFW_KEY_H: {
                 std::cout << std::endl << TXT_BOLDMAGENTA << "Poly split" << TXT_RESET << std::endl;
 
@@ -219,6 +225,7 @@ int main( /* int argc, char *argv[] */ ) {
                 break;
             }
 
+            //reset
             case GLFW_KEY_P: {
                 std::cout << std::endl << TXT_BOLDYELLOW << "RESET" << TXT_RESET << std::endl;
 
@@ -240,32 +247,19 @@ int main( /* int argc, char *argv[] */ ) {
                 break;
             }
 
-            case GLFW_KEY_COMMA: {
-                export_surface(data.m, data.m_srf);
-                gui.push(&data.m_srf, false);
-                data.m_srf.updateGL();
-                gui.push(new SurfaceMeshControls<DrawableTrimesh<>>(&data.m_srf, &gui));
-                break;
-            }
-
-            case GLFW_KEY_PERIOD: {
-                gui.pop(&data.m_srf);
-            }
-
-            case GLFW_KEY_0: {
-                data.m.show_mesh(show_model = !show_model);
-                break;
-            }
-
             default:
                 handled = false;
         }
+
+        export_surface(data.m, data.m_srf);
+        data.m_srf.updateGL();
+        data.m_srf.update_normals();
 
         return handled;
 
     };
 
-    return gui.launch();
+    return gui.launch({&gui_debug});
 }
 
 
