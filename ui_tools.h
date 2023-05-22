@@ -18,4 +18,8 @@ void showFronts(DrawableTetmesh<> &m);
 
 void deleteFronts(DrawableTetmesh<> &m);
 
+void show_volume(DrawableTetmesh<> &m);
+
+void clear_colors(DrawableTetmesh<> &m);
+
 #endif //ADVANCING_VOLUMES_UI_TOOLS_H

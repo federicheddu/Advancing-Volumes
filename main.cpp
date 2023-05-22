@@ -50,7 +50,7 @@ typedef struct data {
     std::unordered_map<uint,uint> m2srf_vmap;
     std::unordered_map<uint,uint> srf2m_vmap;
     //parameters
-    double mov_speed = 0.5;
+    double mov_speed = 0.25;
     double eps_percent = 0.1;
     double eps_inactive = 0.01;
     double edge_threshold = 0.01;
@@ -70,6 +70,8 @@ Data setup(const char *path);
 //topological operations
 std::set<uint> search_split(Data &d, bool selective);
 void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges_to_flip);
+std::set<uint> search_split_int(Data &d);
+void split_int(Data &d, std::set<uint> &edges_to_split);
 void flip(Data &d, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges_to_flip);
 void split_n_flip(Data &d, bool selective = false);
 bool flip2to2(DrawableTetmesh<> &m, uint eid);
@@ -89,7 +91,7 @@ void front_from_seed(Data &d, uint seed, std::unordered_set<uint> &front);
 int main( /* int argc, char *argv[] */ ) {
 
     //UI
-    GLcanvas gui(720, 1080);
+    GLcanvas gui(1080, 720);
     gui.side_bar_alpha = 0.5;
 
     //load the data
@@ -107,6 +109,7 @@ int main( /* int argc, char *argv[] */ ) {
     bool show_target_matte = false;
     bool show_fronts = false;
     bool show_arrows = false;
+    bool show_vol_color = false;
     std::vector<DrawableArrow> dir_arrows;
     //vert movement parameters
     data.fronts_active = data.m.get_surface_verts();
@@ -284,7 +287,7 @@ int main( /* int argc, char *argv[] */ ) {
                 undo_data = data;
 
                 //smooth the surface
-                smooth(data);
+                smooth(data, 5);
 
                 //UI
                 show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
@@ -295,6 +298,7 @@ int main( /* int argc, char *argv[] */ ) {
                 break;
             }
 
+            //expand and smooth
             case GLFW_KEY_I: {
 
                 //update undo
@@ -302,7 +306,7 @@ int main( /* int argc, char *argv[] */ ) {
 
                 //expand and smooth
                 expand(data, true);
-                smooth(data);
+                smooth(data, 5);
 
                 //UI
                 show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
@@ -311,6 +315,15 @@ int main( /* int argc, char *argv[] */ ) {
                 data.m.update_normals();
                 data.m.updateGL();
                 break;
+            }
+
+            //show orient3D sign
+            case GLFW_KEY_Y: {
+                show_vol_color = !show_vol_color;
+                if(show_vol_color) show_volume(data.m);
+                else clear_colors(data.m);
+
+                data.m.updateGL();
             }
 
             default:
@@ -448,6 +461,30 @@ void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map
 
 }
 
+//refine internal edges if they are too long
+std::set<uint> search_split_int(Data &d) {
+
+    //edge that need to be split
+    std::set<uint> edges_to_split;
+
+    //search for the internal edges with srf endpoint that exceed the threshold lenght
+    for(uint vid : d.m.get_surface_verts())
+        for(uint eid : d.m.adj_v2e(vid))
+            if(!d.m.edge_is_on_srf(eid))
+                if(d.m.edge_length(eid) > d.edge_threshold * 2)
+                    edges_to_split.insert(eid);
+
+    return edges_to_split;
+}
+
+void split_int(Data &d, std::set<uint> &edges_to_split) {
+
+    //split all the edges
+    for(uint eid : edges_to_split)
+        d.m.edge_split(eid);
+
+}
+
 //flip every edge passed as parameter in the list
 void flip(Data &d, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges_to_flip) {
 
@@ -565,6 +602,7 @@ bool flip2to2(DrawableTetmesh<> &m, uint eid) {
     if(m.adj_e2p(eid).size() != 2)
         return false;
 
+    bool result = true;
     uint pid_of = m.adj_e2p(eid)[0]; //need the opp faces
     uint pid_ov = m.adj_e2p(eid)[1]; //need the opp vert of the non-shared face
     uint opp;
@@ -587,17 +625,24 @@ bool flip2to2(DrawableTetmesh<> &m, uint eid) {
     }
     assert(tet_id == 2);
 
-    // add new elements to the mesh
-    for(tet_id=0; tet_id < 2; tet_id++) {
-        uint new_pid = m.poly_add({tets[tet_id][0],
-                                   tets[tet_id][1],
-                                   tets[tet_id][2],
-                                   tets[tet_id][3]});
-        m.update_p_quality(new_pid);
+    //check on the volume
+    double or1 = orient3d(m.vert(tets[0][0]), m.vert(tets[0][1]), m.vert(tets[0][2]), m.vert(tets[0][3]));
+    double or2 = orient3d(m.vert(tets[1][0]), m.vert(tets[1][1]), m.vert(tets[1][2]), m.vert(tets[1][3]));
+    result = or1 * or2 > 0;
+
+    // add new elements to the mesh (if the volume is ok)
+    if(result) {
+        for (tet_id = 0; tet_id < 2; tet_id++) {
+            uint new_pid = m.poly_add({tets[tet_id][0],
+                                       tets[tet_id][1],
+                                       tets[tet_id][2],
+                                       tets[tet_id][3]});
+            m.update_p_quality(new_pid);
+        }
+        m.edge_remove(eid);
     }
 
-    m.edge_remove(eid);
-    return true;
+    return result;
 }
 
 //edge flip 4-4
@@ -607,6 +652,8 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
         return false;
     if(vid0*vid1 == 0)
         return false;
+
+    bool result = true;
 
     uint tet_id = 0;
     uint tets[4][4];
@@ -632,17 +679,23 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
     }
     assert(tet_id == 4);
 
-    // add new elements to the mesh
-    for(tet_id=0; tet_id < 4; tet_id++) {
-        uint new_pid = m.poly_add({tets[tet_id][0],
-                                   tets[tet_id][1],
-                                   tets[tet_id][2],
-                                   tets[tet_id][3]});
-        m.update_p_quality(new_pid);
-    }
+    //volume check
+    double orient = orient3d(m.vert(tets[0][0]), m.vert(tets[0][1]), m.vert(tets[0][2]), m.vert(tets[0][3]));
+    for(int idx = 1; idx < 4 && result; idx++)
+        result = orient3d(m.vert(tets[idx][0]), m.vert(tets[idx][1]), m.vert(tets[idx][2]), m.vert(tets[idx][3])) * orient  > 0;
 
-    m.edge_remove(eid);
-    return true;
+    // add new elements to the mesh
+    if(result) {
+        for (tet_id = 0; tet_id < 4; tet_id++) {
+            uint new_pid = m.poly_add({tets[tet_id][0],
+                                       tets[tet_id][1],
+                                       tets[tet_id][2],
+                                       tets[tet_id][3]});
+            m.update_p_quality(new_pid);
+        }
+        m.edge_remove(eid);
+    }
+    return result;
 }
 
 //move the verts toward the target
@@ -653,6 +706,9 @@ void expand(Data &d, bool refine) {
 
     //for every active front
     for(uint vid : d.fronts_active) {
+
+        assert(d.m.vert_is_on_srf(vid));
+
         //get info
         vec3d og_pos = d.m.vert(vid);
         double dist = d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid));
@@ -673,14 +729,13 @@ void expand(Data &d, bool refine) {
         if(check_intersection(d, vid))
             d.m.vert(vid) = og_pos;
 
-        /*
         //positive volume check
-        iter_counter = 0;
-        while(check_volume(d, vid) && iter_counter < 5) {
-            d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
-            iter_counter++;
-        }
-        */
+//        iter_counter = 0;
+//        while(check_volume(d, vid) && iter_counter < 5) {
+//            d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
+//            iter_counter++;
+//        }
+
 
         //update the mask
         if(d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid)) < d.eps_inactive)
@@ -691,11 +746,17 @@ void expand(Data &d, bool refine) {
     //job done
     std::cout << "DONE" << TXT_RESET << std::endl;
 
-    //refine where the edges are too long or simply update the front
+    //refine where the edges are too long or just update the front
     if(refine)
         split_n_flip(d, true);
     else
         update_fronts(d);
+
+    //refile internal edges
+    if(refine) {
+        std::set<uint> edges_to_split = search_split_int(d);
+        split_int(d, edges_to_split);
+    }
 }
 
 //smooth ONLY the surface of the model
@@ -727,6 +788,18 @@ void smooth(Data &d, int n_iter) {
             //if there are any intersection the vert is locked
             d.m.vert_data(vid).label = check_intersection(d, vid);
         }
+
+    }
+
+    for (uint vid = 0; vid < d.m.num_verts(); vid++) {
+
+        if(d.m.vert_is_on_srf(vid))
+            continue;
+
+        //calc the barycenter
+        vec3d bary(0, 0, 0);
+        for(uint adj : d.m.adj_v2v(vid)) bary += d.m.vert(adj);
+        bary /= static_cast<double>(d.m.adj_v2v(vid).size());
 
     }
 
