@@ -5,6 +5,7 @@
 #include <cinolib/drawable_arrow.h>
 #include <cinolib/drawable_octree.h>
 #include <cinolib/gl/glcanvas.h>
+#include <cinolib/parallel_for.h>
 
 using namespace cinolib;
 

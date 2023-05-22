@@ -42,21 +42,25 @@ void showFronts(DrawableTetmesh<> &m) {
 void deleteFronts(DrawableTetmesh<> &m) {
 
     for (uint fid : m.get_surface_faces())
-            m.poly_data(m.adj_f2p(fid)[0]).color = Color::PASTEL_YELLOW();
-
+        m.poly_data(m.adj_f2p(fid)[0]).color = Color::PASTEL_YELLOW();
 
 }
 
 void show_volume(DrawableTetmesh<> &m) {
 
-    double volume;
-    for(uint pid = 0; pid < m.num_polys(); pid++) {
-        volume = orient3d(m.poly_vert(pid, 0), m.poly_vert(pid, 1), m.poly_vert(pid, 2), m.poly_vert(pid, 3));
+    PARALLEL_FOR(0,m.num_polys(),100,[&](uint pid)
+    {
+        double volume = orient3d(m.poly_vert(pid, 0), m.poly_vert(pid, 1), m.poly_vert(pid, 2), m.poly_vert(pid, 3));
         m.poly_data(pid).color = volume > 0 ? Color::RED() : Color::BLUE();
-    }
+    });
+
 }
 
 void clear_colors(DrawableTetmesh<> &m) {
-    for(uint pid = 0; pid < m.num_polys(); pid++)
+
+    PARALLEL_FOR(0, m.num_polys(), 100, [&](uint pid)
+    {
         m.poly_data(pid).color = Color::PASTEL_YELLOW();
+    });
+
 }
