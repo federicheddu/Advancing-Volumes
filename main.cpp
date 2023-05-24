@@ -51,6 +51,7 @@ typedef struct data {
     std::unordered_map<uint,uint> srf2m_vmap;
     //parameters
     double mov_speed = 0.1;
+    double ray_speed = 0.25;
     double eps_percent = 0.1;
     double eps_inactive = 0.01;
     double edge_threshold = 0.01;
@@ -77,8 +78,11 @@ void split_n_flip(Data &d, bool selective = false);
 bool flip2to2(DrawableTetmesh<> &m, uint eid);
 bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
 //movement operations
-void expand(Data &d, bool refine = false);
+void expand(Data &d, bool refine = false, bool raycast = false);
 void smooth(Data &d, int n_iter = 10);
+double dist_calc(Data &d, uint vid, bool raycast = false);
+void go_back_safe(Data &d, uint vid, const vec3d &og_pos);
+vec3d project_onto_tangent_plane(vec3d &point, vec3d &plane_og, vec3d &plane_norm);
 //check operations
 bool check_intersection(Data &d, uint vid);
 bool check_volume(Data &d, uint vid);
@@ -107,11 +111,10 @@ int main( /* int argc, char *argv[] */ ) {
     UI_Mode uiMode = BLANK;
     bool show_target = true;
     bool show_target_matte = false;
-    bool show_fronts = false;
-    bool show_arrows = false;
-    bool show_vol_color = false;
     std::vector<DrawableArrow> dir_arrows;
     //vert movement parameters
+    double prev_vol = 0;
+    bool raycast = false;
     data.fronts_active = data.m.get_surface_verts();
     data.fronts_bounds.emplace_back(data.m.num_srf_verts());
     //undo object
@@ -323,6 +326,83 @@ int main( /* int argc, char *argv[] */ ) {
                 UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 data.m.updateGL();
 
+                break;
+            }
+
+            case GLFW_KEY_MINUS: {
+                //update undo
+                undo_data = data;
+
+                prev_vol = data.m.mesh_volume();
+
+                if(!raycast) {
+                    std::cout << TXT_BOLDMAGENTA << "Closest point mode" << TXT_RESET << std::endl;
+                    //expand and smooth (with the closest point)
+                    expand(data, true, false);
+                    smooth(data);
+                } else {
+                    std::cout << TXT_BOLDMAGENTA << "Ray mode" << TXT_RESET << std::endl;
+                    //expand and smooth (with raycast)
+                    expand(data, true, true);
+                    smooth(data, 20);
+                }
+
+                raycast = prev_vol * 1.005 >= data.m.mesh_volume();
+                prev_vol = data.m.mesh_volume();
+
+                //UI
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+
+                //update model
+                data.m.update_normals();
+                data.m.updateGL();
+                break;
+            }
+
+            case GLFW_KEY_BACKSPACE: {
+                //update undo
+                undo_data = data;
+
+                std::cout << TXT_BOLDMAGENTA << "Ray mode" << TXT_RESET << std::endl;
+                //expand and smooth (with raycast)
+                expand(data, true, true);
+                smooth(data, 20);
+
+                //UI
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+
+                //update model
+                data.m.update_normals();
+                data.m.updateGL();
+                break;
+            }
+
+            case GLFW_KEY_EQUAL: {
+                undo_data = data;
+
+                while(!raycast){
+
+                    prev_vol = data.m.mesh_volume();
+
+                    if (!raycast) {
+                        std::cout << TXT_BOLDMAGENTA << "Closest point mode" << TXT_RESET << std::endl;
+                        //expand and smooth (with the closest point)
+                        expand(data, true, false);
+                        smooth(data);
+                    } else {
+                        std::cout << TXT_BOLDMAGENTA << "Ray mode" << TXT_RESET << std::endl;
+                        //expand and smooth (with raycast)
+                        expand(data, true, true);
+                        smooth(data, 20);
+                    }
+
+                    raycast = prev_vol * 1.005 >= data.m.mesh_volume();
+                    prev_vol = data.m.mesh_volume();
+                }
+
+                //update model
+                data.m.update_normals();
+                data.m.updateGL();
                 break;
             }
 
@@ -716,7 +796,7 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 }
 
 //move the verts toward the target
-void expand(Data &d, bool refine) {
+void expand(Data &d, bool refine, bool raycast) {
 
     //start
     std::cout << TXT_CYAN << "Expanding the model... ";
@@ -726,34 +806,18 @@ void expand(Data &d, bool refine) {
 
         assert(d.m.vert_is_on_srf(vid));
 
-        //get info
+        //og pos to get back if something goes wrong
         vec3d og_pos = d.m.vert(vid);
-        double dist = d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid));
+
+        //dist from target (if !raycast we took the closest point of the target for the dist)
+        double dist = dist_calc(d, vid, raycast);
         //move the vert
-        double movement = std::max(dist * d.mov_speed, d.m.edge_min_length()*2);
+        double speed = raycast ? d.ray_speed : d.mov_speed;
+        double movement = std::max(dist * speed, d.m.edge_min_length()*2.5);
         d.m.vert(vid) += d.m.vert_data(vid).normal * movement;
 
-        //check intersection
-        uint iter_counter = 0;
-        std::unordered_set<uint> intersect_ids;
-
-        //check vert-edge-face intersection with the target
-        while(check_intersection(d, vid) && iter_counter < 100) {
-            d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
-            iter_counter++;
-        }
-        //if edge still outside get back the vid
-        if(check_intersection(d, vid))
-            d.m.vert(vid) = og_pos;
-
-        //positive volume check
-        iter_counter = 0;
-        while(check_volume(d, vid) && iter_counter < 100) {
-            d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
-            iter_counter++;
-        }
-        if(iter_counter == 100)
-            d.m.vert(vid) = og_pos;
+        //check if the move is ok, if not it goes back to a safe spot in the middle
+        go_back_safe(d, vid, og_pos);
 
         //update the mask
         if(d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid)) < d.eps_inactive)
@@ -777,62 +841,48 @@ void expand(Data &d, bool refine) {
     }
 }
 
-//smooth ONLY the surface of the model
+//laplacian smooth of the model
 void smooth(Data &d, int n_iter) {
 
     //start
     std::cout << TXT_CYAN << "Smoothing the model...";
 
-    int iter_counter;
+    Trimesh<> srf;
+    export_surface(d.m, srf);
+    //mesh_smoother(srf, srf);
     Octree octree;
-    std::unordered_map<uint, uint> map_v2s, map_s2v;
-
-    export_surface(d.m, d.m_srf, map_v2s, map_s2v);
-    octree.build_from_mesh_polys(d.m_srf);
+    octree.build_from_mesh_polys(srf);
 
     //for the number of iterations selected
     for(int iter = 0; iter < n_iter; iter++) {
-
 
         for(uint vid = 0; vid < d.m.num_verts(); vid++) {
 
             if(d.m.vert_is_on_srf(vid) && d.m.vert_data(vid).label)
                 continue;
 
-            vec3d og_pos = d.m.vert(vid);
-
-            //calc the barycenter
+            //parameters
+            vec3d og_pos = d.m.vert(vid); //seed for tangent plane (see project_on_tangent_plane)
+            vec3d og_norm = d.m.vert_data(vid).normal; //seed for tangent plane (see project_on_tangent_plane)
             vec3d bary(0, 0, 0);
+
+//            for (uint adj: d.m.adj_v2v(vid)) bary += d.m.vert(adj);
+//            bary /= static_cast<double>(d.m.adj_v2v(vid).size());
+//            d.m.vert(vid) = bary;
+//            if(d.m.vert_is_on_srf(vid)) d.m.vert(vid) = project_onto_tangent_plane(bary, og_pos, og_norm);
 
             if(d.m.vert_is_on_srf(vid)) {
                 for (uint adj: d.m.vert_adj_srf_verts(vid)) bary += d.m.vert(adj);
                 bary /= static_cast<double>(d.m.vert_adj_srf_verts(vid).size());
+                //d.m.vert(vid) = project_onto_tangent_plane(bary, og_pos, og_norm);
                 d.m.vert(vid) = octree.closest_point(bary);
-
-                //check vert-edge-face intersection with the target
-                iter_counter = 0;
-                while(check_intersection(d, vid) && iter_counter < 5) {
-                    d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
-                    iter_counter++;
-                }
-                //if edge still outside get back the vid
-                if(check_intersection(d, vid))
-                    d.m.vert(vid) = og_pos;
-
             } else {
                 for (uint adj: d.m.adj_v2v(vid)) bary += d.m.vert(adj);
                 bary /= static_cast<double>(d.m.adj_v2v(vid).size());
                 d.m.vert(vid) = bary;
             }
 
-            //positive volume check
-            iter_counter = 0;
-            while(check_volume(d, vid) && iter_counter < 100) {
-                d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
-                iter_counter++;
-            }
-            if(iter_counter == 100)
-                d.m.vert(vid) = og_pos;
+            go_back_safe(d, vid, og_pos);
 
         }
     }
@@ -937,5 +987,63 @@ void front_from_seed(Data &d, uint seed, std::unordered_set<uint> &front) {
             }
         }
     }
+
+}
+
+//calc the distance from the target with a raycast hit
+double dist_calc(Data &d, uint vid, bool raycast) {
+
+    //param
+    uint id; //useless
+    double dist;
+
+    //raycast hit (normal direction)
+    if(raycast)
+        d.oct.intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, id);
+    else
+        dist = d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid));
+
+    return dist;
+}
+
+//check if the movement of the vert is safe, if not it goes back by bisection
+void go_back_safe(Data &d, uint vid, const vec3d &og_pos) {
+
+    int iter_counter;
+    int max_iter = 50;
+
+    //check for intersections (only if on surface)
+    if(d.m.vert_is_on_srf(vid)) {
+        iter_counter = 0;
+        while (check_intersection(d, vid) && iter_counter < max_iter) {
+            d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
+            iter_counter++;
+        }
+        //if edge still outside get back the vid
+        if (iter_counter == max_iter && check_intersection(d, vid))
+            d.m.vert(vid) = og_pos;
+    }
+
+    //if it is not already putted back to the og pos
+    //check the volume with orient3D
+    if(!(d.m.vert(vid) == og_pos)) {
+        iter_counter = 0;
+        while(check_volume(d, vid) && iter_counter < max_iter) {
+            d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
+            iter_counter++;
+        }
+        if(iter_counter == max_iter && check_volume(d, vid))
+            d.m.vert(vid) = og_pos;
+    }
+
+}
+
+vec3d project_onto_tangent_plane(vec3d &point, vec3d &plane_og, vec3d &plane_norm) {
+
+    vec3d u = point - plane_og;
+    double dist = u.dot(plane_norm);
+    vec3d proj = point - plane_norm * dist;
+
+    return proj;
 
 }
