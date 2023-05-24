@@ -50,7 +50,7 @@ typedef struct data {
     std::unordered_map<uint,uint> m2srf_vmap;
     std::unordered_map<uint,uint> srf2m_vmap;
     //parameters
-    double mov_speed = 0.25;
+    double mov_speed = 0.1;
     double eps_percent = 0.1;
     double eps_inactive = 0.01;
     double edge_threshold = 0.01;
@@ -78,8 +78,7 @@ bool flip2to2(DrawableTetmesh<> &m, uint eid);
 bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
 //movement operations
 void expand(Data &d, bool refine = false);
-void smooth(Data &d, int n_iter = 2);
-void custom_mesh_smoother(AbstractPolygonMesh<> &m, const AbstractPolygonMesh<> &target, const SmootherOptions &opt = SmootherOptions());
+void smooth(Data &d, int n_iter = 10);
 //check operations
 bool check_intersection(Data &d, uint vid);
 bool check_volume(Data &d, uint vid);
@@ -95,7 +94,7 @@ int main( /* int argc, char *argv[] */ ) {
     gui.side_bar_alpha = 0.5;
 
     //load the data
-    char path[] = BUNNY;
+    char path[] = PIG;
     Data data = setup(path);
 
     //gui push
@@ -105,6 +104,7 @@ int main( /* int argc, char *argv[] */ ) {
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&data.vol, &gui));
 
     //visualization
+    UI_Mode uiMode = BLANK;
     bool show_target = true;
     bool show_target_matte = false;
     bool show_fronts = false;
@@ -124,19 +124,25 @@ int main( /* int argc, char *argv[] */ ) {
         bool handled = true;
 
         switch (key) {
+
+            case GLFW_KEY_COMMA: {
+                uiMode = BLANK;
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+                data.m.updateGL();
+                break;
+            }
+
             //arrow visualization
             case GLFW_KEY_V: {
-                show_arrows = !show_arrows;
-                if (show_arrows) updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui);
-                else deleteArrows(dir_arrows, gui);
+                uiMode = DIRECTION;
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 break;
             }
 
             //fronts visualization
             case GLFW_KEY_B: {
-                show_fronts = !show_fronts;
-                if (show_fronts) showFronts(data.m);
-                else deleteFronts(data.m);
+                uiMode = FRONTS;
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 data.m.updateGL();
                 break;
             }
@@ -158,8 +164,7 @@ int main( /* int argc, char *argv[] */ ) {
                 expand(data);
 
                 //UI
-                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
 
                 //update model
                 data.m.update_normals();
@@ -178,8 +183,7 @@ int main( /* int argc, char *argv[] */ ) {
                 split_n_flip(data);
 
                 //UI
-                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
 
                 //update model
                 data.m.update_normals();
@@ -200,8 +204,7 @@ int main( /* int argc, char *argv[] */ ) {
                 data.fronts_bounds = undo_data.fronts_bounds;
 
                 //UI
-                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
 
                 //re-push on gui
                 gui.push(&data.m, false);
@@ -225,11 +228,10 @@ int main( /* int argc, char *argv[] */ ) {
                 undo_data = data;
 
                 //move the verts
-
                 expand(data, true);
+
                 //UI
-                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
 
                 //update model
                 data.m.update_normals();
@@ -249,8 +251,7 @@ int main( /* int argc, char *argv[] */ ) {
                 split_n_flip(data, true);
 
                 //UI
-                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
 
                 //update model
                 data.m.update_normals();
@@ -271,8 +272,7 @@ int main( /* int argc, char *argv[] */ ) {
                 data.fronts_bounds = reset_data.fronts_bounds;
 
                 //UI
-                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
 
                 //re-push on gui
                 gui.push(&data.m, false);
@@ -287,11 +287,11 @@ int main( /* int argc, char *argv[] */ ) {
                 undo_data = data;
 
                 //smooth the surface
-                smooth(data, 5);
+                smooth(data);
 
                 //UI
-                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+
                 //update model
                 data.m.update_normals();
                 data.m.updateGL();
@@ -306,11 +306,11 @@ int main( /* int argc, char *argv[] */ ) {
 
                 //expand and smooth
                 expand(data, true);
-                smooth(data, 5);
+                smooth(data);
 
                 //UI
-                show_arrows ? updateArrows(data.m, data.oct, dir_arrows, data.fronts_active, gui) : deleteArrows(dir_arrows, gui);
-                show_fronts ? showFronts(data.m) : deleteFronts(data.m);
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+
                 //update model
                 data.m.update_normals();
                 data.m.updateGL();
@@ -319,11 +319,29 @@ int main( /* int argc, char *argv[] */ ) {
 
             //show orient3D sign
             case GLFW_KEY_Y: {
-                show_vol_color = !show_vol_color;
-                if(show_vol_color) show_volume(data.m);
-                else clear_colors(data.m);
-
+                uiMode = VOLUME;
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 data.m.updateGL();
+
+                break;
+            }
+
+            //100 iteration of expand and smooth
+            case GLFW_KEY_PERIOD: {
+
+                undo_data = data;
+
+                for(int i = 0; i < 100; i++) {
+                    //expand and smooth
+                    expand(data, true);
+                    smooth(data);
+                    data.m.update_normals();
+                }
+
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+                data.m.updateGL();
+
+                break;
             }
 
             default:
@@ -381,7 +399,6 @@ Data setup(const char *path) {
 
     //sphere build
     data.m = get_sphere(data.vol.vert(center_vid), center_dist / 2);
-    data.m.poly_set_color(Color::PASTEL_YELLOW());
 
     for(uint vid : data.m.get_surface_verts())
         data.m.vert_data(vid).label = false;
@@ -471,7 +488,7 @@ std::set<uint> search_split_int(Data &d) {
     for(uint vid : d.m.get_surface_verts())
         for(uint eid : d.m.adj_v2e(vid))
             if(!d.m.edge_is_on_srf(eid))
-                if(d.m.edge_length(eid) > d.edge_threshold * 2)
+                if(d.m.edge_length(eid) > d.edge_threshold)
                     edges_to_split.insert(eid);
 
     return edges_to_split;
@@ -713,16 +730,16 @@ void expand(Data &d, bool refine) {
         vec3d og_pos = d.m.vert(vid);
         double dist = d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid));
         //move the vert
-        d.m.vert(vid) += d.m.vert_data(vid).normal * dist * d.mov_speed;
+        double movement = std::max(dist * d.mov_speed, d.m.edge_min_length()*2);
+        d.m.vert(vid) += d.m.vert_data(vid).normal * movement;
 
         //check intersection
         uint iter_counter = 0;
         std::unordered_set<uint> intersect_ids;
 
         //check vert-edge-face intersection with the target
-        while(check_intersection(d, vid) && iter_counter < 5) {
-            d.m.vert(vid) -= d.m.vert_data(vid).normal * dist * d.mov_speed / 2;
-            dist = d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid));
+        while(check_intersection(d, vid) && iter_counter < 100) {
+            d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
             iter_counter++;
         }
         //if edge still outside get back the vid
@@ -730,12 +747,13 @@ void expand(Data &d, bool refine) {
             d.m.vert(vid) = og_pos;
 
         //positive volume check
-//        iter_counter = 0;
-//        while(check_volume(d, vid) && iter_counter < 5) {
-//            d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
-//            iter_counter++;
-//        }
-
+        iter_counter = 0;
+        while(check_volume(d, vid) && iter_counter < 100) {
+            d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
+            iter_counter++;
+        }
+        if(iter_counter == 100)
+            d.m.vert(vid) = og_pos;
 
         //update the mask
         if(d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid)) < d.eps_inactive)
@@ -762,51 +780,65 @@ void expand(Data &d, bool refine) {
 //smooth ONLY the surface of the model
 void smooth(Data &d, int n_iter) {
 
-    std::unordered_map<uint, uint> map_v2s, map_s2v;
-    export_surface(d.m, d.m_srf, map_v2s, map_s2v);
+    //start
+    std::cout << TXT_CYAN << "Smoothing the model...";
 
+    int iter_counter;
     Octree octree;
+    std::unordered_map<uint, uint> map_v2s, map_s2v;
+
+    export_surface(d.m, d.m_srf, map_v2s, map_s2v);
     octree.build_from_mesh_polys(d.m_srf);
 
     //for the number of iterations selected
     for(int iter = 0; iter < n_iter; iter++) {
 
-        //for every active front
-        for (uint vid : d.m.get_surface_verts()) {
 
-            if(d.m.vert_data(vid).label)
+        for(uint vid = 0; vid < d.m.num_verts(); vid++) {
+
+            if(d.m.vert_is_on_srf(vid) && d.m.vert_data(vid).label)
                 continue;
+
+            vec3d og_pos = d.m.vert(vid);
 
             //calc the barycenter
             vec3d bary(0, 0, 0);
-            for (uint adj : d.m_srf.adj_v2v(map_v2s.at(vid))) bary += d.m_srf.vert(adj);
-            bary /= static_cast<double>(d.m_srf.adj_v2v(map_v2s.at(vid)).size());
 
-            //move the vert
-            d.m.vert(vid) = octree.closest_point(bary);
+            if(d.m.vert_is_on_srf(vid)) {
+                for (uint adj: d.m.vert_adj_srf_verts(vid)) bary += d.m.vert(adj);
+                bary /= static_cast<double>(d.m.vert_adj_srf_verts(vid).size());
+                d.m.vert(vid) = octree.closest_point(bary);
 
-            //if there are any intersection the vert is locked
-            d.m.vert_data(vid).label = check_intersection(d, vid);
+                //check vert-edge-face intersection with the target
+                iter_counter = 0;
+                while(check_intersection(d, vid) && iter_counter < 5) {
+                    d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
+                    iter_counter++;
+                }
+                //if edge still outside get back the vid
+                if(check_intersection(d, vid))
+                    d.m.vert(vid) = og_pos;
+
+            } else {
+                for (uint adj: d.m.adj_v2v(vid)) bary += d.m.vert(adj);
+                bary /= static_cast<double>(d.m.adj_v2v(vid).size());
+                d.m.vert(vid) = bary;
+            }
+
+            //positive volume check
+            iter_counter = 0;
+            while(check_volume(d, vid) && iter_counter < 100) {
+                d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
+                iter_counter++;
+            }
+            if(iter_counter == 100)
+                d.m.vert(vid) = og_pos;
+
         }
-
     }
 
-    for (uint vid = 0; vid < d.m.num_verts(); vid++) {
-
-        if(d.m.vert_is_on_srf(vid))
-            continue;
-
-        //calc the barycenter
-        vec3d bary(0, 0, 0);
-        for(uint adj : d.m.adj_v2v(vid)) bary += d.m.vert(adj);
-        bary /= static_cast<double>(d.m.adj_v2v(vid).size());
-
-    }
-
-    //struct ARAP_data ad;
-    //ARAP(d.m, ad);
-
-    update_fronts(d);
+    //job done
+    std::cout << "DONE" << TXT_RESET << std::endl;
 }
 
 bool check_intersection(Data &d, uint vid) {

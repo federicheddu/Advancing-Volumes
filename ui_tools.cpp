@@ -1,6 +1,37 @@
 #include "ui_tools.h"
 
+void UI_Manager(DrawableTetmesh<> &m , UI_Mode uiMode, Octree &oct, std::vector<DrawableArrow> &dir_arrows, std::vector<uint> &active_fronts, GLcanvas &gui) {
+    static UI_Mode prev = BLANK;
+
+    if(prev == BLANK && uiMode == BLANK)
+        return;
+
+    switch (uiMode) {
+        case BLANK: {
+            clearColors(m);
+            deleteArrows(dir_arrows, gui);
+            break;
+        }
+        case DIRECTION: {
+            showArrows(m, oct, dir_arrows, active_fronts, gui);
+            break;
+        }
+        case FRONTS: {
+            showFronts(m);
+            break;
+        }
+        case VOLUME: {
+            showVolume(m);
+            break;
+        }
+    }
+
+    prev = uiMode;
+}
+
 void showArrows(Tetmesh<> &m, Octree &oct, std::vector<DrawableArrow> &dir_arrows, std::vector<uint> &active_fronts, GLcanvas &gui) {
+
+    deleteArrows(dir_arrows, gui);
 
     for (auto vid : active_fronts) {
         dir_arrows.emplace_back(m.vert(vid),
@@ -16,7 +47,6 @@ void showArrows(Tetmesh<> &m, Octree &oct, std::vector<DrawableArrow> &dir_arrow
 
 void deleteArrows(std::vector<DrawableArrow> &dir_arrows, GLcanvas &gui) {
 
-
     for (auto &id: dir_arrows) {
         gui.pop(&id);
     }
@@ -24,43 +54,36 @@ void deleteArrows(std::vector<DrawableArrow> &dir_arrows, GLcanvas &gui) {
 
 }
 
-void updateArrows(Tetmesh<> &m, Octree &oct, std::vector<DrawableArrow> &dir_arrows, std::vector<uint> &active_fronts, GLcanvas &gui) {
-    deleteArrows(dir_arrows, gui);
-    showArrows(m, oct, dir_arrows, active_fronts, gui);
-}
-
 void showFronts(DrawableTetmesh<> &m) {
 
-    deleteFronts(m);
-    for(uint vid : m.get_surface_verts())
+    clearColors(m);
+
+    PARALLEL_FOR(0, m.get_surface_verts().size(), 1000, [&](uint idx)
+    {
+        uint vid = m.get_surface_verts().at(idx);
+
         if(!m.vert_data(vid).label)
             for(uint pid : m.adj_v2p(vid))
                 m.poly_data(pid).color = Color::PASTEL_ORANGE();
-
-}
-
-void deleteFronts(DrawableTetmesh<> &m) {
-
-    for (uint fid : m.get_surface_faces())
-        m.poly_data(m.adj_f2p(fid)[0]).color = Color::PASTEL_YELLOW();
-
-}
-
-void show_volume(DrawableTetmesh<> &m) {
-
-    PARALLEL_FOR(0,m.num_polys(),100,[&](uint pid)
-    {
-        double volume = orient3d(m.poly_vert(pid, 0), m.poly_vert(pid, 1), m.poly_vert(pid, 2), m.poly_vert(pid, 3));
-        m.poly_data(pid).color = volume > 0 ? Color::RED() : Color::BLUE();
     });
 
 }
 
-void clear_colors(DrawableTetmesh<> &m) {
+void showVolume(DrawableTetmesh<> &m) {
+
+    PARALLEL_FOR(0,m.num_polys(),1000,[&](uint pid)
+    {
+        double volume = orient3d(m.poly_vert(pid, 0), m.poly_vert(pid, 1), m.poly_vert(pid, 2), m.poly_vert(pid, 3));
+        m.poly_data(pid).color = volume > 0 ? Color::RED() : Color::PASTEL_CYAN();
+    });
+
+}
+
+void clearColors(DrawableTetmesh<> &m) {
 
     PARALLEL_FOR(0, m.num_polys(), 100, [&](uint pid)
     {
-        m.poly_data(pid).color = Color::PASTEL_YELLOW();
+        m.poly_data(pid).color = Color::WHITE();
     });
 
 }
