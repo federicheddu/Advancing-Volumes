@@ -61,18 +61,3 @@ This process can be done simultaneously on two models in order to create a map b
 |  **N**  | Expand the model moving the verts                |  Action  |
 |  **M**  | Refine the model in the active front             |  Action  |
 
-## Starting model placement
-Our starting model is a sphere with 67V / 358E / 544F / 252P.  
-This is placed at the point where the minimum distance from the target surface is the greatest,
-with the radius of half of that distance.
-
-We can potentially go on to select even different resolution spheres with 18/31/40/50 vertices as the starting model.
-
-## Expanding the model
-The model is expanded by going to move each vertex in the direction of its normal by a distance proportional 
-to its minimum distance from the surface until a minimum stop distance is reached.
-
-In case during the expansion the model intersects the target, the vertex that caused this intersection is moved 
-back by half of its displacement up to 5 times, after which it is returned to its starting position if it continues 
-to make the model intersect the target in any way.
-
