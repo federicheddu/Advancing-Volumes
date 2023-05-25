@@ -50,11 +50,10 @@ typedef struct data {
     std::unordered_map<uint,uint> m2srf_vmap;
     std::unordered_map<uint,uint> srf2m_vmap;
     //parameters
-    double mov_speed = 0.1;
-    double ray_speed = 0.25;
-    double eps_percent = 0.1;
-    double eps_inactive = 0.01;
-    double edge_threshold = 0.01;
+    double mov_speed = 0.1;         // % of the distance used for the movement
+    double eps_percent = 0.1;       // % of the min edge length used for the inactive threshold
+    double eps_inactive = 0.01;     // dist fot the inactivity (in setup is set to eps * srf max edge length)
+    double edge_threshold = 0.01;   // edge length threshold for refinement (in setup is set to 2 * srf max edge length)
     //fronts_active
     std::vector<uint> fronts_active;
     std::vector<uint> fronts_bounds;
@@ -65,6 +64,9 @@ typedef struct edge_to_flip {
     uint opp_vid = 0;
     ipair og_edge = {0, 0};
 } edge_to_flip;
+
+//define expansion mode
+typedef enum {CLOSEST_POINT, RAYCAST, LOCAL} ExpansionMode;
 
 //setup of the env
 Data setup(const char *path);
@@ -78,7 +80,7 @@ void split_n_flip(Data &d, bool selective = false);
 bool flip2to2(DrawableTetmesh<> &m, uint eid);
 bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
 //movement operations
-void expand(Data &d, bool refine = false, bool raycast = false);
+void expand(Data &d, bool refine = false, ExpansionMode exp_mode = LOCAL);
 void smooth(Data &d, int n_iter = 10);
 double dist_calc(Data &d, uint vid, bool raycast = false);
 void go_back_safe(Data &d, uint vid, const vec3d &og_pos);
@@ -98,7 +100,7 @@ int main( /* int argc, char *argv[] */ ) {
     gui.side_bar_alpha = 0.5;
 
     //load the data
-    char path[] = PIG;
+    char path[] = BUNNY;
     Data data = setup(path);
 
     //gui push
@@ -292,11 +294,9 @@ int main( /* int argc, char *argv[] */ ) {
                 //smooth the surface
                 smooth(data);
 
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
-                //update model
+                //update model and UI
                 data.m.update_normals();
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 data.m.updateGL();
                 break;
             }
@@ -311,11 +311,9 @@ int main( /* int argc, char *argv[] */ ) {
                 expand(data, true);
                 smooth(data);
 
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
-                //update model
+                //update model and UI
                 data.m.update_normals();
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 data.m.updateGL();
                 break;
             }
@@ -338,23 +336,21 @@ int main( /* int argc, char *argv[] */ ) {
                 if(!raycast) {
                     std::cout << TXT_BOLDMAGENTA << "Closest point mode" << TXT_RESET << std::endl;
                     //expand and smooth (with the closest point)
-                    expand(data, true, false);
+                    expand(data, true, CLOSEST_POINT);
                     smooth(data);
                 } else {
                     std::cout << TXT_BOLDMAGENTA << "Ray mode" << TXT_RESET << std::endl;
                     //expand and smooth (with raycast)
-                    expand(data, true, true);
+                    expand(data, true, RAYCAST);
                     smooth(data, 20);
                 }
 
                 raycast = prev_vol * 1.005 >= data.m.mesh_volume();
                 prev_vol = data.m.mesh_volume();
 
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
-                //update model
+                //update model and UI
                 data.m.update_normals();
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 data.m.updateGL();
                 break;
             }
@@ -365,14 +361,12 @@ int main( /* int argc, char *argv[] */ ) {
 
                 std::cout << TXT_BOLDMAGENTA << "Ray mode" << TXT_RESET << std::endl;
                 //expand and smooth (with raycast)
-                expand(data, true, true);
+                expand(data, true, RAYCAST);
                 smooth(data, 20);
 
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
-                //update model
+                //update model and UI
                 data.m.update_normals();
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 data.m.updateGL();
                 break;
             }
@@ -387,13 +381,13 @@ int main( /* int argc, char *argv[] */ ) {
                     if (!raycast) {
                         std::cout << TXT_BOLDMAGENTA << "Closest point mode" << TXT_RESET << std::endl;
                         //expand and smooth (with the closest point)
-                        expand(data, true, false);
+                        expand(data, true, CLOSEST_POINT);
                         smooth(data);
                     } else {
                         std::cout << TXT_BOLDMAGENTA << "Ray mode" << TXT_RESET << std::endl;
                         //expand and smooth (with raycast)
-                        expand(data, true, true);
-                        smooth(data, 20);
+                        expand(data, true, RAYCAST);
+                        smooth(data, 15);
                     }
 
                     raycast = prev_vol * 1.005 >= data.m.mesh_volume();
@@ -402,22 +396,38 @@ int main( /* int argc, char *argv[] */ ) {
 
                 //update model
                 data.m.update_normals();
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 data.m.updateGL();
                 break;
             }
 
-            //100 iteration of expand and smooth
+
             case GLFW_KEY_PERIOD: {
 
                 undo_data = data;
 
-                for(int i = 0; i < 100; i++) {
-                    //expand and smooth
-                    expand(data, true);
+                expand(data, true, LOCAL);
+                smooth(data);
+
+                //update model and UI
+                data.m.update_normals();
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+                data.m.updateGL();
+
+                break;
+            }
+
+            case GLFW_KEY_SPACE: {
+
+                undo_data = data;
+
+                for(int i = 0; i < 10; i++){
+                    expand(data, true, LOCAL);
                     smooth(data);
-                    data.m.update_normals();
                 }
 
+                //update model and UI
+                data.m.update_normals();
                 UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 data.m.updateGL();
 
@@ -453,11 +463,11 @@ Data setup(const char *path) {
     //octree build
     data.oct.build_from_mesh_polys(data.srf);
 
-    //inactive threshold
-    data.eps_inactive = data.srf.edge_min_length() * data.eps_percent;
-
     //edge length threshold
     data.edge_threshold = data.srf.edge_max_length() * 2;
+
+    //inactive threshold
+    data.eps_inactive = data.edge_threshold * data.eps_percent;
 
     //get info for placing the sphere
     uint center_vid = 0;
@@ -796,7 +806,7 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 }
 
 //move the verts toward the target
-void expand(Data &d, bool refine, bool raycast) {
+void expand(Data &d, bool refine, ExpansionMode exp_mode) {
 
     //start
     std::cout << TXT_CYAN << "Expanding the model... ";
@@ -809,18 +819,32 @@ void expand(Data &d, bool refine, bool raycast) {
         //og pos to get back if something goes wrong
         vec3d og_pos = d.m.vert(vid);
 
-        //dist from target (if !raycast we took the closest point of the target for the dist)
-        double dist = dist_calc(d, vid, raycast);
+        double dist;
+        switch (exp_mode) {
+            case CLOSEST_POINT: {
+                dist = dist_calc(d, vid, false);
+                break;
+            }
+            case RAYCAST: {
+                dist = dist_calc(d, vid, true);
+                break;
+            }
+            case LOCAL: {
+                dist = dist_calc(d, vid, false);
+                if(dist < d.eps_inactive * 1.5) dist = dist_calc(d, vid, true);
+                break;
+            }
+        }
+
         //move the vert
-        double speed = raycast ? d.ray_speed : d.mov_speed;
-        double movement = std::max(dist * speed, d.m.edge_min_length()*2.5);
+        double movement = std::max(dist * d.mov_speed, d.m.edge_min_length()*2.5);
         d.m.vert(vid) += d.m.vert_data(vid).normal * movement;
 
         //check if the move is ok, if not it goes back to a safe spot in the middle
         go_back_safe(d, vid, og_pos);
 
         //update the mask
-        if(d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid)) < d.eps_inactive)
+        if(dist_calc(d, vid, true) < d.eps_inactive)
             d.m.vert_data(vid).label = true;
 
     }
@@ -856,7 +880,7 @@ void smooth(Data &d, int n_iter) {
     //for the number of iterations selected
     for(int iter = 0; iter < n_iter; iter++) {
 
-        for(uint vid = 0; vid < d.m.num_verts(); vid++) {
+        for(int vid = d.m.num_verts()-1; vid >= 0; vid--) {
 
             if(d.m.vert_is_on_srf(vid) && d.m.vert_data(vid).label)
                 continue;
@@ -875,7 +899,12 @@ void smooth(Data &d, int n_iter) {
                 for (uint adj: d.m.vert_adj_srf_verts(vid)) bary += d.m.vert(adj);
                 bary /= static_cast<double>(d.m.vert_adj_srf_verts(vid).size());
                 //d.m.vert(vid) = project_onto_tangent_plane(bary, og_pos, og_norm);
-                d.m.vert(vid) = octree.closest_point(bary);
+                //d.m.vert(vid) = octree.closest_point(bary);
+                d.m.vert(vid) = bary;
+                d.m.update_v_normal(vid);
+                double dist; uint aux;
+                octree.intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, aux);
+                d.m.vert(vid) += d.m.vert_data(vid).normal * dist;
             } else {
                 for (uint adj: d.m.adj_v2v(vid)) bary += d.m.vert(adj);
                 bary /= static_cast<double>(d.m.adj_v2v(vid).size());
