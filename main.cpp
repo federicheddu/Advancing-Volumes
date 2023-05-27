@@ -25,18 +25,15 @@ using namespace cinolib;
 */
 
 //model macros
-#define ANT "../data/ant.mesh"
-#define ARMADILLO "../data/armadillo.mesh"
-#define BUNNY "../data/bunny.mesh"
+#define ANT "../data/ant.mesh"                          //perfect
+#define ARMADILLO "../data/armadillo.mesh"              //very good
+#define BUNNY "../data/bunny.mesh"                      //bottom compenetration, very low
 #define CHINESE_DRAGON "../data/chinese_dragon.mesh"
-#define DANCER_CHILDREN "../data/dancer_children.mesh"
-#define DAVID "../data/david.mesh"
+#define DAVID "../data/david.mesh"                      //too complex model
 #define DRAGON "../data/dragon.mesh"
-#define GARGOYLE "../data/gargoyle.mesh"
-#define KITTEN "../data/kitten.mesh"
-#define KITTY "../data/kitty.mesh"
-#define MOUSE "../data/mouse.mesh"
-#define PIG "../data/pig.mesh"
+#define GARGOYLE "../data/gargoyle.mesh"                //complex model
+#define MOUSE "../data/mouse.mesh"                      //almost good
+#define PIG "../data/pig.mesh"                          //ear compenetration
 
 //struct to store the target model and parameters
 typedef struct data {
@@ -100,7 +97,7 @@ int main( /* int argc, char *argv[] */ ) {
     gui.side_bar_alpha = 0.5;
 
     //load the data
-    char path[] = BUNNY;
+    char path[] = CHINESE_DRAGON;
     Data data = setup(path);
 
     //gui push
@@ -187,11 +184,9 @@ int main( /* int argc, char *argv[] */ ) {
                 //split and flip polys in the surface
                 split_n_flip(data);
 
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
                 //update model
                 data.m.update_normals();
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 data.m.updateGL();
                 break;
             }
@@ -371,37 +366,6 @@ int main( /* int argc, char *argv[] */ ) {
                 break;
             }
 
-            case GLFW_KEY_EQUAL: {
-                undo_data = data;
-
-                while(!raycast){
-
-                    prev_vol = data.m.mesh_volume();
-
-                    if (!raycast) {
-                        std::cout << TXT_BOLDMAGENTA << "Closest point mode" << TXT_RESET << std::endl;
-                        //expand and smooth (with the closest point)
-                        expand(data, true, CLOSEST_POINT);
-                        smooth(data);
-                    } else {
-                        std::cout << TXT_BOLDMAGENTA << "Ray mode" << TXT_RESET << std::endl;
-                        //expand and smooth (with raycast)
-                        expand(data, true, RAYCAST);
-                        smooth(data, 15);
-                    }
-
-                    raycast = prev_vol * 1.005 >= data.m.mesh_volume();
-                    prev_vol = data.m.mesh_volume();
-                }
-
-                //update model
-                data.m.update_normals();
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-                break;
-            }
-
-
             case GLFW_KEY_PERIOD: {
 
                 undo_data = data;
@@ -422,9 +386,11 @@ int main( /* int argc, char *argv[] */ ) {
                 undo_data = data;
 
                 for(int i = 0; i < 10; i++){
+                    std::cout << TXT_BOLDMAGENTA << "Iter: " << i << TXT_RESET << std::endl;
                     expand(data, true, LOCAL);
                     smooth(data);
                 }
+                std::cout << TXT_BOLDMAGENTA << "DONE" << TXT_RESET << std::endl;
 
                 //update model and UI
                 data.m.update_normals();
@@ -464,7 +430,7 @@ Data setup(const char *path) {
     data.oct.build_from_mesh_polys(data.srf);
 
     //edge length threshold
-    data.edge_threshold = data.srf.edge_max_length() * 2;
+    data.edge_threshold = data.srf.bbox().diag() * 0.02;
 
     //inactive threshold
     data.eps_inactive = data.edge_threshold * data.eps_percent;
@@ -811,14 +777,11 @@ void expand(Data &d, bool refine, ExpansionMode exp_mode) {
     //start
     std::cout << TXT_CYAN << "Expanding the model... ";
 
-    //for every active front
-    for(uint vid : d.fronts_active) {
-
-        assert(d.m.vert_is_on_srf(vid));
-
-        //og pos to get back if something goes wrong
-        vec3d og_pos = d.m.vert(vid);
-
+    //get all the distances from the target model
+    std::vector<double> front_dist(d.fronts_active.size());
+    PARALLEL_FOR(0, d.fronts_active.size(), 1000, [&](int idx)
+    {
+        uint vid = d.fronts_active.at(idx);
         double dist;
         switch (exp_mode) {
             case CLOSEST_POINT: {
@@ -831,16 +794,31 @@ void expand(Data &d, bool refine, ExpansionMode exp_mode) {
             }
             case LOCAL: {
                 dist = dist_calc(d, vid, false);
-                if(dist < d.eps_inactive * 1.5) dist = dist_calc(d, vid, true);
+                if(dist < d.eps_inactive*2) dist = dist_calc(d, vid, true);
                 break;
             }
         }
+        front_dist.at(idx) = dist;
+    });
+
+    //move every vert in the active front
+    for(uint idx = 0; idx < d.fronts_active.size(); idx++) {
+
+        //get the vid
+        uint vid = d.fronts_active.at(idx);
+        assert(d.m.vert_is_on_srf(vid));
+
+        //og pos to get back if something goes wrong
+        vec3d og_pos = d.m.vert(vid);
+
+        //get the distance calculated before
+        double dist = front_dist.at(idx);
 
         //move the vert
-        double movement = std::max(dist * d.mov_speed, d.m.edge_min_length()*2.5);
+        double movement = dist * d.mov_speed;
         d.m.vert(vid) += d.m.vert_data(vid).normal * movement;
 
-        //check if the move is ok, if not it goes back to a safe spot in the middle
+        //put the vert in a safe place between [og_pos, actual_pos]
         go_back_safe(d, vid, og_pos);
 
         //update the mask
@@ -851,6 +829,8 @@ void expand(Data &d, bool refine, ExpansionMode exp_mode) {
 
     //job done
     std::cout << "DONE" << TXT_RESET << std::endl;
+
+    smooth(d, 5);
 
     //refine where the edges are too long or just update the front
     if(refine)
@@ -871,11 +851,10 @@ void smooth(Data &d, int n_iter) {
     //start
     std::cout << TXT_CYAN << "Smoothing the model...";
 
-    Trimesh<> srf;
-    export_surface(d.m, srf);
-    //mesh_smoother(srf, srf);
+    export_surface(d.m, d.m_srf);
+    //mesh_smoother(d.m_srf, d.m_srf);
     Octree octree;
-    octree.build_from_mesh_polys(srf);
+    octree.build_from_mesh_polys(d.m_srf);
 
     //for the number of iterations selected
     for(int iter = 0; iter < n_iter; iter++) {
@@ -1074,5 +1053,29 @@ vec3d project_onto_tangent_plane(vec3d &point, vec3d &plane_og, vec3d &plane_nor
     vec3d proj = point - plane_norm * dist;
 
     return proj;
+
+}
+
+void final_projection(Data &d) {
+
+    export_surface(d.m, d.m_srf);
+
+    Octree octree;
+    octree.build_from_mesh_polys(d.m_srf);
+
+    vec3d og_pos;
+    double dist; uint aux;
+    for(int iter = 0; iter < 5; iter++){
+        for (uint vid: d.m.get_surface_verts()) {
+            og_pos = d.m.vert(vid);
+
+            dist = dist_calc(d, true);
+            octree.intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, aux);
+            d.m.vert(vid) += d.m.vert_data(vid).normal * dist;
+
+            go_back_safe(d, vid, og_pos);
+            smooth(d);
+        }
+    }
 
 }
