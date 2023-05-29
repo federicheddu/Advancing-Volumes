@@ -14,26 +14,63 @@ using namespace cinolib;
  *          v1
 */
 
-//model macros
-#define ANT "../data/ant.mesh"                          //perfect
-#define ARMADILLO "../data/armadillo.mesh"              //very good
-#define BUNNY "../data/bunny.mesh"                      //bottom compenetration, very low
-#define CHINESE_DRAGON "../data/chinese_dragon.mesh"
-#define DAVID "../data/david.mesh"                      //too complex model
-#define DRAGON "../data/dragon.mesh"
-#define GARGOYLE "../data/gargoyle.mesh"                //complex model
-#define MOUSE "../data/mouse.mesh"                      //almost good
-#define PIG "../data/pig.mesh"                          //ear compenetration
-
 int main( /* int argc, char *argv[] */ ) {
 
     //UI
     GLcanvas gui(1080, 720);
     gui.side_bar_alpha = 0.5;
 
+    std::vector<std::string> path = {"../data/cubespikes.mesh",           //0
+                                     "../data/armadillo.mesh",            //1
+                                     "../data/bunny.mesh",                //2
+                                     "../data/lego.mesh",                 //3
+                                     "../data/table8.mesh",               //4
+                                     "../data/spider.mesh",               //5
+                                     "../data/ant.mesh",                  //6
+                                     "../data/chinese_dragon.mesh",       //7
+                                     "../data/bimba.mesh",                //8
+                                     "../data/table4.mesh",               //9
+                                     "../data/stag3.mesh",                //10
+                                     "../data/table4_2.mesh",             //11
+                                     "../data/horse.mesh",                //12
+                                     "../data/gear.mesh",                 //13
+                                     "../data/chamfer.mesh",              //14
+                                     "../data/hand_olivier.mesh",         //15
+                                     "../data/sphere.mesh",               //16
+                                     "../data/femur.mesh",                //17
+                                     "../data/fandisk.mesh",              //18
+                                     "../data/frog.mesh",                 //19
+                                     "../data/hand.mesh",                 //20
+                                     "../data/blade.mesh",                //21
+                                     "../data/buste.mesh",                //22
+                                     "../data/memento.mesh",              //23
+                                     "../data/sphinx.mesh",               //24
+                                     "../data/bone.mesh",                 //25
+                                     "../data/foot.mesh",                 //26
+                                     "../data/bird.mesh",                 //27
+                                     "../data/moai.mesh",                 //28
+                                     "../data/airplane.mesh",             //29
+                                     "../data/mouse.mesh",                //30
+                                     "../data/pig.mesh",                  //31
+                                     "../data/isidora_horse.mesh",        //32
+                                     "../data/david.mesh",                //33
+                                     "../data/octa_flower.mesh",          //34
+                                     "../data/duck.mesh",                 //35
+                                     "../data/ramses.mesh",               //36
+                                     "../data/lion.mesh",                 //37
+                                     "../data/armadillo_deformed.mesh",   //38
+                                     "../data/homer.mesh",                //39
+                                     "../data/devil.mesh",                //40
+                                     "../data/camile_hand.mesh",          //41
+                                     "../data/bumpy_sphere.mesh",         //42
+                                     "../data/gargoyle.mesh",             //43
+                                     "../data/dilo.mesh",                 //44
+                                     "../data/angel2.mesh",               //45
+                                     "../data/angel3.mesh",               //46
+                                     "../data/angel1.mesh",               //47
+                                     "../data/dog.mesh"};                 //48
     //load the data
-    char path[] = DAVID;
-    Data data = setup(path);
+    Data data = setup(path[32].c_str());
 
     //gui push
     gui.push(&data.m, false);

@@ -546,9 +546,12 @@ void update_fronts(Data &d) {
         //get the front
         front_from_seed(d, d.fronts_active[query_front], dect_front);
 
-        //add the front to the new vec
-        new_fronts.insert(new_fronts.end(), dect_front.begin(), dect_front.end());
-        new_bounds.emplace_back(new_fronts.size());
+        //add the front to the new vec (if the vert is not alone in the front)
+        if(dect_front.size() > 1) {
+            new_fronts.insert(new_fronts.end(), dect_front.begin(), dect_front.end());
+            new_bounds.emplace_back(new_fronts.size());
+        } else
+            d.m.vert_data(*begin(dect_front)).label = true;
 
         //find the next idx
         while (query_front < d.fronts_active.size() && (CONTAINS_VEC(new_fronts, d.fronts_active[query_front]) || d.m.vert_data(d.fronts_active[query_front]).label))
