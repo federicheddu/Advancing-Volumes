@@ -6,7 +6,7 @@
 Data setup(const char *path) {
     Data data;
 
-    std::cout << std::endl << TXT_BOLDMAGENTA << "Data loading... " << std::endl;
+    //std::cout << std::endl << TXT_BOLDMAGENTA << "Data loading... " << std::endl;
 
     //model vol
     data.vol = DrawableTetmesh<>(path);
@@ -48,7 +48,7 @@ Data setup(const char *path) {
     for(uint vid : data.m.get_surface_verts())
         data.m.vert_data(vid).label = false;
 
-    std::cout << "DONE" << TXT_RESET << std::endl;
+    //std::cout << "DONE" << TXT_RESET << std::endl;
 
     return data;
 }
@@ -227,7 +227,7 @@ void flip(Data &d, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges
 void split_n_flip(Data &d, bool selective) {
 
     //start of split
-    std::cout << TXT_CYAN << "Splitting the polys... ";
+    //std::cout << TXT_CYAN << "Splitting the polys... ";
 
     //data that we need for later
     uint offset = d.m.num_verts();
@@ -240,16 +240,16 @@ void split_n_flip(Data &d, bool selective) {
     split(d, edges_to_split, v_map, edges_to_flip);
 
     //end of split
-    std::cout << "DONE" << TXT_RESET << std::endl;
+    //std::cout << "DONE" << TXT_RESET << std::endl;
 
     //start of flipping
-    std::cout << TXT_CYAN << "Flipping the edges... ";
+    //std::cout << TXT_CYAN << "Flipping the edges... ";
 
     //* flip every edge we need to
     flip(d, v_map, edges_to_flip);
 
     //end of flipping
-    std::cout << "DONE" << TXT_RESET << std::endl;
+    //std::cout << "DONE" << TXT_RESET << std::endl;
 
     //update the fronts
     update_fronts(d);
@@ -364,7 +364,7 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 void expand(Data &d, bool refine, ExpansionMode exp_mode) {
 
     //start
-    std::cout << TXT_CYAN << "Expanding the model... ";
+    //std::cout << TXT_CYAN << "Expanding the model... ";
 
     //get all the distances from the target model
     std::vector<double> front_dist(d.fronts_active.size());
@@ -417,7 +417,7 @@ void expand(Data &d, bool refine, ExpansionMode exp_mode) {
     }
 
     //job done
-    std::cout << "DONE" << TXT_RESET << std::endl;
+    //std::cout << "DONE" << TXT_RESET << std::endl;
 
     smooth(d, 5);
 
@@ -438,7 +438,7 @@ void expand(Data &d, bool refine, ExpansionMode exp_mode) {
 void smooth(Data &d, int n_iter) {
 
     //start
-    std::cout << TXT_CYAN << "Smoothing the model...";
+    //std::cout << TXT_CYAN << "Smoothing the model...";
 
     export_surface(d.m, d.m_srf);
     //mesh_smoother(d.m_srf, d.m_srf);
@@ -485,7 +485,7 @@ void smooth(Data &d, int n_iter) {
     }
 
     //job done
-    std::cout << "DONE" << TXT_RESET << std::endl;
+    //std::cout << "DONE" << TXT_RESET << std::endl;
 }
 
 bool check_intersection(Data &d, uint vid) {
@@ -521,7 +521,7 @@ bool check_volume(Data &d, uint vid) {
 //update the front (must be called after every variation of the model)
 void update_fronts(Data &d) {
 
-    std::cout << TXT_CYAN << "Updating the fronts... ";
+    //std::cout << TXT_CYAN << "Updating the fronts... ";
 
     //parameters
     uint active_counter = 0;
@@ -565,7 +565,7 @@ void update_fronts(Data &d) {
     d.fronts_active = new_fronts;
     d.fronts_bounds = new_bounds;
 
-    std::cout << "DONE - F: " << d.fronts_bounds.size() << " V: " << d.fronts_active.size() << TXT_RESET << std::endl;
+    //std::cout << "DONE - F: " << d.fronts_bounds.size() << " V: " << d.fronts_active.size() << TXT_RESET << std::endl;
 }
 
 //get the front from the seed
