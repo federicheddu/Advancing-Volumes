@@ -1,4 +1,4 @@
-#include "ui_tools.h"
+#include "visualization.h"
 
 void UI_Manager(DrawableTetmesh<> &m , UI_Mode uiMode, Octree &oct, std::vector<DrawableArrow> &dir_arrows, std::vector<uint> &active_fronts, GLcanvas &gui) {
     static UI_Mode prev = BLANK;

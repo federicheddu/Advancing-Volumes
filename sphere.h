@@ -1,15 +1,11 @@
-//
-// Created by Federico Meloni on 06/03/23.
-//
-
-#ifndef DISTANCE_FIELD_SPHERE_UTIL_H
-#define DISTANCE_FIELD_SPHERE_UTIL_H
+#ifndef DISTANCE_FIELD_SPHERE_H
+#define DISTANCE_FIELD_SPHERE_H
 
 #include <cinolib/meshes/meshes.h>
 #include <cinolib/gl/glcanvas.h>
 #include <cinolib/gl/volume_mesh_controls.h>
 #include <cinolib/gl/surface_mesh_controls.h>
-#include "text_util.h"
+#include "text_format.h"
 
 using namespace cinolib;
 
@@ -29,4 +25,4 @@ DrawableTetmesh<> get_sphere252();
 
 void show_allspheres(GLcanvas &gui);
 
-#endif //DISTANCE_FIELD_SPHERE_UTIL_H
+#endif //DISTANCE_FIELD_SPHERE_H

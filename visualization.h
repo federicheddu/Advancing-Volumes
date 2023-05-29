@@ -1,5 +1,5 @@
-#ifndef ADVANCING_VOLUMES_UI_TOOLS_H
-#define ADVANCING_VOLUMES_UI_TOOLS_H
+#ifndef ADVANCING_VOLUMES_VISUALIZATION_H
+#define ADVANCING_VOLUMES_VISUALIZATION_H
 
 #include <cinolib/meshes/meshes.h>
 #include <cinolib/drawable_arrow.h>
@@ -26,4 +26,4 @@ void showVolume(DrawableTetmesh<> &m);
 
 void clearColors(DrawableTetmesh<> &m);
 
-#endif //ADVANCING_VOLUMES_UI_TOOLS_H
+#endif //ADVANCING_VOLUMES_VISUALIZATION_H

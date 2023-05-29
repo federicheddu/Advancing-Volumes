@@ -1,9 +1,5 @@
-//
-// Created by Federico Meloni on 06/03/23.
-//
-
-#ifndef DISTANCE_FIELD_TEXT_UTIL_H
-#define DISTANCE_FIELD_TEXT_UTIL_H
+#ifndef DISTANCE_FIELD_TEXT_FORMAT_H
+#define DISTANCE_FIELD_TEXT_FORMAT_H
 
 #define TXT_RESET   "\033[0m"
 #define TXT_BLACK   "\033[30m"      /* Black */
@@ -23,4 +19,4 @@
 #define TXT_BOLDCYAN    "\033[1m\033[36m"      /* Bold Cyan */
 #define TXT_BOLDWHITE   "\033[1m\033[37m"      /* Bold White */
 
-#endif //DISTANCE_FIELD_TEXT_UTIL_H
+#endif //DISTANCE_FIELD_TEXT_FORMAT_H

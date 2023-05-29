@@ -1,8 +1,4 @@
-//
-// Created by Federico Meloni on 06/03/23.
-//
-
-#include "sphere_util.h"
+#include "sphere.h"
 
 /// Translate the mesh to the origin (centroid)
 /// @param m a tet mesh
