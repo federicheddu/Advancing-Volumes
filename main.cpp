@@ -81,6 +81,7 @@ void expand(Data &d, bool refine = false, ExpansionMode exp_mode = LOCAL);
 void smooth(Data &d, int n_iter = 10);
 double dist_calc(Data &d, uint vid, bool raycast = false);
 void go_back_safe(Data &d, uint vid, const vec3d &og_pos);
+void final_projection(Data &d);
 vec3d project_onto_tangent_plane(vec3d &point, vec3d &plane_og, vec3d &plane_norm);
 //check operations
 bool check_intersection(Data &d, uint vid);
@@ -97,7 +98,7 @@ int main( /* int argc, char *argv[] */ ) {
     gui.side_bar_alpha = 0.5;
 
     //load the data
-    char path[] = CHINESE_DRAGON;
+    char path[] = DAVID;
     Data data = setup(path);
 
     //gui push
@@ -127,20 +128,20 @@ int main( /* int argc, char *argv[] */ ) {
 
         switch (key) {
 
+            /** VISUALIZATION KEYS **/
+            //clear the mesh
             case GLFW_KEY_COMMA: {
                 uiMode = BLANK;
                 UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 data.m.updateGL();
                 break;
             }
-
-            //arrow visualization
+            //arrow (direction) visualization
             case GLFW_KEY_V: {
                 uiMode = DIRECTION;
                 UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 break;
             }
-
             //fronts visualization
             case GLFW_KEY_B: {
                 uiMode = FRONTS;
@@ -148,14 +149,29 @@ int main( /* int argc, char *argv[] */ ) {
                 data.m.updateGL();
                 break;
             }
-
             //target visualization
             case GLFW_KEY_L: {
                 data.vol.show_mesh(show_target = !show_target);
                 break;
             }
+            //show full target
+            case GLFW_KEY_J: {
+                show_target_matte = !show_target_matte;
+                if(show_target_matte) data.vol.show_mesh_flat();
+                else data.vol.show_mesh_points();
+                break;
+            }
+            //show orient3D sign
+            case GLFW_KEY_Y: {
+                uiMode = VOLUME;
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+                data.m.updateGL();
 
-            //vert movement
+                break;
+            }
+
+            /** MOVEMENT KEYS **/
+            //model expansion
             case GLFW_KEY_N: {
                 std::cout << std::endl <<TXT_BOLDMAGENTA << "Model expansion" << TXT_RESET << std::endl;
 
@@ -173,7 +189,23 @@ int main( /* int argc, char *argv[] */ ) {
                 data.m.updateGL();
                 break;
             }
+            //smoothing
+            case GLFW_KEY_O: {
 
+                //update undo
+                undo_data = data;
+
+                //smooth the surface
+                smooth(data);
+
+                //update model and UI
+                data.m.update_normals();
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+                data.m.updateGL();
+                break;
+            }
+
+            /** TOPOLOGICAL KEYS **/
             //poly split
             case GLFW_KEY_M: {
                 std::cout << std::endl << TXT_BOLDMAGENTA << "Poly split" << TXT_RESET << std::endl;
@@ -190,56 +222,6 @@ int main( /* int argc, char *argv[] */ ) {
                 data.m.updateGL();
                 break;
             }
-
-            //undo
-            case GLFW_KEY_K: {
-                std::cout << std::endl << TXT_BOLDYELLOW << "UNDO" << TXT_RESET << std::endl;
-
-                //pop of all
-                gui.pop(&data.m);
-
-                //data recover
-                data.m = undo_data.m;
-                data.fronts_active = undo_data.fronts_active;
-                data.fronts_bounds = undo_data.fronts_bounds;
-
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
-                //re-push on gui
-                gui.push(&data.m, false);
-                data.m.updateGL();
-                break;
-            }
-
-            //show full target
-            case GLFW_KEY_J: {
-                show_target_matte = !show_target_matte;
-                if(show_target_matte) data.vol.show_mesh_flat();
-                else data.vol.show_mesh_points();
-                break;
-            }
-
-            //vert movement with edge split by length
-            case GLFW_KEY_G: {
-                std::cout << std::endl <<TXT_BOLDMAGENTA << "Model expansion" << TXT_RESET << std::endl;
-
-                //update undo
-                undo_data = data;
-
-                //move the verts
-                expand(data, true);
-
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
-                //update model
-                data.m.update_normals();
-                data.m.updateGL();
-
-                break;
-            }
-
             //poly split
             case GLFW_KEY_H: {
                 std::cout << std::endl << TXT_BOLDMAGENTA << "Poly split" << TXT_RESET << std::endl;
@@ -259,43 +241,26 @@ int main( /* int argc, char *argv[] */ ) {
                 break;
             }
 
-            //reset
-            case GLFW_KEY_P: {
-                std::cout << std::endl << TXT_BOLDYELLOW << "RESET" << TXT_RESET << std::endl;
-
-                //pop of all
-                gui.pop(&data.m);
-
-                //data recover
-                data.m = reset_data.m;
-                data.fronts_active = reset_data.fronts_active;
-                data.fronts_bounds = reset_data.fronts_bounds;
-
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
-                //re-push on gui
-                gui.push(&data.m, false);
-                data.m.updateGL();
-                break;
-            }
-
-            //smoothing
-            case GLFW_KEY_O: {
+            /** COMBO KEYS **/
+            //vert movement with edge split by length
+            case GLFW_KEY_G: {
+                std::cout << std::endl <<TXT_BOLDMAGENTA << "Model expansion" << TXT_RESET << std::endl;
 
                 //update undo
                 undo_data = data;
 
-                //smooth the surface
-                smooth(data);
+                //move the verts
+                expand(data, true);
 
-                //update model and UI
-                data.m.update_normals();
+                //UI
                 UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+
+                //update model
+                data.m.update_normals();
                 data.m.updateGL();
+
                 break;
             }
-
             //expand and smooth
             case GLFW_KEY_I: {
 
@@ -312,16 +277,7 @@ int main( /* int argc, char *argv[] */ ) {
                 data.m.updateGL();
                 break;
             }
-
-            //show orient3D sign
-            case GLFW_KEY_Y: {
-                uiMode = VOLUME;
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-
-                break;
-            }
-
+            //expand and smooth with volume decision for the expansion mode
             case GLFW_KEY_MINUS: {
                 //update undo
                 undo_data = data;
@@ -349,7 +305,7 @@ int main( /* int argc, char *argv[] */ ) {
                 data.m.updateGL();
                 break;
             }
-
+            //expand and smooth in raycast mode
             case GLFW_KEY_BACKSPACE: {
                 //update undo
                 undo_data = data;
@@ -365,7 +321,7 @@ int main( /* int argc, char *argv[] */ ) {
                 data.m.updateGL();
                 break;
             }
-
+            //expand and smooth with local decision for the expansion mode
             case GLFW_KEY_PERIOD: {
 
                 undo_data = data;
@@ -380,23 +336,95 @@ int main( /* int argc, char *argv[] */ ) {
 
                 break;
             }
-
+            //10 iteration of PERIOD KEY
             case GLFW_KEY_SPACE: {
 
                 undo_data = data;
 
                 for(int i = 0; i < 10; i++){
-                    std::cout << TXT_BOLDMAGENTA << "Iter: " << i << TXT_RESET << std::endl;
+                    std::cout << TXT_BOLDMAGENTA << "Iter: " << i+1 << TXT_RESET << std::endl;
                     expand(data, true, LOCAL);
                     smooth(data);
+                    data.m.update_normals();
                 }
                 std::cout << TXT_BOLDMAGENTA << "DONE" << TXT_RESET << std::endl;
+
+                //update model and UI
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+                data.m.updateGL();
+
+                break;
+            }
+            case GLFW_KEY_F1: {
+                undo_data = data;
+
+                for(int i = 0; i < 100; i++){
+                    std::cout << TXT_BOLDMAGENTA << "Iter: " << i+1 << TXT_RESET << std::endl;
+                    expand(data, true, LOCAL);
+                    smooth(data);
+                    data.m.update_normals();
+                }
+                std::cout << TXT_BOLDMAGENTA << "DONE" << TXT_RESET << std::endl;
+
+                //update model and UI
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+                data.m.updateGL();
+
+                break;
+            }
+            //final projection
+            case GLFW_KEY_0: {
+                undo_data = data;
+
+                final_projection(data);
 
                 //update model and UI
                 data.m.update_normals();
                 UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
                 data.m.updateGL();
 
+                break;
+            }
+
+            /** UNDO KEYS**/
+            //undo
+            case GLFW_KEY_K: {
+                std::cout << std::endl << TXT_BOLDYELLOW << "UNDO" << TXT_RESET << std::endl;
+
+                //pop of all
+                gui.pop(&data.m);
+
+                //data recover
+                data.m = undo_data.m;
+                data.fronts_active = undo_data.fronts_active;
+                data.fronts_bounds = undo_data.fronts_bounds;
+
+                //UI
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+
+                //re-push on gui
+                gui.push(&data.m, false);
+                data.m.updateGL();
+                break;
+            }
+            //reset
+            case GLFW_KEY_P: {
+                std::cout << std::endl << TXT_BOLDYELLOW << "RESET" << TXT_RESET << std::endl;
+
+                //pop of all
+                gui.pop(&data.m);
+
+                //data recover
+                data.m = reset_data.m;
+                data.fronts_active = reset_data.fronts_active;
+                data.fronts_bounds = reset_data.fronts_bounds;
+
+                //UI
+                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+
+                //re-push on gui
+                gui.push(&data.m, false);
+                data.m.updateGL();
                 break;
             }
 
