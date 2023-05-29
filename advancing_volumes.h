@@ -46,7 +46,7 @@ typedef struct edge_to_flip {
 typedef enum {CLOSEST_POINT, RAYCAST, LOCAL} ExpansionMode;
 
 //setup of the env
-Data setup(const char *path); //TODO: load
+Data setup(const char *path, bool load = false); //TODO: load
 //topological operations
 std::set<uint> search_split(Data &d, bool selective);
 void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges_to_flip);

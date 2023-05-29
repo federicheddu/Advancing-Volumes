@@ -3,14 +3,28 @@
 
 
 //set up the env with model, target, oct etc...
-Data setup(const char *path) {
+Data setup(const char *path, bool load) {
+
     Data data;
 
     //std::cout << std::endl << TXT_BOLDMAGENTA << "Data loading... " << std::endl;
 
-    //model vol
-    data.vol = DrawableTetmesh<>(path);
-    data.vol.show_mesh_points();
+    if(load) {
+
+        std::string model_path = path;
+        std::string target_path = "../data/" + model_path.substr(11, model_path.size()-11);
+
+        data.m = DrawableTetmesh<>(model_path.c_str());
+        data.vol = DrawableTetmesh<>(target_path.c_str());
+        data.vol.show_mesh_points();
+
+    } else {
+
+        //model vol
+        data.vol = DrawableTetmesh<>(path);
+        data.vol.show_mesh_points();
+
+    }
 
     //model srf
     export_surface(data.vol, data.srf);
@@ -24,30 +38,46 @@ Data setup(const char *path) {
     //inactive threshold
     data.eps_inactive = data.edge_threshold * data.eps_percent;
 
-    //get info for placing the sphere
-    uint center_vid = 0;
-    double center_dist = -inf_double;
-    //for every vid in the vol
-    for (uint vid = 0; vid < data.vol.num_verts(); vid++) {
-        //default
-        data.vol.vert_data(vid).uvw[0] = 0;
-        //if not in the surface check the closest srf point and the distance to it
-        if (!data.vol.vert_is_on_srf(vid)) {
-            data.vol.vert_data(vid).uvw[0] = data.oct.closest_point(data.vol.vert(vid)).dist(data.vol.vert(vid));
-            //check if its max distance
-            if (data.vol.vert_data(vid).uvw[0] > center_dist) {
-                center_vid = vid;
-                center_dist = data.vol.vert_data(vid).uvw[0];
+    if(!load) {
+        //get info for placing the sphere
+        uint center_vid = 0;
+        double center_dist = -inf_double;
+        //for every vid in the vol
+        for (uint vid = 0; vid < data.vol.num_verts(); vid++) {
+            //default
+            data.vol.vert_data(vid).uvw[0] = 0;
+            //if not in the surface check the closest srf point and the distance to it
+            if (!data.vol.vert_is_on_srf(vid)) {
+                data.vol.vert_data(vid).uvw[0] = data.oct.closest_point(data.vol.vert(vid)).dist(data.vol.vert(vid));
+                //check if its max distance
+                if (data.vol.vert_data(vid).uvw[0] > center_dist) {
+                    center_vid = vid;
+                    center_dist = data.vol.vert_data(vid).uvw[0];
+                }
             }
         }
+
+        //sphere build
+        data.m = get_sphere(data.vol.vert(center_vid), center_dist / 2);
     }
 
-    //sphere build
-    data.m = get_sphere(data.vol.vert(center_vid), center_dist / 2);
+    if(load) {
+        //reload fronts
+        for (uint vid : data.m.get_surface_verts()) {
 
-    for(uint vid : data.m.get_surface_verts())
-        data.m.vert_data(vid).label = false;
-
+            if(dist_calc(data, vid, true) < data.eps_inactive) {
+                data.m.vert_data(vid).label = true;
+                data.fronts_active.emplace_back(vid);
+            } else
+                data.m.vert_data(vid).label = false;
+            //subdivide the front
+            update_fronts(data);
+        }
+    } else {
+        //init fronts
+        for (uint vid: data.m.get_surface_verts())
+            data.m.vert_data(vid).label = false;
+    }
     //std::cout << "DONE" << TXT_RESET << std::endl;
 
     return data;

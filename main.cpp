@@ -71,9 +71,10 @@ int main(int argc, char *argv[]) {
                                             "../data/dog.mesh"                   //48
     };
 
-    std::string path = argc == 1 ? data_paths[39] : argv[1];
+    bool load = argc > 1;
+    std::string path = load ? argv[1] : data_paths[39];
     //load the data
-    Data data = setup(path.c_str());
+    Data data = setup(path.c_str(), load);
 
     //gui push
     gui.push(&data.m, false);
@@ -357,10 +358,11 @@ int main(int argc, char *argv[]) {
                     //for 500 (max) iterations
                     for(int iter = 0; iter <= 500; iter++) {
 
+                        //max iteration reached
                         if(iter == 500) {
                             std::cout << TXT_BOLDRED << "Max iteration reached" << TXT_RESET << std::endl;
+                            break;
                         }
-
 
                         expand(data, true, LOCAL);
                         smooth(data);
@@ -427,6 +429,14 @@ int main(int argc, char *argv[]) {
                 //re-push on gui
                 gui.push(&data.m, false);
                 data.m.updateGL();
+                break;
+            }
+
+            /** SAVE MODEL KEY **/
+            case GLFW_KEY_X: {
+                int offset = load ? 11 : 8;
+                std::string save_path = "../results/" + path.substr(offset, path.size()-offset);
+                data.m.save(save_path.c_str());
                 break;
             }
 
