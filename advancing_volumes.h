@@ -59,7 +59,7 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
 //movement operations
 void expand(Data &d, bool refine = false, ExpansionMode exp_mode = LOCAL);
 void smooth(Data &d, int n_iter = 10);
-double dist_calc(Data &d, uint vid, bool raycast = false);
+double dist_calc(Data &d, uint vid, bool raycast = false, bool flat = false);
 void go_back_safe(Data &d, uint vid, const vec3d &og_pos);
 void final_projection(Data &d);
 vec3d project_onto_tangent_plane(vec3d &point, vec3d &plane_og, vec3d &plane_norm);

@@ -1,7 +1,5 @@
 #include "advancing_volumes.h"
 
-
-
 //set up the env with model, target, oct etc...
 Data setup(const char *path, bool load) {
 
@@ -75,8 +73,10 @@ Data setup(const char *path, bool load) {
         }
     } else {
         //init fronts
-        for (uint vid: data.m.get_surface_verts())
+        for (uint vid: data.m.get_surface_verts()) {
             data.m.vert_data(vid).label = false;
+            data.m.vert_data(vid).uvw.x() = 0;
+        }
     }
     //std::cout << "DONE" << TXT_RESET << std::endl;
 
@@ -148,6 +148,7 @@ void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map
 
         //set the activity
         d.m.vert_data(new_vid).label = false;
+        d.m.vert_data(new_vid).uvw.x() = 0;
     }
 
 }
@@ -403,16 +404,17 @@ void expand(Data &d, bool refine, ExpansionMode exp_mode) {
         double dist;
         switch (exp_mode) {
             case CLOSEST_POINT: {
-                dist = dist_calc(d, vid, false);
+                dist = dist_calc(d, vid, false, true);
                 break;
             }
             case RAYCAST: {
-                dist = dist_calc(d, vid, true);
+                dist = dist_calc(d, vid, true, true);
                 break;
             }
             case LOCAL: {
                 dist = dist_calc(d, vid, false);
-                if(dist < d.eps_inactive*2) dist = dist_calc(d, vid, true);
+                if(dist < d.eps_inactive*2) dist = dist_calc(d, vid, true, true);
+                else dist = dist_calc(d, vid, false, true);
                 break;
             }
         }
@@ -442,6 +444,14 @@ void expand(Data &d, bool refine, ExpansionMode exp_mode) {
         //update the mask
         if(dist_calc(d, vid, true) < d.eps_inactive)
             d.m.vert_data(vid).label = true;
+
+        //if the vertex remains stationary for 5 iterations it is deactivated
+        if(d.m.vert(vid) == og_pos) {
+            d.m.vert_data(vid).uvw.x()++;
+            if(d.m.vert_data(vid).uvw.x() == 5)
+                d.m.vert_data(vid).label = true;
+        } else
+            d.m.vert_data(vid).uvw.x() = 0;
 
     }
 
@@ -517,6 +527,7 @@ void smooth(Data &d, int n_iter) {
     //std::cout << "DONE" << TXT_RESET << std::endl;
 }
 
+//check if there are any intersection
 bool check_intersection(Data &d, uint vid) {
 
     //params
@@ -532,6 +543,7 @@ bool check_intersection(Data &d, uint vid) {
     return flag;
 }
 
+//check if sign of orient3D is ok
 bool check_volume(Data &d, uint vid) {
 
     bool check = false;
@@ -620,7 +632,7 @@ void front_from_seed(Data &d, uint seed, std::unordered_set<uint> &front) {
 }
 
 //calc the distance from the target with a raycast hit
-double dist_calc(Data &d, uint vid, bool raycast) {
+double dist_calc(Data &d, uint vid, bool raycast, bool flat) {
 
     //param
     uint id; //useless
@@ -631,6 +643,20 @@ double dist_calc(Data &d, uint vid, bool raycast) {
         d.oct.intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, id);
     else
         dist = d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid));
+
+    double adj_dist = 0, dist_sum = dist;
+    if(flat) {
+        for(uint adj_vid : d.m.vert_adj_srf_verts(vid)) {
+            if (raycast)
+                d.oct.intersects_ray(d.m.vert(adj_vid), d.m.vert_data(adj_vid).normal, adj_dist, id);
+            else
+                adj_dist = d.oct.closest_point(d.m.vert(adj_vid)).dist(d.m.vert(adj_vid));
+
+            dist_sum += adj_dist;
+        }
+        dist_sum /= d.m.vert_adj_srf_verts(vid).size() + 1;
+        dist = dist_sum;
+    }
 
     return dist;
 }
