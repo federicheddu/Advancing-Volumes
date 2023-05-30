@@ -63,20 +63,24 @@ Data setup(const char *path, bool load) {
         //reload fronts
         for (uint vid : data.m.get_surface_verts()) {
 
-            if(dist_calc(data, vid, true) < data.eps_inactive) {
+            if(dist_calc(data, vid, true) < data.eps_inactive)
                 data.m.vert_data(vid).label = true;
-                data.fronts_active.emplace_back(vid);
-            } else
+            else {
                 data.m.vert_data(vid).label = false;
+                data.fronts_active.emplace_back(vid);
+            }
         }
     } else {
         //init fronts
         for (uint vid: data.m.get_surface_verts()) {
+            data.fronts_active.emplace_back(vid);
             data.m.vert_data(vid).label = false;
             data.m.vert_data(vid).uvw.x() = 0;
         }
     }
+
     //subdivide the front
+    data.fronts_bounds.emplace_back(data.fronts_active.size());
     update_fronts(data);
 
     //std::cout << "DONE" << TXT_RESET << std::endl;
