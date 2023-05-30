@@ -107,11 +107,10 @@ std::set<uint> search_split(Data &d, bool selective) {
         //for every vid in active fronts
         for(uint vid : d.fronts_active)
             //for every adj face
-            for(uint fid : d.m.adj_v2f(vid))
+            for(uint fid : d.m.vert_adj_srf_faces(vid))
                 //if is a surface face from the active front (check if the adj vids of the face are also in the front)
-                if(d.m.face_is_on_srf(fid)
-                   && CONTAINS_VEC(d.fronts_active, d.m.face_v2v(fid, vid)[0])
-                   && CONTAINS_VEC(d.fronts_active, d.m.face_v2v(fid, vid)[1]))
+                /*if(CONTAINS_VEC(d.fronts_active, d.m.face_v2v(fid, vid)[0])
+                  && CONTAINS_VEC(d.fronts_active, d.m.face_v2v(fid, vid)[1]))*/
                     //add every edge of the active poly to the split list
                     edges_to_split.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(), d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
 
@@ -680,11 +679,6 @@ vec3d project_onto_tangent_plane(vec3d &point, vec3d &plane_og, vec3d &plane_nor
 
 void final_projection(Data &d) {
 
-    export_surface(d.m, d.m_srf);
-
-    Octree octree;
-    octree.build_from_mesh_polys(d.m_srf);
-
     vec3d og_pos;
     double dist; uint aux;
     for(int iter = 0; iter < 5; iter++){
@@ -692,12 +686,12 @@ void final_projection(Data &d) {
             og_pos = d.m.vert(vid);
 
             dist = dist_calc(d, true);
-            octree.intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, aux);
+            d.oct.intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, aux);
             d.m.vert(vid) += d.m.vert_data(vid).normal * dist;
 
             go_back_safe(d, vid, og_pos);
-            smooth(d);
         }
+        smooth(d);
     }
 
 }
