@@ -68,8 +68,6 @@ Data setup(const char *path, bool load) {
                 data.fronts_active.emplace_back(vid);
             } else
                 data.m.vert_data(vid).label = false;
-            //subdivide the front
-            update_fronts(data);
         }
     } else {
         //init fronts
@@ -78,6 +76,9 @@ Data setup(const char *path, bool load) {
             data.m.vert_data(vid).uvw.x() = 0;
         }
     }
+    //subdivide the front
+    update_fronts(data);
+    
     //std::cout << "DONE" << TXT_RESET << std::endl;
 
     return data;
