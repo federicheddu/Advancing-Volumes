@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
     };
 
     bool load = argc > 1;
-    std::string path = load ? argv[1] : data_paths[39];
+    std::string path = load ? argv[1] : data_paths[1];
     //load the data
     Data data = setup(path.c_str(), load);
 
@@ -353,7 +353,7 @@ int main(int argc, char *argv[]) {
                     //name of the model
                     std::cout << std::endl << TXT_BOLDYELLOW << model << TXT_RESET << std::endl;
                     //load the model
-                    data = setup(model.c_str());
+                    Data batch_data = setup(model.c_str());
 
                     //for 500 (max) iterations
                     for(int iter = 0; iter <= 500; iter++) {
@@ -364,27 +364,30 @@ int main(int argc, char *argv[]) {
                             break;
                         }
 
-                        expand(data, true, LOCAL);
-                        smooth(data);
-                        data.m.update_normals();
+                        expand(batch_data, true, LOCAL);
+                        smooth(batch_data);
+                        batch_data.m.update_normals();
 
                         //checks for early stop (fail)
-                        export_surface(data.m, data.m_srf);
-                        find_intersections(data.m_srf, intersections);
+                        export_surface(batch_data.m, batch_data.m_srf);
+                        intersections.clear();
+                        find_intersections(batch_data.m_srf, intersections);
                         if(!intersections.empty()) {
                             std::cout << TXT_BOLDRED << "Auto-intersection... failed at " << iter << " iteration" << TXT_RESET << std::endl;
                             break;
                         }
                         //check if model converged
-                        if(data.fronts_active.empty()) {
+                        if(batch_data.fronts_active.empty()) {
                             std::cout << TXT_BOLDGREEN << "Model converged at iteration: " << iter << TXT_RESET << std::endl;
                             break;
                         }
 
+
+
                     }
 
                     std::string save_path = "../results/" + model.substr(8, model.size()-8);
-                    data.m.save(save_path.c_str());
+                    batch_data.m.save(save_path.c_str());
 
                 }
 

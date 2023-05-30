@@ -78,7 +78,7 @@ Data setup(const char *path, bool load) {
     }
     //subdivide the front
     update_fronts(data);
-    
+
     //std::cout << "DONE" << TXT_RESET << std::endl;
 
     return data;
