@@ -50,7 +50,7 @@ typedef enum {SRF, MIX, TOTAL} RefinementMode;
 //setup of the env
 Data setup(const char *path, bool load = false);
 //topological operations
-std::set<uint> search_split(Data &d, bool selective, RefinementMode refMode = TOTAL);
+std::set<uint> search_split(Data &d, bool selective, RefinementMode refMode = SRF);
 void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges_to_flip);
 std::set<uint> search_split_int(Data &d);
 void split_int(Data &d, std::set<uint> &edges_to_split);
