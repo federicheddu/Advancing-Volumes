@@ -88,38 +88,6 @@ Data setup(const char *path, bool load) {
     return data;
 }
 
-//split all the edges in the active front and flip who needs to be flipped
-void split_n_flip(Data &d, bool selective) {
-
-    //start of split
-    //std::cout << TXT_CYAN << "Splitting the polys... ";
-
-    //data that we need for later
-    uint offset = d.m.num_verts();
-
-    //search of the edges to split inside the front
-    std::set<uint> edges_to_split = search_split(d, selective);
-    //split the edges while keep tracking of the edge/map relationship and the edges that will need to be flipped
-    std::map<ipair, uint> v_map;
-    std::queue<edge_to_flip> edges_to_flip;
-    split(d, edges_to_split, v_map, edges_to_flip);
-
-    //end of split
-    //std::cout << "DONE" << TXT_RESET << std::endl;
-
-    //start of flipping
-    //std::cout << TXT_CYAN << "Flipping the edges... ";
-
-    //* flip every edge we need to
-    flip(d, v_map, edges_to_flip);
-
-    //end of flipping
-    //std::cout << "DONE" << TXT_RESET << std::endl;
-
-    //update the fronts
-    update_fronts(d);
-}
-
 //search the edges that need to be split
 std::set<uint> search_split(Data &d, bool selective) {
 
@@ -190,7 +158,7 @@ void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map
 
 }
 
-//search for internal edges that are too long
+//refine internal edges if they are too long
 std::set<uint> search_split_int(Data &d) {
 
     //edge that need to be split
@@ -206,7 +174,6 @@ std::set<uint> search_split_int(Data &d) {
     return edges_to_split;
 }
 
-//split internal edges
 void split_int(Data &d, std::set<uint> &edges_to_split) {
 
     //split all the edges
@@ -289,6 +256,38 @@ void flip(Data &d, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges
 
         edges_to_flip.pop();
     }
+}
+
+//split all the edges in the active front and flip who needs to be flipped
+void split_n_flip(Data &d, bool selective) {
+
+    //start of split
+    //std::cout << TXT_CYAN << "Splitting the polys... ";
+
+    //data that we need for later
+    uint offset = d.m.num_verts();
+
+    //search of the edges to split inside the front
+    std::set<uint> edges_to_split = search_split(d, selective);
+    //split the edges while keep tracking of the edge/map relationship and the edges that will need to be flipped
+    std::map<ipair, uint> v_map;
+    std::queue<edge_to_flip> edges_to_flip;
+    split(d, edges_to_split, v_map, edges_to_flip);
+
+    //end of split
+    //std::cout << "DONE" << TXT_RESET << std::endl;
+
+    //start of flipping
+    //std::cout << TXT_CYAN << "Flipping the edges... ";
+
+    //* flip every edge we need to
+    flip(d, v_map, edges_to_flip);
+
+    //end of flipping
+    //std::cout << "DONE" << TXT_RESET << std::endl;
+
+    //update the fronts
+    update_fronts(d);
 }
 
 //edge flip 2-2 (must: surf & srf faces coplanar)
@@ -452,19 +451,19 @@ void expand(Data &d, bool refine, ExpansionMode exp_mode) {
             d.m.vert_data(vid).label = true;
 
         //if the vertex remains stationary for 5 iterations it is deactivated
-        //if(d.m.vert(vid) == og_pos) {
-        //    d.m.vert_data(vid).uvw.x()++;
-        //    if(d.m.vert_data(vid).uvw.x() == 5)
-        //        d.m.vert_data(vid).label = true;
-        //} else
-        //    d.m.vert_data(vid).uvw.x() = 0;
+        if(d.m.vert(vid) == og_pos) {
+            d.m.vert_data(vid).uvw.x()++;
+            if(d.m.vert_data(vid).uvw.x() == 5)
+                d.m.vert_data(vid).label = true;
+        } else
+            d.m.vert_data(vid).uvw.x() = 0;
 
     }
 
     //job done
     //std::cout << "DONE" << TXT_RESET << std::endl;
 
-    smooth(d);
+    smooth(d, 5);
 
     //refine where the edges are too long or just update the front
     if(refine)
@@ -493,7 +492,7 @@ void smooth(Data &d, int n_iter) {
     //for the number of iterations selected
     for(int iter = 0; iter < n_iter; iter++) {
 
-        for(int vid = 0; vid < d.m.num_verts(); vid++) {
+        for(int vid = d.m.num_verts()-1; vid >= 0; vid--) {
 
             if(d.m.vert_is_on_srf(vid) && d.m.vert_data(vid).label)
                 continue;
@@ -559,7 +558,7 @@ bool check_volume(Data &d, uint vid) {
         vec3d pb = d.m.poly_vert(pid, 1);
         vec3d pc = d.m.poly_vert(pid, 2);
         vec3d pd = d.m.poly_vert(pid, 3);
-        check = orient3d(pa, pb, pc, pd) > 0 || check;
+        check = orient3d(pa, pb, pc, pd) >= 0 || check;
     }
 
     return check;
