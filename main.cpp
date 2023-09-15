@@ -1,4 +1,5 @@
 #include "advancing_volumes.h"
+#include <chrono>
 
 using namespace cinolib;
 
@@ -355,11 +356,14 @@ int main(int argc, char *argv[]) {
                     //load the model
                     Data batch_data = setup(model.c_str());
 
+                    //start the clock
+                    auto start = std::chrono::high_resolution_clock::now();
+
                     //for 500 (max) iterations
-                    for(int iter = 0; iter <= 500; iter++) {
+                    for(int iter = 0; iter <= 1000; iter++) {
 
                         //max iteration reached
-                        if(iter == 500) {
+                        if(iter == 1000) {
                             std::cout << TXT_BOLDRED << "Max iteration reached" << TXT_RESET << std::endl;
                             break;
                         }
@@ -385,6 +389,11 @@ int main(int argc, char *argv[]) {
 
 
                     }
+
+                    //stop the clock
+                    auto stop = std::chrono::high_resolution_clock::now();
+                    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+                    std::cout << TXT_BOLDYELLOW << "Time: " << duration.count() << "ms" << TXT_RESET << std::endl;
 
                     std::string save_path = "../results/" + model.substr(8, model.size()-8);
                     batch_data.m.save(save_path.c_str());

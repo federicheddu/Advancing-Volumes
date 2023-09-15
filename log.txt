@@ -243,3 +243,302 @@ load mesh       7730V / 45387E / 71730F / 34072P  [0.364458s]
 load mesh       67V / 358E / 544F / 252P  [0.00159934s]
 Auto-intersection... failed at 40 iteration
 
+================
+
+/home/federico/Documents/GitHub/Advancing-Volumes/cmake-build-release/Advancing-Volumes
+load mesh	36390V / 195625E / 290672F / 131436P  [1.93681s]
+load mesh	67V / 358E / 544F / 252P  [0.00162671s]
+
+../data/cubespikes.mesh
+load mesh	9698V / 57579E / 90068F / 42186P  [0.469176s]
+load mesh	67V / 358E / 544F / 252P  [0.00168072s]
+Model converged at iteration: 64
+Time: 70884ms
+
+../data/armadillo.mesh
+load mesh	36390V / 195625E / 290672F / 131436P  [1.79624s]
+load mesh	67V / 358E / 544F / 252P  [0.00156902s]
+Model converged at iteration: 316
+Time: 225268ms
+
+../data/bunny.mesh
+load mesh	42038V / 239346E / 366532F / 169223P  [2.4472s]
+load mesh	67V / 358E / 544F / 252P  [0.00161129s]
+Auto-intersection... failed at 51 iteration
+Time: 98034ms
+
+../data/lego.mesh
+load mesh	22313V / 116142E / 167010F / 73180P  [0.711632s]
+load mesh	67V / 358E / 544F / 252P  [0.00162202s]
+Auto-intersection... failed at 85 iteration
+Time: 5393ms
+
+../data/table8.mesh
+load mesh	14426V / 69936E / 97649F / 42138P  [0.400949s]
+load mesh	67V / 358E / 544F / 252P  [0.00161098s]
+Auto-intersection... failed at 77 iteration
+Time: 5167ms
+
+../data/spider.mesh
+load mesh	17107V / 83852E / 118293F / 51547P  [0.54064s]
+load mesh	67V / 358E / 544F / 252P  [0.00160874s]
+Model converged at iteration: 617
+Time: 220594ms
+
+../data/ant.mesh
+load mesh	9206V / 48824E / 72004F / 32385P  [0.325607s]
+load mesh	67V / 358E / 544F / 252P  [0.00162245s]
+Model converged at iteration: 277
+Time: 40146ms
+
+../data/chinese_dragon.mesh
+load mesh	42710V / 243650E / 373359F / 172418P  [2.50254s]
+load mesh	67V / 358E / 544F / 252P  [0.00157914s]
+Auto-intersection... failed at 99 iteration
+Time: 276670ms
+
+../data/bimba.mesh
+load mesh	34068V / 191835E / 292426F / 134658P  [1.93009s]
+load mesh	67V / 358E / 544F / 252P  [0.00162009s]
+Auto-intersection... failed at 99 iteration
+Time: 151764ms
+
+../data/table4.mesh
+load mesh	15363V / 76323E / 108210F / 47249P  [0.494516s]
+load mesh	67V / 358E / 544F / 252P  [0.00166831s]
+Auto-intersection... failed at 76 iteration
+Time: 16553ms
+
+../data/stag3.mesh
+load mesh	52926V / 293038E / 441245F / 201132P  [2.93146s]
+load mesh	67V / 358E / 544F / 252P  [0.00157442s]
+Auto-intersection... failed at 83 iteration
+Time: 42789ms
+
+../data/table4_2.mesh
+load mesh	15351V / 75556E / 106485F / 46279P  [0.484436s]
+load mesh	67V / 358E / 544F / 252P  [0.0016092s]
+Auto-intersection... failed at 112 iteration
+Time: 10795ms
+
+../data/horse.mesh
+load mesh	12479V / 67440E / 100549F / 45587P  [0.523988s]
+load mesh	67V / 358E / 544F / 252P  [0.0016916s]
+Auto-intersection... failed at 96 iteration
+Time: 50874ms
+
+../data/gear.mesh
+load mesh	10947V / 61033E / 92103F / 42016P  [0.445171s]
+load mesh	67V / 358E / 544F / 252P  [0.00157997s]
+Auto-intersection... failed at 46 iteration
+Time: 66719ms
+
+../data/chamfer.mesh
+load mesh	2654V / 15973E / 25169F / 11849P  [0.100189s]
+load mesh	67V / 358E / 544F / 252P  [0.0016133s]
+Auto-intersection... failed at 39 iteration
+Time: 91052ms
+
+../data/hand_olivier.mesh
+load mesh	20541V / 113455E / 171148F / 78233P  [1.01913s]
+load mesh	67V / 358E / 544F / 252P  [0.00173684s]
+Model converged at iteration: 353
+Time: 298578ms
+
+../data/sphere.mesh
+load mesh	4505V / 29957E / 49466F / 24013P  [0.237476s]
+load mesh	67V / 358E / 544F / 252P  [0.00162048s]
+Model converged at iteration: 44
+Time: 110299ms
+
+../data/femur.mesh
+load mesh	7486V / 40752E / 60945F / 27678P  [0.286573s]
+load mesh	67V / 358E / 544F / 252P  [0.00167492s]
+Model converged at iteration: 269
+Time: 107919ms
+
+../data/fandisk.mesh
+load mesh	12336V / 75163E / 118908F / 56080P  [0.650329s]
+load mesh	67V / 358E / 544F / 252P  [0.00156697s]
+Auto-intersection... failed at 46 iteration
+Time: 57102ms
+
+../data/frog.mesh
+load mesh	12388V / 77705E / 124941F / 59623P  [0.674459s]
+load mesh	67V / 358E / 544F / 252P  [0.00158403s]
+Auto-intersection... failed at 17 iteration
+Time: 14151ms
+
+../data/hand.mesh
+load mesh	8366V / 52487E / 84749F / 40627P  [0.425422s]
+load mesh	67V / 358E / 544F / 252P  [0.00166074s]
+Auto-intersection... failed at 115 iteration
+Time: 48823ms
+
+../data/blade.mesh
+load mesh	20331V / 113847E / 172930F / 79413P  [0.945963s]
+load mesh	67V / 358E / 544F / 252P  [0.0016725s]
+Auto-intersection... failed at 82 iteration
+Time: 53828ms
+
+../data/buste.mesh
+load mesh	24985V / 140488E / 213669F / 98165P  [1.26897s]
+load mesh	67V / 358E / 544F / 252P  [0.00160652s]
+Model converged at iteration: 161
+Time: 160947ms
+
+../data/memento.mesh
+load mesh	15293V / 81805E / 121399F / 54886P  [0.609082s]
+load mesh	67V / 358E / 544F / 252P  [0.00164798s]
+Auto-intersection... failed at 191 iteration
+Time: 112712ms
+
+../data/sphinx.mesh
+load mesh	15534V / 87325E / 132978F / 61186P  [0.698845s]
+load mesh	67V / 358E / 544F / 252P  [0.00157484s]
+Auto-intersection... failed at 49 iteration
+Time: 60589ms
+
+../data/bone.mesh
+load mesh	1872V / 9618E / 13983F / 6236P  [0.0478112s]
+load mesh	67V / 358E / 544F / 252P  [0.00176031s]
+Model converged at iteration: 241
+Time: 87551ms
+
+../data/foot.mesh
+load mesh	14621V / 81302E / 123024F / 56342P  [0.648604s]
+load mesh	67V / 358E / 544F / 252P  [0.0016227s]
+Model converged at iteration: 135
+Time: 118292ms
+
+../data/bird.mesh
+load mesh	5650V / 30181E / 44735F / 20203P  [0.170408s]
+load mesh	67V / 358E / 544F / 252P  [0.00161282s]
+Auto-intersection... failed at 72 iteration
+Time: 10480ms
+
+../data/moai.mesh
+load mesh	16779V / 98910E / 154264F / 72132P  [0.87552s]
+load mesh	67V / 358E / 544F / 252P  [0.00174022s]
+Auto-intersection... failed at 51 iteration
+Time: 84463ms
+
+../data/airplane.mesh
+load mesh	7017V / 37308E / 55186F / 24894P  [0.226498s]
+load mesh	67V / 358E / 544F / 252P  [0.00158406s]
+Auto-intersection... failed at 77 iteration
+Time: 14560ms
+
+../data/mouse.mesh
+load mesh	20166V / 113322E / 172355F / 79198P  [0.957367s]
+load mesh	67V / 358E / 544F / 252P  [0.00170255s]
+Auto-intersection... failed at 50 iteration
+Time: 83403ms
+
+../data/pig.mesh
+load mesh	22711V / 127889E / 194766F / 89587P  [1.11118s]
+load mesh	67V / 358E / 544F / 252P  [0.00161406s]
+Auto-intersection... failed at 139 iteration
+Time: 169355ms
+
+../data/isidora_horse.mesh
+load mesh	28044V / 156159E / 236769F / 108653P  [1.4019s]
+load mesh	67V / 358E / 544F / 252P  [0.00161487s]
+Auto-intersection... failed at 58 iteration
+Time: 68280ms
+
+../data/david.mesh
+load mesh	45500V / 270705E / 424980F / 199774P  [2.73157s]
+load mesh	67V / 358E / 544F / 252P  [0.00161884s]
+Auto-intersection... failed at 43 iteration
+Time: 134678ms
+
+../data/octa_flower.mesh
+load mesh	13314V / 74759E / 114900F / 53454P  [0.504869s]
+load mesh	67V / 358E / 544F / 252P  [0.00161627s]
+Auto-intersection... failed at 87 iteration
+Time: 107656ms
+
+../data/duck.mesh
+load mesh	2464V / 15963E / 26101F / 12601P  [0.107146s]
+load mesh	67V / 358E / 544F / 252P  [0.00168735s]
+Model converged at iteration: 92
+Time: 138881ms
+
+../data/ramses.mesh
+load mesh	19729V / 110081E / 167203F / 76850P  [0.894492s]
+load mesh	67V / 358E / 544F / 252P  [0.0016626s]
+Auto-intersection... failed at 39 iteration
+Time: 32777ms
+
+../data/lion.mesh
+load mesh	42733V / 244922E / 376483F / 174293P  [2.51797s]
+load mesh	67V / 358E / 544F / 252P  [0.00167237s]
+Max iteration reached
+Time: 493587ms
+
+../data/armadillo_deformed.mesh
+load mesh	30335V / 165949E / 249409F / 113794P  [1.44124s]
+load mesh	67V / 358E / 544F / 252P  [0.00161231s]
+Max iteration reached
+Time: 453916ms
+
+../data/homer.mesh
+load mesh	18639V / 102061E / 153209F / 69786P  [0.84409s]
+load mesh	67V / 358E / 544F / 252P  [0.00169064s]
+Auto-intersection... failed at 99 iteration
+Time: 80821ms
+
+../data/devil.mesh
+load mesh	18428V / 102824E / 155909F / 71512P  [0.888643s]
+load mesh	67V / 358E / 544F / 252P  [0.00161345s]
+Auto-intersection... failed at 65 iteration
+Time: 134912ms
+
+../data/camile_hand.mesh
+load mesh	23641V / 132110E / 200377F / 91907P  [1.13317s]
+load mesh	67V / 358E / 544F / 252P  [0.00161647s]
+Model converged at iteration: 239
+Time: 213975ms
+
+../data/bumpy_sphere.mesh
+load mesh	9678V / 56849E / 88622F / 41450P  [0.439774s]
+load mesh	67V / 358E / 544F / 252P  [0.00161664s]
+Auto-intersection... failed at 6 iteration
+Time: 5429ms
+
+../data/gargoyle.mesh
+load mesh	18189V / 100258E / 151118F / 69048P  [0.789628s]
+load mesh	67V / 358E / 544F / 252P  [0.00157689s]
+Auto-intersection... failed at 54 iteration
+Time: 66346ms
+
+../data/dilo.mesh
+load mesh	31130V / 171593E / 258776F / 118312P  [1.50459s]
+load mesh	67V / 358E / 544F / 252P  [0.00169073s]
+Model converged at iteration: 642
+Time: 153352ms
+
+../data/angel2.mesh
+load mesh	5338V / 29018E / 43920F / 20239P  [0.171356s]
+load mesh	67V / 358E / 544F / 252P  [0.00168587s]
+Auto-intersection... failed at 48 iteration
+Time: 30442ms
+
+../data/angel3.mesh
+load mesh	4990V / 27506E / 41940F / 19423P  [0.162886s]
+load mesh	67V / 358E / 544F / 252P  [0.00171787s]
+Auto-intersection... failed at 54 iteration
+Time: 33844ms
+
+../data/angel1.mesh
+load mesh	5782V / 31057E / 46666F / 21390P  [0.187347s]
+load mesh	67V / 358E / 544F / 252P  [0.00170162s]
+Auto-intersection... failed at 50 iteration
+Time: 31670ms
+
+../data/dog.mesh
+load mesh	7730V / 45387E / 71730F / 34072P  [0.333716s]
+load mesh	67V / 358E / 544F / 252P  [0.00169624s]
+Auto-intersection... failed at 40 iteration
+Time: 50413ms
