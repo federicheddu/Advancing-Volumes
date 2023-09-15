@@ -1,5 +1,4 @@
 #include "advancing_volumes.h"
-#include <chrono>
 
 using namespace cinolib;
 
@@ -73,7 +72,7 @@ int main(int argc, char *argv[]) {
     };
 
     bool load = argc > 1;
-    std::string path = load ? argv[1] : data_paths[4];
+    std::string path = load ? argv[1] : data_paths[1];
     //load the data
     Data data = setup(path.c_str(), load);
 
@@ -355,14 +354,12 @@ int main(int argc, char *argv[]) {
                     std::cout << std::endl << TXT_BOLDYELLOW << model << TXT_RESET << std::endl;
                     //load the model
                     Data batch_data = setup(model.c_str());
-                    //start the clock
-                    auto start = std::chrono::high_resolution_clock::now();
 
                     //for 500 (max) iterations
-                    for(int iter = 0; iter <= 800; iter++) {
+                    for(int iter = 0; iter <= 500; iter++) {
 
                         //max iteration reached
-                        if(iter == 800) {
+                        if(iter == 500) {
                             std::cout << TXT_BOLDRED << "Max iteration reached" << TXT_RESET << std::endl;
                             break;
                         }
@@ -385,12 +382,10 @@ int main(int argc, char *argv[]) {
                             break;
                         }
 
+
+
                     }
-                    //stop the clock
-                    auto stop = std::chrono::high_resolution_clock::now();
-                    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-                    std::cout << TXT_BOLDYELLOW << "Time: " << duration.count() << "ms" << TXT_RESET << std::endl;
-                    
+
                     std::string save_path = "../results/" + model.substr(8, model.size()-8);
                     batch_data.m.save(save_path.c_str());
 

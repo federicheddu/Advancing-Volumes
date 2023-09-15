@@ -31,7 +31,7 @@ Data setup(const char *path, bool load) {
     data.oct.build_from_mesh_polys(data.srf);
 
     //edge length threshold
-    data.edge_threshold = data.srf.bbox().diag() * 0.01;
+    data.edge_threshold = data.srf.bbox().diag() * 0.02;
 
     //inactive threshold
     data.eps_inactive = data.edge_threshold * data.eps_percent;
