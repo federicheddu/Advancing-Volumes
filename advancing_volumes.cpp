@@ -120,45 +120,24 @@ void split_n_flip(Data &d, bool selective) {
     update_fronts(d);
 }
 
-//search the edges that need to be split on the surface
-std::set<uint> search_split(Data &d, bool selective, RefinementMode refMode) {
+//search the edges that need to be split
+std::set<uint> search_split(Data &d, bool selective) {
 
     //search of the edges to split inside the front
     std::set<uint> edges_to_split;
 
     //if we have to refine only were the edges are too long
-    if(selective) {
+    if(selective)
+        //for every vid in active fronts
+        for(uint vid : d.fronts_active)
+            //check the edge (surface) umbrella
+            for(uint eid : d.m.vert_adj_srf_edges(vid))
+                //check if the threshold is passed
+                if(d.m.edge_length(eid) > d.edge_threshold)
+                    //for every adj srf poly (face then poly) get the edges
+                    for(uint fid : d.m.edge_adj_srf_faces(eid))
+                        edges_to_split.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(), d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
 
-        switch (refMode) {
-            case MIX: {
-
-
-            }
-            case SRF: {
-
-                //for every vid in active fronts
-                for (uint vid: d.fronts_active)
-                    //check the edge (surface) umbrella
-                    for (uint eid: d.m.vert_adj_srf_edges(vid))
-                        //check if the threshold is passed
-                        if (d.m.edge_length(eid) > d.edge_threshold)
-                            //for every adj srf poly (face then poly) get the edges
-                            for (uint fid: d.m.edge_adj_srf_faces(eid))
-                                edges_to_split.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(),
-                                                      d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
-                break;
-            }
-            case TOTAL: {
-                for(uint eid = 0; eid < d.m.num_edges(); eid++)
-                    //check if the threshold is passed
-                    if(d.m.edge_length(eid) > d.edge_threshold)
-                        //for every adj srf poly (face then poly) get the edges
-                        for(uint pid : d.m.adj_e2p(eid))
-                            edges_to_split.insert(d.m.adj_p2e(pid).begin(), d.m.adj_p2e(pid).end());
-                break;
-            }
-        }
-    }
 
     //if we have to refine all the active front
     if(!selective)
@@ -658,14 +637,14 @@ void front_from_seed(Data &d, uint seed, std::unordered_set<uint> &front) {
 
 }
 
-//calc the distance from the target with a ray cast hit
+//calc the distance from the target with a raycast hit
 double dist_calc(Data &d, uint vid, bool raycast, bool flat) {
 
     //param
     uint id; //useless
     double dist;
 
-    //ray cast hit (normal direction)
+    //raycast hit (normal direction)
     if(raycast)
         d.oct.intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, id);
     else
