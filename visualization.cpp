@@ -12,8 +12,15 @@ void UI_Manager(DrawableTetmesh<> &m , UI_Mode uiMode, Octree &oct, std::vector<
             deleteArrows(dir_arrows, gui);
             break;
         }
+        case HIGHLIGHT: {
+            highlightModel(m);
+            break;
+        }
         case DIRECTION: {
-            showArrows(m, oct, dir_arrows, active_fronts, gui);
+            if (prev != DIRECTION)
+                showArrows(m, oct, dir_arrows, active_fronts, gui);
+            else
+                deleteArrows(dir_arrows, gui);
             break;
         }
         case FRONTS: {
@@ -62,9 +69,9 @@ void showFronts(DrawableTetmesh<> &m) {
     {
         uint vid = m.get_surface_verts().at(idx);
 
-        if(!m.vert_data(vid).label)
+        if(m.vert_data(vid).label)
             for(uint pid : m.adj_v2p(vid))
-                m.poly_data(pid).color = Color::PASTEL_ORANGE();
+                m.poly_data(pid).color = Color(176.f/255.f, 236.f/255.f, 255.f/255.f);
     });
 
 }
@@ -85,5 +92,32 @@ void clearColors(DrawableTetmesh<> &m) {
     {
         m.poly_data(pid).color = Color::WHITE();
     });
+
+}
+
+void highlightModel(DrawableTetmesh<> &m) {
+
+    PARALLEL_FOR(0, m.num_polys(), 100, [&](uint pid)
+    {
+        m.poly_data(pid).color = Color(255.f/255.f, 198.f/255.f, 70.f/255.f);
+    });
+
+}
+
+void show_stuck_v(DrawableTetmesh<> &m, std::set<uint> &stuck, GLcanvas &gui) {
+    //push markers
+    for(uint vid : stuck)
+        gui.push_marker(m.vert(vid), std::to_string(vid));
+}
+
+void show_stuck_e(DrawableTetmesh<> &m, std::set<uint> &stuck, GLcanvas &gui) {
+
+    for(uint eid = 0; eid < m.num_edges(); eid++)
+        if(stuck.find(m.edge_vert_id(eid, 0)) != stuck.end() || stuck.find(m.edge_vert_id(eid, 1)) != stuck.end())
+            m.edge_data(eid).flags[MARKED] = true;
+        else
+            m.edge_data(eid).flags[MARKED] = false;
+
+    m.show_marked_edge(true);
 
 }

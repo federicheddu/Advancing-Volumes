@@ -10,7 +10,7 @@
 using namespace cinolib;
 
 
-typedef enum {BLANK, DIRECTION, FRONTS, VOLUME} UI_Mode;
+typedef enum {BLANK, DIRECTION, FRONTS, VOLUME, HIGHLIGHT} UI_Mode;
 
 void UI_Manager(DrawableTetmesh<> &m , UI_Mode uiMode, Octree &oct, std::vector<DrawableArrow> &dir_arrows, std::vector<uint> &active_fronts, GLcanvas &gui);
 
@@ -25,5 +25,13 @@ void showFronts(DrawableTetmesh<> &m);
 void showVolume(DrawableTetmesh<> &m);
 
 void clearColors(DrawableTetmesh<> &m);
+
+void highlightModel(DrawableTetmesh<> &m);
+
+void show_stuck_v(DrawableTetmesh<> &m, std::set<uint> &stuck, GLcanvas &gui);
+
+void show_stuck_e(DrawableTetmesh<> &m, std::set<uint> &stuck, GLcanvas &gui);
+
+
 
 #endif //ADVANCING_VOLUMES_VISUALIZATION_H
