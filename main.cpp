@@ -73,9 +73,10 @@ int main(int argc, char *argv[]) {
     };
 
     bool load = argc > 1;
-    std::string path = load ? argv[1] : data_paths[1];
+    std::string path = load ? argv[1] : data_paths[2];
     //load the data
     Data data = setup(path.c_str(), load);
+    data.gui = &gui;
 
     //gui push
     gui.push(&data.m, false);
@@ -87,6 +88,9 @@ int main(int argc, char *argv[]) {
     UI_Mode uiMode = BLANK;
     bool show_target = true;
     bool show_target_matte = false;
+    bool show_stuck_verts = false;
+    bool show_stuck_edges = false;
+    bool show_only_adj = false;
     std::vector<DrawableArrow> dir_arrows;
     //vert movement parameters
     double prev_vol = 0;
@@ -96,367 +100,267 @@ int main(int argc, char *argv[]) {
     //undo object
     Data reset_data = data;
     Data undo_data = data;
+    //selection
+    int sel_vid = 0;
+    int sel_pid = 0;
 
-    //keyboard commands
-    gui.callback_key_pressed = [&](int key, int modifier) {
+    //GUI button callbacks
+    gui.callback_app_controls = [&]() {
 
-        bool handled = true;
+        if(ImGui::Button("Expand and Refine")) {
+            //undo backup
+            undo_data = data;
 
-        switch (key) {
-
-            /** VISUALIZATION KEYS **/
-            //clear the mesh
-            case GLFW_KEY_F1: {
-                uiMode = BLANK;
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-                break;
-            }
-            //fronts visualization
-            case GLFW_KEY_F2: {
-                uiMode = FRONTS;
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-                break;
-            }
-            //target visualization
-            case GLFW_KEY_F3: {
-                data.vol.show_mesh(show_target = !show_target);
-                break;
-            }
-            //show full target
-            case GLFW_KEY_F4: {
-                show_target_matte = !show_target_matte;
-                if(show_target_matte) data.vol.show_mesh_flat();
-                else data.vol.show_mesh_points();
-                break;
-            }
-            //arrow (direction) visualization
-            case GLFW_KEY_F5: {
-                uiMode = DIRECTION;
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                break;
-            }
-            //show orient3D sign
-            case GLFW_KEY_F6: {
-                uiMode = VOLUME;
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-
-                break;
-            }
-
-            /** MOVEMENT KEYS **/
             //model expansion
-            case GLFW_KEY_7: {
-
-                //update undo
-                undo_data = data;
-
-                //move the verts
-                expand(data);
-
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
-                //update model
-                data.m.update_normals();
-                data.m.updateGL();
-                break;
-            }
-            //smoothing
-            case GLFW_KEY_8: {
-
-                //update undo
-                undo_data = data;
-
-                //smooth the surface
-                smooth(data);
-
-                //update model and UI
-                data.m.update_normals();
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-                break;
-            }
-
-            /** TOPOLOGICAL KEYS **/
-            //poly split
-            case GLFW_KEY_9: {
-
-                //update undo
-                undo_data = data;
-
-                //split and flip polys in the surface
-                split_n_flip(data);
-
-                //update model
-                data.m.update_normals();
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-                break;
-            }
-            //poly split by length
-            case GLFW_KEY_0: {
-
-                //update undo
-                undo_data = data;
-
-                //split and flip polys in the surface
-                split_n_flip(data, true);
-
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
-                //update model
-                data.m.update_normals();
-                data.m.updateGL();
-                break;
-            }
-
-            /** COMBO KEYS **/
-            //expand (CP mode) and split
-            case GLFW_KEY_B: {
-
-                //update undo
-                undo_data = data;
-
-                //move the verts
-                expand(data, true);
-
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
-                //update model
-                data.m.update_normals();
-                data.m.updateGL();
-
-                break;
-            }
-            //expand (CP mode), split and smooth
-            case GLFW_KEY_N: {
-
-                //update undo
-                undo_data = data;
-
-                //expand and smooth
-                expand(data, true);
-                smooth(data);
-
-                //update model and UI
-                data.m.update_normals();
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-                break;
-            }
-            //expand, split and smooth - volume check for choosing the expansion mode
-            case GLFW_KEY_M: {
-                //update undo
-                undo_data = data;
-
-                prev_vol = data.m.mesh_volume();
-
-                if(!raycast) {
-                    std::cout << TXT_BOLDMAGENTA << "Closest point mode" << TXT_RESET << std::endl;
-                    //expand and smooth (with the closest point)
-                    expand(data, true, CLOSEST_POINT);
-                    smooth(data);
-                } else {
-                    std::cout << TXT_BOLDMAGENTA << "Ray mode" << TXT_RESET << std::endl;
-                    //expand and smooth (with raycast)
-                    expand(data, true, RAYCAST);
-                    smooth(data, 20);
-                }
-
-                raycast = prev_vol * 1.005 >= data.m.mesh_volume();
-                prev_vol = data.m.mesh_volume();
-
-                //update model and UI
-                data.m.update_normals();
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-                break;
-            }
-            //expand, split and smooth - local decision for the expansion mode
-            case GLFW_KEY_COMMA: {
-
-                undo_data = data;
-
-                expand(data, true, LOCAL);
-                smooth(data);
-
-                //update model and UI
-                data.m.update_normals();
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-
-                break;
-            }
-            //10 iteration of COMMA KEY
-            case GLFW_KEY_SPACE: {
-
-                undo_data = data;
-
-                for(int i = 0; i < 10; i++){
-                    std::cout << TXT_BOLDMAGENTA << "Iter: " << i+1 << TXT_RESET << std::endl;
-                    expand(data, true, LOCAL);
-                    smooth(data);
-                    data.m.update_normals();
-                }
-                std::cout << TXT_BOLDMAGENTA << "DONE" << TXT_RESET << std::endl;
-
-                //update model and UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-
-                break;
-            }
-            //100 iteration of COMMA KEY
-            case GLFW_KEY_PERIOD: {
-                undo_data = data;
-
-                for(int i = 0; i < 100; i++){
-                    std::cout << TXT_BOLDMAGENTA << "Iter: " << i+1 << TXT_RESET << std::endl;
-                    expand(data, true, LOCAL);
-                    smooth(data);
-                    data.m.update_normals();
-                }
-                std::cout << TXT_BOLDMAGENTA << "DONE" << TXT_RESET << std::endl;
-
-                //update model and UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-
-                break;
-            }
-            //final projection
-            case GLFW_KEY_V: {
-                undo_data = data;
-
-                final_projection(data);
-
-                //update model and UI
-                data.m.update_normals();
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-                data.m.updateGL();
-
-                break;
-            }
-
-            /** BATCH TEST KEY**/
-            case GLFW_KEY_F12: {
-
-                std::set<ipair> intersections;
-
-                //for every model
-                for(const auto &model : data_paths) {
-
-                    //name of the model
-                    std::cout << std::endl << TXT_BOLDYELLOW << model << TXT_RESET << std::endl;
-                    //load the model
-                    Data batch_data = setup(model.c_str());
-
-                    //start the clock
-                    auto start = std::chrono::high_resolution_clock::now();
-
-                    //for 500 (max) iterations
-                    for(int iter = 0; iter <= 1000; iter++) {
-
-                        //max iteration reached
-                        if(iter == 1000) {
-                            std::cout << TXT_BOLDRED << "Max iteration reached" << TXT_RESET << std::endl;
-                            break;
-                        }
-
-                        expand(batch_data, true, LOCAL);
-                        smooth(batch_data);
-                        batch_data.m.update_normals();
-
-                        //checks for early stop (fail)
-                        export_surface(batch_data.m, batch_data.m_srf);
-                        intersections.clear();
-                        find_intersections(batch_data.m_srf, intersections);
-                        if(!intersections.empty()) {
-                            std::cout << TXT_BOLDRED << "Auto-intersection... failed at " << iter << " iteration" << TXT_RESET << std::endl;
-                            break;
-                        }
-                        //check if model converged
-                        if(batch_data.fronts_active.empty()) {
-                            std::cout << TXT_BOLDGREEN << "Model converged at iteration: " << iter << TXT_RESET << std::endl;
-                            break;
-                        }
-
-
-
-                    }
-
-                    //stop the clock
-                    auto stop = std::chrono::high_resolution_clock::now();
-                    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-                    std::cout << TXT_BOLDYELLOW << "Time: " << duration.count() << "ms" << TXT_RESET << std::endl;
-
-                    std::string save_path = "../results/" + model.substr(8, model.size()-8);
-                    batch_data.m.save(save_path.c_str());
-
-                }
-
-            }
-
-            /** UNDO KEYS**/
-            //undo
-            case GLFW_KEY_BACKSPACE: {
-                std::cout << std::endl << TXT_BOLDYELLOW << "UNDO" << TXT_RESET << std::endl;
-
-                //pop of all
-                gui.pop(&data.m);
-
-                //data recover
-                data.m = undo_data.m;
-                data.fronts_active = undo_data.fronts_active;
-                data.fronts_bounds = undo_data.fronts_bounds;
-
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
-                //re-push on gui
-                gui.push(&data.m, false);
-                data.m.updateGL();
-                break;
-            }
-            //reset
-            case GLFW_KEY_BACKSLASH: {
-                std::cout << std::endl << TXT_BOLDYELLOW << "RESET" << TXT_RESET << std::endl;
-
-                //pop of all
-                gui.pop(&data.m);
-
-                //data recover
-                data.m = reset_data.m;
-                data.fronts_active = reset_data.fronts_active;
-                data.fronts_bounds = reset_data.fronts_bounds;
-
-                //UI
-                UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-
-                //re-push on gui
-                gui.push(&data.m, false);
-                data.m.updateGL();
-                break;
-            }
-
-            /** SAVE MODEL KEY **/
-            case GLFW_KEY_X: {
-                int offset = load ? 11 : 8;
-                std::string save_path = "../results/" + path.substr(offset, path.size()-offset);
-                data.m.save(save_path.c_str());
-                break;
-            }
-
-            default:
-                handled = false;
+            expand(data, true, LOCAL);
+            smooth(data);
+
+            std::cout << TXT_CYAN << "DONE" << TXT_RESET << std::endl;
+
+            //update model and UI
+            data.m.update_normals();
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            data.m.updateGL();
         }
 
-        return handled;
+        if(ImGui::Button("Expand x10"))  {
+            undo_data = data;
+
+            for(int i = 0; i < 10; i++){
+                std::cout << TXT_BOLDMAGENTA << "Iter: " << i+1 << TXT_RESET << std::endl;
+                expand(data, true, LOCAL);
+                smooth(data);
+                data.m.update_normals();
+            }
+            std::cout << TXT_BOLDMAGENTA << "DONE" << TXT_RESET << std::endl;
+
+            //update model and UI
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            data.m.updateGL();
+        }
+
+        if(ImGui::Button("Projection")) {
+            undo_data = data;
+
+            final_projection(data);
+
+            //update model and UI
+            data.m.update_normals();
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            data.m.updateGL();
+        }
+
+        ImGui::Text("===========================");
+
+        if(ImGui::Button("Show stuck verts")) {
+            show_stuck_verts = !show_stuck_verts;
+
+            if(show_stuck_verts) {
+                std::cout << TXT_BOLDGREEN << "Showing stuck verts" << TXT_RESET << std::endl;
+                show_stuck_v(data.m, data.stuck_in_place, gui);
+            } else {
+                std::cout << TXT_BOLDGREEN << "Hiding stuck verts" << TXT_RESET << std::endl;
+                gui.pop_all_markers();
+            }
+            data.m.updateGL();
+        }
+
+        if(ImGui::Button("Show stuck edges")) {
+            show_stuck_edges = !show_stuck_edges;
+
+            if(show_stuck_edges)
+                show_stuck_e(data.m, data.stuck_in_place, gui);
+            else
+                data.m.show_marked_edge(false);
+
+            data.m.updateGL_marked();
+            data.m.updateGL();
+        }
+
+        if(ImGui::InputInt("vid", &sel_vid), 0, 100, true) {}
+
+        if(ImGui::Button("Adj SJ")) {
+            std::cout << TXT_BOLDGREEN << "Selected vert: " << sel_vid;
+            std::cout << " - num adj: " << data.m.adj_v2p(sel_vid).size() << TXT_RESET << std::endl;
+
+            for(auto pid : data.m.adj_v2p(sel_vid))
+                std::cout << "pid: " << pid << " SJ: " << tet_scaled_jacobian(data.m.poly_vert(pid, 0), data.m.poly_vert(pid, 1), data.m.poly_vert(pid, 2), data.m.poly_vert(pid, 3)) << std::endl;
+        }
+
+        if(ImGui::Button("Show only adj")) {
+            show_only_adj = !show_only_adj;
+
+            if(show_only_adj) {
+                for(int pid = 0; pid < data.m.num_polys(); pid++)
+                    data.m.poly_data(pid).flags[HIDDEN] = true;
+                for(uint pid : data.m.adj_v2p(sel_vid))
+                    data.m.poly_data(pid).flags[HIDDEN] = false;
+            } else {
+                for(int pid = 0; pid < data.m.num_polys(); pid++)
+                    data.m.poly_data(pid).flags[HIDDEN] = false;
+            }
+
+            data.m.updateGL();
+        }
+
+        if(ImGui::InputInt("pid", &sel_pid), 0, 100, true) {}
+
+        if(ImGui::Button("HL in red")) {
+            data.m.poly_data(sel_pid).color = Color::PASTEL_MAGENTA();
+            data.m.updateGL();
+        }
+
+        ImGui::Text("===========================");
+
+        if(ImGui::Button("Undo")) {
+            //pop of all
+            gui.pop(&data.m);
+
+            //data recover
+            data.m = undo_data.m;
+            data.fronts_active = undo_data.fronts_active;
+            data.fronts_bounds = undo_data.fronts_bounds;
+
+            //UI
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+
+            //re-push on gui
+            gui.push(&data.m, false);
+            data.m.updateGL();
+        }
+
+        if(ImGui::Button("Reset")) {
+            //pop of all
+            gui.pop(&data.m);
+
+            //data recover
+            data.m = reset_data.m;
+            data.fronts_active = reset_data.fronts_active;
+            data.fronts_bounds = reset_data.fronts_bounds;
+
+            //UI
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+
+            //re-push on gui
+            gui.push(&data.m, false);
+            data.m.updateGL();
+        }
+
+        if(ImGui::Button("Save")) {
+            int offset = load ? 11 : 8;
+            std::string save_path = "../results/" + path.substr(offset, path.size()-offset);
+            data.m.save(save_path.c_str());
+        }
+
+        ImGui::Text("===========================");
+
+        if(ImGui::Button("Clear UI")) {
+            uiMode = BLANK;
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            data.m.updateGL();
+        }
+
+        if(ImGui::Button("Highlight model")) {
+            uiMode = HIGHLIGHT;
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            data.m.updateGL();
+        }
+
+        if(ImGui::Button("Show Fronts")) {
+            uiMode = FRONTS;
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            data.m.updateGL();
+        }
+
+        if(ImGui::Button("Show Target")) {
+            data.vol.show_mesh(show_target = !show_target);
+        }
+
+        if(ImGui::Button("Matte target")) {
+            show_target_matte = !show_target_matte;
+            if(show_target_matte) data.vol.show_mesh_flat();
+            else data.vol.show_mesh_points();
+        }
+
+        if(ImGui::Button("Show vert direction")) {
+            uiMode = DIRECTION;
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+        }
+
+        if(ImGui::Button("Show orient3D sign")) {
+            uiMode = VOLUME;
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            data.m.updateGL();
+        }
+
+        if(ImGui::Button("Screen colors")) {
+            for (uint &f : data.m.get_surface_faces()) {
+                uint poly = data.m.adj_f2p(f)[0];
+                data.m.poly_data(poly).color = Color(255.f/255.f, 198.f/255.f, 70.f/255.f);
+            }
+            data.m.updateGL();
+            // 1800 1035 0.0157587 -0.00979251 0.223252 0.660849 0.5 -0.0462633 -0.674176 0.73712 -0.0149085 0.719672 -0.534246 -0.443457 0.0975828 0.692771 0.509969 0.509902 -0.1274 0 0 0 1 1 0 0 -0 0 1 0 -0 0 0 1 -2.6434 0 0 0 1 0.870092 0 0 -0 0 1.5132 0 -0 0 0 -0.756602 -2 0 0 0 1
+        }
+
+        ImGui::Text("===========================");
+
+        if(ImGui::Button("Batch Test")) {
+
+            std::set<ipair> intersections;
+
+            //for every model
+            for(const auto &model : data_paths) {
+
+                //name of the model
+                std::cout << std::endl << TXT_BOLDYELLOW << model << TXT_RESET << std::endl;
+                //load the model
+                Data batch_data = setup(model.c_str());
+
+                //start the clock
+                auto start = std::chrono::high_resolution_clock::now();
+
+                //for 500 (max) iterations
+                for(int iter = 0; iter <= 1000; iter++) {
+
+                    //max iteration reached
+                    if(iter == 1000) {
+                        std::cout << TXT_BOLDRED << "Max iteration reached" << TXT_RESET << std::endl;
+                        break;
+                    }
+
+                    expand(batch_data, true, LOCAL);
+                    smooth(batch_data);
+                    batch_data.m.update_normals();
+
+                    //checks for early stop (fail)
+                    export_surface(batch_data.m, batch_data.m_srf);
+                    intersections.clear();
+                    find_intersections(batch_data.m_srf, intersections);
+                    if(!intersections.empty()) {
+                        std::cout << TXT_BOLDRED << "Auto-intersection... failed at " << iter << " iteration" << TXT_RESET << std::endl;
+                        break;
+                    }
+                    //check if model converged
+                    if(batch_data.fronts_active.empty()) {
+                        std::cout << TXT_BOLDGREEN << "Model converged at iteration: " << iter << TXT_RESET << std::endl;
+                        break;
+                    }
+
+
+
+                }
+
+                //stop the clock
+                auto stop = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+                std::cout << TXT_BOLDYELLOW << "Time: " << duration.count() << "ms" << TXT_RESET << std::endl;
+
+                std::string save_path = "../results/" + model.substr(8, model.size()-8);
+                batch_data.m.save(save_path.c_str());
+
+            }
+
+        }
 
     };
 

@@ -31,7 +31,7 @@ Data setup(const char *path, bool load) {
     data.oct.build_from_mesh_polys(data.srf);
 
     //edge length threshold
-    data.edge_threshold = data.srf.bbox().diag() * 0.02;
+    data.edge_threshold = data.srf.bbox().diag() * 0.01;
 
     //inactive threshold
     data.eps_inactive = data.edge_threshold * data.eps_percent;
@@ -261,9 +261,6 @@ void flip(Data &d, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges
 //split all the edges in the active front and flip who needs to be flipped
 void split_n_flip(Data &d, bool selective) {
 
-    //start of split
-    //std::cout << TXT_CYAN << "Splitting the polys... ";
-
     //data that we need for later
     uint offset = d.m.num_verts();
 
@@ -274,17 +271,10 @@ void split_n_flip(Data &d, bool selective) {
     std::queue<edge_to_flip> edges_to_flip;
     split(d, edges_to_split, v_map, edges_to_flip);
 
-    //end of split
-    //std::cout << "DONE" << TXT_RESET << std::endl;
-
-    //start of flipping
-    //std::cout << TXT_CYAN << "Flipping the edges... ";
-
-    //* flip every edge we need to
+    // flip every edge we need to
     flip(d, v_map, edges_to_flip);
 
-    //end of flipping
-    //std::cout << "DONE" << TXT_RESET << std::endl;
+    split_separating_simplices(d.m);
 
     //update the fronts
     update_fronts(d);
@@ -398,31 +388,24 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 //move the verts toward the target
 void expand(Data &d, bool refine, ExpansionMode exp_mode) {
 
-    //start
-    //std::cout << TXT_CYAN << "Expanding the model... ";
+    std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET << std::endl;
+
+    d.gui->pop_all_markers();
+    d.stuck_in_place.clear();
 
     //get all the distances from the target model
     std::vector<double> front_dist(d.fronts_active.size());
     PARALLEL_FOR(0, d.fronts_active.size(), 1000, [&](int idx)
     {
+        //get the vid
         uint vid = d.fronts_active.at(idx);
-        double dist;
-        switch (exp_mode) {
-            case CLOSEST_POINT: {
-                dist = dist_calc(d, vid, false, true);
-                break;
-            }
-            case RAYCAST: {
-                dist = dist_calc(d, vid, true, true);
-                break;
-            }
-            case LOCAL: {
-                dist = dist_calc(d, vid, false);
-                if(dist < d.eps_inactive*2) dist = dist_calc(d, vid, true, true);
-                else dist = dist_calc(d, vid, false, true);
-                break;
-            }
-        }
+        //get the distance (if the vert is near the target, use the raycast to get the distance)
+        double dist = dist_calc(d, vid, false);
+        if(dist < d.eps_inactive*2)
+            dist = dist_calc(d, vid, true, true);
+        else
+            dist = dist_calc(d, vid, false, true);
+        //save the distance
         front_dist.at(idx) = dist;
     });
 
@@ -444,7 +427,8 @@ void expand(Data &d, bool refine, ExpansionMode exp_mode) {
         d.m.vert(vid) += d.m.vert_data(vid).normal * movement;
 
         //put the vert in a safe place between [og_pos, actual_pos]
-        go_back_safe(d, vid, og_pos);
+        bool check = go_back_safe(d, vid, og_pos);
+        if (!check) d.stuck_in_place.insert(vid);
 
         //update the mask
         if(dist_calc(d, vid, true) < d.eps_inactive)
@@ -460,29 +444,27 @@ void expand(Data &d, bool refine, ExpansionMode exp_mode) {
 
     }
 
-    //job done
-    //std::cout << "DONE" << TXT_RESET << std::endl;
-
     smooth(d, 5);
 
     //refine where the edges are too long or just update the front
-    if(refine)
-        split_n_flip(d, true);
-    else
-        update_fronts(d);
-
-    //refile internal edges
     if(refine) {
+        std::cout << TXT_CYAN << "Refining the model..." << TXT_RESET << std::endl;
+        //refine external edges
+        split_n_flip(d, true);
+        //refine internal edges
         std::set<uint> edges_to_split = search_split_int(d);
         split_int(d, edges_to_split);
-    }
+    } else
+        update_fronts(d);
+
+
 }
 
 //laplacian smooth of the model
 void smooth(Data &d, int n_iter) {
 
     //start
-    //std::cout << TXT_CYAN << "Smoothing the model...";
+    std::cout << TXT_CYAN << "Smoothing the model..." << TXT_RESET << std::endl;
 
     export_surface(d.m, d.m_srf);
     //mesh_smoother(d.m_srf, d.m_srf);
@@ -491,6 +473,8 @@ void smooth(Data &d, int n_iter) {
 
     //for the number of iterations selected
     for(int iter = 0; iter < n_iter; iter++) {
+
+        std::cout << TXT_BOLDWHITE << "Iteration " << iter+1 << "/" << n_iter << TXT_RESET << std::endl;
 
         for(int vid = d.m.num_verts()-1; vid >= 0; vid--) {
 
@@ -523,16 +507,14 @@ void smooth(Data &d, int n_iter) {
                 d.m.vert(vid) = bary;
             }
 
-            go_back_safe(d, vid, og_pos);
+            bool check = go_back_safe(d, vid, og_pos);
+            if (!check) d.stuck_in_place.insert(vid);
 
         }
     }
-
-    //job done
-    //std::cout << "DONE" << TXT_RESET << std::endl;
 }
 
-//check if there are any intersection
+//check if there are any intersection with the target mesh
 bool check_intersection(Data &d, uint vid) {
 
     //params
@@ -649,6 +631,7 @@ double dist_calc(Data &d, uint vid, bool raycast, bool flat) {
     else
         dist = d.oct.closest_point(d.m.vert(vid)).dist(d.m.vert(vid));
 
+    //laplacian smoothing of the distance -> if flat is true, the distance is the average of the distance of the adj verts
     double adj_dist = 0, dist_sum = dist;
     if(flat) {
         for(uint adj_vid : d.m.vert_adj_srf_verts(vid)) {
@@ -659,18 +642,18 @@ double dist_calc(Data &d, uint vid, bool raycast, bool flat) {
 
             dist_sum += adj_dist;
         }
-        dist_sum /= d.m.vert_adj_srf_verts(vid).size() + 1;
-        dist = dist_sum;
+        dist = dist_sum / (double)(d.m.vert_adj_srf_verts(vid).size() + 1);
     }
 
     return dist;
 }
 
 //check if the movement of the vert is safe, if not it goes back by bisection
-void go_back_safe(Data &d, uint vid, const vec3d &og_pos) {
+bool go_back_safe(Data &d, uint vid, const vec3d &og_pos) {
 
     int iter_counter;
-    int max_iter = 50;
+    int max_iter = 7;
+    bool check = true;
 
     //check for intersections (only if on surface)
     if(d.m.vert_is_on_srf(vid)) {
@@ -680,8 +663,11 @@ void go_back_safe(Data &d, uint vid, const vec3d &og_pos) {
             iter_counter++;
         }
         //if edge still outside get back the vid
-        if (iter_counter == max_iter && check_intersection(d, vid))
+        if (iter_counter == max_iter && check_intersection(d, vid)) {
             d.m.vert(vid) = og_pos;
+            std::cout << TXT_BOLDRED << "The vert " << vid << " failed the line search for intersection" << TXT_RESET << std::endl;
+            check = false;
+        }
     }
 
     //if it is not already putted back to the og pos
@@ -692,10 +678,14 @@ void go_back_safe(Data &d, uint vid, const vec3d &og_pos) {
             d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
             iter_counter++;
         }
-        if(iter_counter == max_iter && check_volume(d, vid))
+        if(iter_counter == max_iter && check_volume(d, vid)) {
             d.m.vert(vid) = og_pos;
+            std::cout << TXT_BOLDRED << "The vert " << vid << " failed the line search for volume sign" << TXT_RESET << std::endl;
+            check = false;
+        }
     }
 
+    return check;
 }
 
 vec3d project_onto_tangent_plane(vec3d &point, vec3d &plane_og, vec3d &plane_norm) {

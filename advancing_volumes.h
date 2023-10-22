@@ -9,6 +9,8 @@
 #include <cinolib/smoother.h>
 #include <cinolib/predicates.h>
 #include <cinolib/ARAP.h>
+#include <cinolib/split_separating_simplices.h>
+#include <cinolib/quality_tet.h>
 
 #include "sphere.h"
 #include "visualization.h"
@@ -34,6 +36,9 @@ typedef struct data {
     //fronts_active
     std::vector<uint> fronts_active;
     std::vector<uint> fronts_bounds;
+    std::set<uint> stuck_in_place;
+    //gui
+    GLcanvas *gui;
 } Data;
 
 //struct to query the edges to flip after the split
@@ -46,7 +51,7 @@ typedef struct edge_to_flip {
 typedef enum {CLOSEST_POINT, RAYCAST, LOCAL} ExpansionMode;
 
 //setup of the env
-Data setup(const char *path, bool load = false); //TODO: load
+Data setup(const char *path, bool load = false);
 //topological operations
 std::set<uint> search_split(Data &d, bool selective);
 void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges_to_flip);
@@ -60,7 +65,7 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
 void expand(Data &d, bool refine = false, ExpansionMode exp_mode = LOCAL);
 void smooth(Data &d, int n_iter = 10);
 double dist_calc(Data &d, uint vid, bool raycast = false, bool flat = false);
-void go_back_safe(Data &d, uint vid, const vec3d &og_pos);
+bool go_back_safe(Data &d, uint vid, const vec3d &og_pos);
 void final_projection(Data &d);
 vec3d project_onto_tangent_plane(vec3d &point, vec3d &plane_og, vec3d &plane_norm);
 //check operations
