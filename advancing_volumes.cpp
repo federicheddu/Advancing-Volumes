@@ -386,7 +386,7 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 }
 
 //move the verts toward the target
-void expand(Data &d, bool refine, ExpansionMode exp_mode) {
+void expand(Data &d, bool refine) {
 
     std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET << std::endl;
 
@@ -476,7 +476,7 @@ void smooth(Data &d, int n_iter) {
 
         std::cout << TXT_BOLDWHITE << "Iteration " << iter+1 << "/" << n_iter << TXT_RESET << std::endl;
 
-        for(int vid = d.m.num_verts()-1; vid >= 0; vid--) {
+        for(int vid = (int)d.m.num_verts()-1; vid >= 0; vid--) {
 
             if(d.m.vert_is_on_srf(vid) && d.m.vert_data(vid).label)
                 continue;
@@ -512,6 +512,39 @@ void smooth(Data &d, int n_iter) {
 
         }
     }
+}
+
+void smooth_stellar(Data &d) {
+
+    std::vector<vec3d> verts;
+    std::vector<uint> tets;
+    std::vector<std::vector<uint>> polys;
+
+    for(uint pid = 0; pid < d.m.num_polys(); pid++)
+        polys.push_back({d.m.poly_vert_id(pid, 1), d.m.poly_vert_id(pid, 0), d.m.poly_vert_id(pid, 2), d.m.poly_vert_id(pid, 3)});
+
+    write_NODE_ELE("mesh_to_smooth", d.m.vector_verts(), polys);
+
+    system("/Users/federicomeloni/Documents/GitHub/stellar/Stellar mesh_to_smooth");
+
+    read_NODE_ELE("mesh_to_smooth.1.node", verts, polys);
+
+    for(auto line : polys)
+        tets.insert(tets.end(), line.begin(), line.end());
+
+    d.m = DrawableTetmesh<>(verts, tets);
+
+    d.fronts_active.clear();
+    d.fronts_bounds.clear();
+    for (uint vid: d.m.get_surface_verts()) {
+        d.fronts_active.emplace_back(vid);
+        d.m.vert_data(vid).label = false;
+        d.m.vert_data(vid).uvw.x() = 0;
+    }
+
+    //subdivide the front
+    d.fronts_bounds.emplace_back(d.fronts_active.size());
+    update_fronts(d);
 }
 
 //check if there are any intersection with the target mesh

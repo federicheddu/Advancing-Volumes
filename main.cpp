@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
             undo_data = data;
 
             //model expansion
-            expand(data, true, LOCAL);
+            expand(data, true);
             smooth(data);
 
             std::cout << TXT_CYAN << "DONE" << TXT_RESET << std::endl;
@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
 
             for(int i = 0; i < 10; i++){
                 std::cout << TXT_BOLDMAGENTA << "Iter: " << i+1 << TXT_RESET << std::endl;
-                expand(data, true, LOCAL);
+                expand(data, true);
                 smooth(data);
                 data.m.update_normals();
             }
@@ -143,6 +143,20 @@ int main(int argc, char *argv[]) {
             undo_data = data;
 
             final_projection(data);
+
+            //update model and UI
+            data.m.update_normals();
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            data.m.updateGL();
+        }
+
+        if(ImGui::Button("Expand w/ Stellar")) {
+            //undo backup
+            undo_data = data;
+
+            //model expansion
+            expand(data, true);
+            smooth_stellar(data);
 
             //update model and UI
             data.m.update_normals();
@@ -328,7 +342,7 @@ int main(int argc, char *argv[]) {
                         break;
                     }
 
-                    expand(batch_data, true, LOCAL);
+                    expand(batch_data, true);
                     smooth(batch_data);
                     batch_data.m.update_normals();
 

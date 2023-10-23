@@ -11,6 +11,8 @@
 #include <cinolib/ARAP.h>
 #include <cinolib/split_separating_simplices.h>
 #include <cinolib/quality_tet.h>
+#include <cinolib/io/read_NODE_ELE.h>
+#include <cinolib/io/write_NODE_ELE.h>
 
 #include "sphere.h"
 #include "visualization.h"
@@ -62,8 +64,9 @@ void split_n_flip(Data &d, bool selective = false);
 bool flip2to2(DrawableTetmesh<> &m, uint eid);
 bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
 //movement operations
-void expand(Data &d, bool refine = false, ExpansionMode exp_mode = LOCAL);
+void expand(Data &d, bool refine);
 void smooth(Data &d, int n_iter = 10);
+void smooth_stellar(Data &d);
 double dist_calc(Data &d, uint vid, bool raycast = false, bool flat = false);
 bool go_back_safe(Data &d, uint vid, const vec3d &og_pos);
 void final_projection(Data &d);
