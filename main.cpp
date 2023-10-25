@@ -111,14 +111,9 @@ int main(int argc, char *argv[]) {
             //undo backup
             undo_data = data;
 
-            //model expansion
-            expand(data, true);
-            smooth(data);
+            advancing_volume(data);
 
-            std::cout << TXT_CYAN << "DONE" << TXT_RESET << std::endl;
-
-            //update model and UI
-            data.m.update_normals();
+            //update UI
             UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
             data.m.updateGL();
         }
@@ -126,13 +121,10 @@ int main(int argc, char *argv[]) {
         if(ImGui::Button("Expand x10"))  {
             undo_data = data;
 
-            for(int i = 0; i < 10; i++){
+            for(int i = 0; i < 10; i++) {
                 std::cout << TXT_BOLDMAGENTA << "Iter: " << i+1 << TXT_RESET << std::endl;
-                expand(data, true);
-                smooth(data);
-                data.m.update_normals();
+                advancing_volume(data);
             }
-            std::cout << TXT_BOLDMAGENTA << "DONE" << TXT_RESET << std::endl;
 
             //update model and UI
             UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
@@ -155,8 +147,11 @@ int main(int argc, char *argv[]) {
             undo_data = data;
 
             //model expansion
-            expand(data, true);
+            expand(data);
             smooth_stellar(data);
+            refine(data);
+            smooth_stellar(data);
+            update_fronts(data);
 
             //update model and UI
             data.m.update_normals();
@@ -342,8 +337,11 @@ int main(int argc, char *argv[]) {
                         break;
                     }
 
-                    expand(batch_data, true);
+                    expand(batch_data);
                     smooth(batch_data);
+                    refine(batch_data);
+                    smooth(batch_data);
+                    update_fronts(batch_data);
                     batch_data.m.update_normals();
 
                     //checks for early stop (fail)

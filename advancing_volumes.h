@@ -49,9 +49,8 @@ typedef struct edge_to_flip {
     ipair og_edge = {0, 0};
 } edge_to_flip;
 
-//define expansion mode
-typedef enum {CLOSEST_POINT, RAYCAST, LOCAL} ExpansionMode;
-
+//main function
+void advancing_volume(Data &data);
 //setup of the env
 Data setup(const char *path, bool load = false);
 //topological operations
@@ -63,9 +62,11 @@ void flip(Data &d, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges
 void split_n_flip(Data &d, bool selective = false);
 bool flip2to2(DrawableTetmesh<> &m, uint eid);
 bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
-//movement operations
-void expand(Data &d, bool refine);
+//vert operations
+void expand(Data &d);
+void refine(Data &d, bool internal = true);
 void smooth(Data &d, int n_iter = 10);
+void smooth_jacobian(Data &d, int n_iter = 10);
 void smooth_stellar(Data &d);
 double dist_calc(Data &d, uint vid, bool raycast = false, bool flat = false);
 bool go_back_safe(Data &d, uint vid, const vec3d &og_pos);

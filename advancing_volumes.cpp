@@ -1,5 +1,24 @@
 #include "advancing_volumes.h"
 
+//main function
+void advancing_volume(Data &data) {
+
+    //model expansion
+    expand(data);
+    std::cout << TXT_BOLDRED << "Verts stuck during expansion: " << data.stuck_in_place.size() << TXT_RESET << std::endl;
+    smooth(data, 5);
+    std::cout << TXT_BOLDRED << "Verts stuck during smoothing: " << data.stuck_in_place.size() << TXT_RESET << std::endl;
+    //refinement
+    refine(data);
+    smooth(data);
+    std::cout << TXT_BOLDRED << "Verts stuck during smoothing: " << data.stuck_in_place.size() << TXT_RESET << std::endl;
+    //front update
+    update_fronts(data);
+
+    //update model and UI
+    data.m.update_normals();
+}
+
 //set up the env with model, target, oct etc...
 Data setup(const char *path, bool load) {
 
@@ -31,7 +50,7 @@ Data setup(const char *path, bool load) {
     data.oct.build_from_mesh_polys(data.srf);
 
     //edge length threshold
-    data.edge_threshold = data.srf.bbox().diag() * 0.01;
+    data.edge_threshold = data.srf.bbox().diag() * 0.02;
 
     //inactive threshold
     data.eps_inactive = data.edge_threshold * data.eps_percent;
@@ -276,8 +295,6 @@ void split_n_flip(Data &d, bool selective) {
 
     split_separating_simplices(d.m);
 
-    //update the fronts
-    update_fronts(d);
 }
 
 //edge flip 2-2 (must: surf & srf faces coplanar)
@@ -386,9 +403,9 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 }
 
 //move the verts toward the target
-void expand(Data &d, bool refine) {
+void expand(Data &d) {
 
-    std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET << std::endl;
+    std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET;
 
     d.gui->pop_all_markers();
     d.stuck_in_place.clear();
@@ -444,19 +461,24 @@ void expand(Data &d, bool refine) {
 
     }
 
-    smooth(d, 5);
+    std::cout << TXT_GREEN << "DONE" << TXT_RESET << std::endl;
 
-    //refine where the edges are too long or just update the front
-    if(refine) {
-        std::cout << TXT_CYAN << "Refining the model..." << TXT_RESET << std::endl;
-        //refine external edges
-        split_n_flip(d, true);
+}
+
+void refine(Data &d, bool internal) {
+
+    std::cout << TXT_CYAN << "Refining the model..." << TXT_RESET;
+
+    //refine external edges
+    split_n_flip(d, true);
+
+    if(internal) {
         //refine internal edges
         std::set<uint> edges_to_split = search_split_int(d);
         split_int(d, edges_to_split);
-    } else
-        update_fronts(d);
+    }
 
+    std::cout << TXT_GREEN << "DONE" << TXT_RESET << std::endl;
 
 }
 
@@ -464,7 +486,7 @@ void expand(Data &d, bool refine) {
 void smooth(Data &d, int n_iter) {
 
     //start
-    std::cout << TXT_CYAN << "Smoothing the model..." << TXT_RESET << std::endl;
+    std::cout << TXT_CYAN << "Smoothing the model..." << TXT_RESET;
 
     export_surface(d.m, d.m_srf);
     //mesh_smoother(d.m_srf, d.m_srf);
@@ -474,7 +496,7 @@ void smooth(Data &d, int n_iter) {
     //for the number of iterations selected
     for(int iter = 0; iter < n_iter; iter++) {
 
-        std::cout << TXT_BOLDWHITE << "Iteration " << iter+1 << "/" << n_iter << TXT_RESET << std::endl;
+        //std::cout << TXT_BOLDWHITE << "Iteration " << iter+1 << "/" << n_iter << TXT_RESET << std::endl;
 
         for(int vid = (int)d.m.num_verts()-1; vid >= 0; vid--) {
 
@@ -505,6 +527,86 @@ void smooth(Data &d, int n_iter) {
                 for (uint adj: d.m.adj_v2v(vid)) bary += d.m.vert(adj);
                 bary /= static_cast<double>(d.m.adj_v2v(vid).size());
                 d.m.vert(vid) = bary;
+            }
+
+            bool check = go_back_safe(d, vid, og_pos);
+            if (!check) d.stuck_in_place.insert(vid);
+
+        }
+    }
+
+    std::cout << TXT_GREEN << "DONE" << TXT_RESET << std::endl;
+}
+
+void smooth_jacobian(Data &d, int n_iter) {
+    //start
+    std::cout << TXT_CYAN << "Smoothing the model..." << TXT_RESET << std::endl;
+
+    export_surface(d.m, d.m_srf);
+    //mesh_smoother(d.m_srf, d.m_srf);
+    Octree octree;
+    octree.build_from_mesh_polys(d.m_srf);
+
+    //for the number of iterations selected
+    for(int iter = 0; iter < n_iter; iter++) {
+        std::cout << TXT_BOLDWHITE << "Iteration " << iter+1 << "/" << n_iter << TXT_RESET << std::endl;
+
+        //for every vert
+        for(int vid = (int)d.m.num_verts()-1; vid >= 0; vid--) {
+
+            if (d.m.vert_is_on_srf(vid) && d.m.vert_data(vid).label)
+                continue;
+
+            //parameters
+            vec3d og_pos = d.m.vert(vid); //seed for tangent plane (see project_on_tangent_plane)
+            vec3d og_norm = d.m.vert_data(vid).normal; //seed for tangent plane (see project_on_tangent_plane)
+            vec3d bary(0, 0, 0);
+
+            //avg scaled jacobian of adj tets
+            double avg_sj = 0;
+            for (uint pid : d.m.adj_v2p(vid))
+                avg_sj += tet_scaled_jacobian(d.m.poly_vert(pid, 0), d.m.poly_vert(pid, 1), d.m.poly_vert(pid, 2), d.m.poly_vert(pid, 3));
+            avg_sj /= static_cast<double>(d.m.adj_v2p(vid).size());
+
+            if(d.m.vert_is_on_srf(vid)) {
+                //get the bary
+                for (uint adj : d.m.vert_adj_srf_verts(vid)) bary += d.m.vert(adj);
+                bary /= static_cast<double>(d.m.vert_adj_srf_verts(vid).size());
+
+                double new_sj = 0;
+                for (uint pid : d.m.adj_v2p(vid)) {
+                    vec3d v0 = vid == d.m.poly_vert_id(pid, 0) ? bary : d.m.poly_vert(pid, 0);
+                    vec3d v1 = vid == d.m.poly_vert_id(pid, 1) ? bary : d.m.poly_vert(pid, 1);
+                    vec3d v2 = vid == d.m.poly_vert_id(pid, 2) ? bary : d.m.poly_vert(pid, 2);
+                    vec3d v3 = vid == d.m.poly_vert_id(pid, 3) ? bary : d.m.poly_vert(pid, 3);
+                    new_sj += tet_scaled_jacobian(v0, v1, v2, v3);
+                }
+                new_sj /= static_cast<double>(d.m.adj_v2p(vid).size());
+
+                if (new_sj > avg_sj) {
+                    d.m.vert(vid) = bary;
+                    d.m.update_v_normal(vid);
+                    double dist; uint aux;
+                    octree.intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, aux);
+                    d.m.vert(vid) += d.m.vert_data(vid).normal * dist;
+                }
+            } else {
+
+                for (uint adj: d.m.adj_v2v(vid)) bary += d.m.vert(adj);
+                bary /= static_cast<double>(d.m.adj_v2v(vid).size());
+
+                double new_sj = 0;
+                for (uint pid : d.m.adj_v2p(vid)) {
+                    vec3d v0 = vid == d.m.poly_vert_id(pid, 0) ? bary : d.m.poly_vert(pid, 0);
+                    vec3d v1 = vid == d.m.poly_vert_id(pid, 1) ? bary : d.m.poly_vert(pid, 1);
+                    vec3d v2 = vid == d.m.poly_vert_id(pid, 2) ? bary : d.m.poly_vert(pid, 2);
+                    vec3d v3 = vid == d.m.poly_vert_id(pid, 3) ? bary : d.m.poly_vert(pid, 3);
+                    new_sj += tet_scaled_jacobian(v0, v1, v2, v3);
+                }
+                new_sj /= static_cast<double>(d.m.adj_v2p(vid).size());
+
+                if (new_sj > avg_sj)
+                    d.m.vert(vid) = bary;
             }
 
             bool check = go_back_safe(d, vid, og_pos);
@@ -698,7 +800,7 @@ bool go_back_safe(Data &d, uint vid, const vec3d &og_pos) {
         //if edge still outside get back the vid
         if (iter_counter == max_iter && check_intersection(d, vid)) {
             d.m.vert(vid) = og_pos;
-            std::cout << TXT_BOLDRED << "The vert " << vid << " failed the line search for intersection" << TXT_RESET << std::endl;
+            //std::cout << TXT_BOLDRED << "The vert " << vid << " failed the line search for intersection" << TXT_RESET << std::endl;
             check = false;
         }
     }
@@ -713,7 +815,7 @@ bool go_back_safe(Data &d, uint vid, const vec3d &og_pos) {
         }
         if(iter_counter == max_iter && check_volume(d, vid)) {
             d.m.vert(vid) = og_pos;
-            std::cout << TXT_BOLDRED << "The vert " << vid << " failed the line search for volume sign" << TXT_RESET << std::endl;
+            //std::cout << TXT_BOLDRED << "The vert " << vid << " failed the line search for volume sign" << TXT_RESET << std::endl;
             check = false;
         }
     }
