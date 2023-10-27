@@ -51,6 +51,7 @@ typedef struct edge_to_flip {
 
 //main function
 void advancing_volume(Data &data);
+void advancing_stellar(Data &data);
 //setup of the env
 Data setup(const char *path, bool load = false);
 //topological operations

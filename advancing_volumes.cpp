@@ -19,6 +19,14 @@ void advancing_volume(Data &data) {
     data.m.update_normals();
 }
 
+void advancing_stellar(Data &data) {
+    //model expansion
+    expand(data);
+    std::cout << TXT_BOLDRED << "Verts stuck during expansion: " << data.stuck_in_place.size() << TXT_RESET << std::endl;
+    refine(data);
+    smooth_stellar(data);
+}
+
 //set up the env with model, target, oct etc...
 Data setup(const char *path, bool load) {
 
@@ -500,18 +508,13 @@ void smooth(Data &d, int n_iter) {
 
         for(int vid = (int)d.m.num_verts()-1; vid >= 0; vid--) {
 
-            if(d.m.vert_is_on_srf(vid) && d.m.vert_data(vid).label)
+            if((d.m.vert_is_on_srf(vid) && d.m.vert_data(vid).label) || d.m.adj_v2p(vid).empty())
                 continue;
 
             //parameters
             vec3d og_pos = d.m.vert(vid); //seed for tangent plane (see project_on_tangent_plane)
             vec3d og_norm = d.m.vert_data(vid).normal; //seed for tangent plane (see project_on_tangent_plane)
             vec3d bary(0, 0, 0);
-
-//            for (uint adj: d.m.adj_v2v(vid)) bary += d.m.vert(adj);
-//            bary /= static_cast<double>(d.m.adj_v2v(vid).size());
-//            d.m.vert(vid) = bary;
-//            if(d.m.vert_is_on_srf(vid)) d.m.vert(vid) = project_onto_tangent_plane(bary, og_pos, og_norm);
 
             if(d.m.vert_is_on_srf(vid)) {
                 for (uint adj: d.m.vert_adj_srf_verts(vid)) bary += d.m.vert(adj);
@@ -630,6 +633,7 @@ void smooth_stellar(Data &d) {
     system("/Users/federicomeloni/Documents/GitHub/stellar/Stellar mesh_to_smooth");
 
     read_NODE_ELE("mesh_to_smooth.1.node", verts, polys);
+    system("rm mesh_to_smooth.1.*");
 
     for(auto line : polys)
         tets.insert(tets.end(), line.begin(), line.end());

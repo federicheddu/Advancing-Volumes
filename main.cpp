@@ -118,6 +118,17 @@ int main(int argc, char *argv[]) {
             data.m.updateGL();
         }
 
+        if(ImGui::Button("Stellar expansion")) {
+            //undo backup
+            undo_data = data;
+
+            advancing_stellar(data);
+
+            //update UI
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            data.m.updateGL();
+        }
+
         if(ImGui::Button("Expand x10"))  {
             undo_data = data;
 
@@ -160,6 +171,32 @@ int main(int argc, char *argv[]) {
         }
 
         ImGui::Text("===========================");
+
+        if(ImGui::Button("Jacobian info")) {
+
+            double jc, sum, avg, min, max;
+            jc = tet_scaled_jacobian(data.m.poly_vert(0, 0),
+                                     data.m.poly_vert(0, 1),
+                                     data.m.poly_vert(0, 2),
+                                     data.m.poly_vert(0, 3));
+            sum = min = max = jc;
+            for(uint pid = 1; pid < data.m.num_polys(); pid++) {
+                jc = tet_scaled_jacobian(data.m.poly_vert(pid, 0),
+                                         data.m.poly_vert(pid, 1),
+                                         data.m.poly_vert(pid, 2),
+                                         data.m.poly_vert(pid, 3));
+                sum += jc;
+                if(jc < min) min = jc;
+                if(jc > max) max = jc;
+            }
+            avg = sum / (double)data.m.num_polys();
+
+            std::cout << TXT_BOLDYELLOW << "Jacobian INFO" << TXT_RESET << std::endl;
+            std::cout << "Avg SJ: " << avg << std::endl;
+            std::cout << "Min: " << min << std::endl;
+            std::cout << "Max: " << max << std::endl << std::endl;
+
+        }
 
         if(ImGui::Button("Show stuck verts")) {
             show_stuck_verts = !show_stuck_verts;
