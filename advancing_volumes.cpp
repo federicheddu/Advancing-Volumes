@@ -803,7 +803,7 @@ void final_projection(Data &d) {
         for (uint vid: d.m.get_surface_verts()) {
             og_pos = d.m.vert(vid);
 
-            dist = dist_calc(d, true);
+            dist = dist_calc(d, vid, true);
             d.oct.intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, aux);
             d.m.vert(vid) += d.m.vert_data(vid).normal * dist;
 
