@@ -140,23 +140,6 @@ int main(int argc, char *argv[]) {
             data.m.updateGL();
         }
 
-        if(ImGui::Button("Expand w/ Stellar")) {
-            //undo backup
-            undo_data = data;
-
-            //model expansion
-            expand(data);
-            smooth_stellar(data);
-            refine(data);
-            smooth_stellar(data);
-            update_fronts(data);
-
-            //update model and UI
-            data.m.update_normals();
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-            data.m.updateGL();
-        }
-
         ImGui::Text("===========================");
 
         if(ImGui::Button("Jacobian info")) {
