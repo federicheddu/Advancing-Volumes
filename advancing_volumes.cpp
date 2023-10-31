@@ -19,14 +19,6 @@ void advancing_volume(Data &data) {
     data.m.update_normals();
 }
 
-void advancing_stellar(Data &data) {
-    //model expansion
-    expand(data);
-    std::cout << TXT_BOLDRED << "Verts stuck during expansion: " << data.stuck_in_place.size() << TXT_RESET << std::endl;
-    refine(data);
-    smooth_stellar(data);
-}
-
 //set up the env with model, target, oct etc...
 Data setup(const char *path, bool load) {
 
@@ -617,40 +609,6 @@ void smooth_jacobian(Data &d, int n_iter) {
 
         }
     }
-}
-
-void smooth_stellar(Data &d) {
-
-    std::vector<vec3d> verts;
-    std::vector<uint> tets;
-    std::vector<std::vector<uint>> polys;
-
-    for(uint pid = 0; pid < d.m.num_polys(); pid++)
-        polys.push_back({d.m.poly_vert_id(pid, 1), d.m.poly_vert_id(pid, 0), d.m.poly_vert_id(pid, 2), d.m.poly_vert_id(pid, 3)});
-
-    write_NODE_ELE("mesh_to_smooth", d.m.vector_verts(), polys);
-
-    system("/Users/federicomeloni/Documents/GitHub/stellar/Stellar mesh_to_smooth");
-
-    read_NODE_ELE("mesh_to_smooth.1.node", verts, polys);
-    system("rm mesh_to_smooth.1.*");
-
-    for(auto line : polys)
-        tets.insert(tets.end(), line.begin(), line.end());
-
-    d.m = DrawableTetmesh<>(verts, tets);
-
-    d.fronts_active.clear();
-    d.fronts_bounds.clear();
-    for (uint vid: d.m.get_surface_verts()) {
-        d.fronts_active.emplace_back(vid);
-        d.m.vert_data(vid).label = false;
-        d.m.vert_data(vid).uvw.x() = 0;
-    }
-
-    //subdivide the front
-    d.fronts_bounds.emplace_back(d.fronts_active.size());
-    update_fronts(d);
 }
 
 //check if there are any intersection with the target mesh

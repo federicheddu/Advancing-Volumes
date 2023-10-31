@@ -51,7 +51,6 @@ typedef struct edge_to_flip {
 
 //main function
 void advancing_volume(Data &data);
-void advancing_stellar(Data &data);
 //setup of the env
 Data setup(const char *path, bool load = false);
 //topological operations
@@ -68,7 +67,6 @@ void expand(Data &d);
 void refine(Data &d, bool internal = true);
 void smooth(Data &d, int n_iter = 10);
 void smooth_jacobian(Data &d, int n_iter = 10);
-void smooth_stellar(Data &d);
 double dist_calc(Data &d, uint vid, bool raycast = false, bool flat = false);
 bool go_back_safe(Data &d, uint vid, const vec3d &og_pos);
 void final_projection(Data &d);

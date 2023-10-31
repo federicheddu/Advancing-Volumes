@@ -93,8 +93,6 @@ int main(int argc, char *argv[]) {
     bool show_only_adj = false;
     std::vector<DrawableArrow> dir_arrows;
     //vert movement parameters
-    double prev_vol = 0;
-    bool raycast = false;
     data.fronts_active = data.m.get_surface_verts();
     data.fronts_bounds.emplace_back(data.m.num_srf_verts());
     //undo object
@@ -112,17 +110,6 @@ int main(int argc, char *argv[]) {
             undo_data = data;
 
             advancing_volume(data);
-
-            //update UI
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-            data.m.updateGL();
-        }
-
-        if(ImGui::Button("Stellar expansion")) {
-            //undo backup
-            undo_data = data;
-
-            advancing_stellar(data);
 
             //update UI
             UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
