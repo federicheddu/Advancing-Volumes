@@ -20,8 +20,6 @@ void advancing_volume(Data &data);
 //vert operations
 void expand(Data &d);
 void refine(Data &d, bool internal = true);
-void smooth(Data &d, int n_iter = 10);
-void smooth_jacobian(Data &d, int n_iter = 10);
 void final_projection(Data &d);
 
 //setup function

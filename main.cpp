@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
             data.m.updateGL();
         }
 
-        if(ImGui::InputInt("vid", &sel_vid), 0, 100, true) {}
+        if(ImGui::InputInt("vid", &sel_vid), 0) {}
 
         if(ImGui::Button("Adj SJ")) {
             std::cout << TXT_BOLDGREEN << "Selected vert: " << sel_vid;
@@ -219,7 +219,7 @@ int main(int argc, char *argv[]) {
             data.m.updateGL();
         }
 
-        if(ImGui::InputInt("pid", &sel_pid), 0, 100, true) {}
+        if(ImGui::InputInt("pid", &sel_pid), 0) {}
 
         if(ImGui::Button("HL in red")) {
             data.m.poly_data(sel_pid).color = Color::PASTEL_MAGENTA();
@@ -344,12 +344,7 @@ int main(int argc, char *argv[]) {
                         break;
                     }
 
-                    expand(batch_data);
-                    smooth(batch_data);
-                    refine(batch_data);
-                    smooth(batch_data);
-                    update_fronts(batch_data);
-                    batch_data.m.update_normals();
+                    advancing_volume(batch_data);
 
                     //checks for early stop (fail)
                     export_surface(batch_data.m, batch_data.m_srf);
