@@ -8,6 +8,7 @@ void advancing_volume(Data &data) {
     std::cout << TXT_BOLDRED << "Verts stuck during expansion: " << data.stuck_in_place.size() << TXT_RESET << std::endl;
     //refinement
     refine(data);
+    add_last_rationals(data);
     //front update
     update_fronts(data);
 
@@ -54,7 +55,11 @@ void expand(Data &d) {
 
         //move the vert
         double movement = dist * d.mov_speed;
-        d.m.vert(vid) += d.m.vert_data(vid).normal * movement;
+        vec3d newpos = d.m.vert(vid) + d.m.vert_data(vid).normal * movement;
+        for(uint pid : d.m.adj_v2p(vid))
+            if(tet_is_blocking(d, vid, pid, newpos))
+                unlock_by_edge_split(d, pid, vid, newpos);
+        d.m.vert(vid) = newpos;
 
         //put the vert in a safe place between [og_pos, actual_pos]
         bool check = go_back_safe(d, vid, og_pos);
@@ -132,6 +137,7 @@ Data init_data(const char *model) {
     init_model(data);
 
     //fronts build
+    set_exact_coords(data);
     init_fronts(data);
 
     return data;
@@ -151,6 +157,7 @@ Data load_data(const char *model, const char *target) {
     set_param(data);
 
     //compute the fronts
+    set_exact_coords(data);
     load_fronts(data);
 
     return data;
@@ -195,3 +202,31 @@ void set_param(Data &d) {
     d.eps_inactive = d.edge_threshold * d.eps_percent;
 
 }
+
+void set_exact_coords(Data &data) {
+
+    if(!rationals_are_working()) throw("Rationals numbers are not working");
+    data.exact_coords.resize(data.m.num_verts()*3);
+
+    for(uint vid=0; vid<data.m.num_verts(); vid++) {
+        data.exact_coords[3*vid+0] = data.m.vert(vid).x();
+        data.exact_coords[3*vid+1] = data.m.vert(vid).y();
+        data.exact_coords[3*vid+2] = data.m.vert(vid).z();
+    }
+
+}
+
+void add_last_rationals(Data &d) {
+
+    if(!rationals_are_working()) throw("Rationals numbers are not working");
+
+    if(d.m.num_verts() > d.exact_coords.size() / 3) {
+        for(int vid = d.exact_coords.size() / 3; vid < d.m.num_verts(); vid++) {
+            d.exact_coords.emplace_back(d.m.vert(vid).x());
+            d.exact_coords.emplace_back(d.m.vert(vid).y());
+            d.exact_coords.emplace_back(d.m.vert(vid).z());
+        }
+    }
+
+}
+

@@ -4,6 +4,7 @@
 #include <cinolib/find_intersections.h>
 #include <cinolib/smoother.h>
 #include <cinolib/quality_tet.h>
+#include <chrono>
 
 #include "advancing_data.h"
 #include "advancing_front.h"
@@ -28,5 +29,7 @@ Data init_data(const char *model);
 Data load_data(const char *model, const char *target = nullptr);
 void init_model(Data &d);
 void set_param(Data &d);
+void set_exact_coords(Data &d);
+void add_last_rationals(Data &d);
 
 #endif //ADVANCING_VOLUMES_ADVANCING_VOLUMES_H

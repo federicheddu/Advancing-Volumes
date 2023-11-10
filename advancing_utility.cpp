@@ -31,10 +31,11 @@ double dist_calc(Data &d, uint vid, bool raycast, bool flat) {
 }
 
 //check if the movement of the vert is safe, if not it goes back by bisection
-bool go_back_safe(Data &d, uint vid, const vec3d &og_pos) {
+bool go_back_safe(Data &d, uint vid, vec3d &og_pos) {
 
-    int iter_counter;
+    int iter_counter = 0;
     int max_iter = 7;
+    bool same_side = true;
     bool check = true;
 
     //check for intersections (only if on surface)
@@ -56,11 +57,11 @@ bool go_back_safe(Data &d, uint vid, const vec3d &og_pos) {
     //check the volume with orient3D
     if(!(d.m.vert(vid) == og_pos)) {
         iter_counter = 0;
-        while(check_volume(d, vid) && iter_counter < max_iter) {
+        while(vert_flipped(d, vid, og_pos) && iter_counter < max_iter) {
             d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
             iter_counter++;
         }
-        if(iter_counter == max_iter && check_volume(d, vid)) {
+        if(iter_counter == max_iter && vert_flipped(d, vid, og_pos)) {
             d.m.vert(vid) = og_pos;
             //std::cout << TXT_BOLDRED << "The vert " << vid << " failed the line search for volume sign" << TXT_RESET << std::endl;
             check = false;
@@ -68,6 +69,21 @@ bool go_back_safe(Data &d, uint vid, const vec3d &og_pos) {
     }
 
     return check;
+}
+
+//check if the poly is flipped (orient3D < 0)
+bool poly_flipped(Data &d, uint pid) {
+
+    bool flipped = false;
+
+        vec3d pa = d.m.poly_vert(pid, 0);
+        vec3d pb = d.m.poly_vert(pid, 1);
+        vec3d pc = d.m.poly_vert(pid, 2);
+        vec3d pd = d.m.poly_vert(pid, 3);
+
+    flipped = orient3d(pa, pb, pc, pd) > 0;
+
+        return flipped;
 }
 
 //check if there are any intersection with the target mesh
@@ -87,17 +103,26 @@ bool check_intersection(Data &d, uint vid) {
 }
 
 //check if sign of orient3D is ok
-bool check_volume(Data &d, uint vid) {
+bool vert_flipped(Data &d, uint vid, vec3d &og_pos) {
 
-    bool check = false;
+    bool flipped = true;
 
     for(uint pid : d.m.adj_v2p(vid)) {
-        vec3d pa = d.m.poly_vert(pid, 0);
-        vec3d pb = d.m.poly_vert(pid, 1);
-        vec3d pc = d.m.poly_vert(pid, 2);
-        vec3d pd = d.m.poly_vert(pid, 3);
-        check = orient3d(pa, pb, pc, pd) >= 0 || check;
+        flipped = vert_side(d, d.m.poly_face_opposite_to(pid, vid), og_pos) != vert_side(d, d.m.poly_face_opposite_to(pid, vid), d.m.vert(vid)) && flipped;
+        if(flipped) break;
     }
 
-    return check;
+    return flipped;
+}
+
+//check if the vert is on the right side of the face
+bool vert_side(Data &d, uint fid, vec3d &vert) {
+
+        bool side = false;
+
+        vec3d verts[] = {d.m.face_verts(fid)[0], d.m.face_verts(fid)[1], d.m.face_verts(fid)[2]};
+        side = orient3d(verts[0], verts[1], verts[2], vert) > 0;
+
+        return side;
+
 }

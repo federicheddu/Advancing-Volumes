@@ -294,3 +294,150 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
     }
     return result;
 }
+
+//check if one tet is blocking the movement of a vertex
+bool tet_is_blocking(Data &data, const uint vid, const uint pid, const vec3d& target)
+{
+    assert(data.m.poly_contains_vert(pid,vid));
+
+    CGAL_Q exact_target[3] = {target.x(), target.y(), target.z()};
+
+    uint f_opp = data.m.poly_face_opposite_to(pid,vid);
+    uint v0 = data.m.face_vert_id(f_opp,0);
+    uint v1 = data.m.face_vert_id(f_opp,1);
+    uint v2 = data.m.face_vert_id(f_opp,2);
+    if(data.m.poly_face_is_CCW(pid,f_opp)) std::swap(v0,v1);
+
+    // it the positive half space of the edge opposite to front_vert
+    // does not contain the new_pos, the triangle is blocking
+    if(orient3d(&data.exact_coords[3*v0],
+                &data.exact_coords[3*v1],
+                &data.exact_coords[3*v2],
+                exact_target)<=0) return true;
+    return false;
+}
+
+void unlock_by_edge_split(Data &d, const uint pid, const uint vid, const vec3d& target) {
+    
+    assert(d.m.poly_contains_vert(pid,vid));
+
+    // get rational coords of target
+    CGAL_Q exact_target[3] = {target.x(), target.y(), target.z()};
+
+    // get how many faces are blocking the movement
+    std::vector<uint> see_target;
+    for(uint fid : d.m.adj_p2f(pid))
+    {
+        auto vids = d.m.face_verts_id(fid);
+        if(d.m.poly_face_is_CW(pid,fid)) std::swap(vids[0],vids[1]);
+        if(orient3d(&d.exact_coords[3*vids[0]],
+                    &d.exact_coords[3*vids[1]],
+                    &d.exact_coords[3*vids[2]],
+                    exact_target)<0) see_target.push_back(fid);
+    }
+
+    if(see_target.size() == 2) {
+        std::cout << std::endl << "Unlock by edge split [vid: " << vid << ", case 2]" << std::endl;
+
+        uint f0 = see_target[0];
+        uint f1 = see_target[1];
+        assert(f0!=f1);
+        assert(d.m.poly_contains_face(pid,f0));
+        assert(d.m.poly_contains_face(pid,f1));
+        // I think this is the only configuration possible
+        assert(d.m.face_contains_vert(f0,vid) ||
+               d.m.face_contains_vert(f1,vid));
+
+        uint eid = d.m.face_shared_edge(f0,f1);
+        uint opp = d.m.poly_edge_opposite_to(pid,eid);
+        uint v0  = d.m.edge_vert_id(eid,0);
+        uint v1  = d.m.edge_vert_id(eid,1);
+        uint v2  = d.m.edge_vert_id(opp,0);
+        uint v3  = d.m.edge_vert_id(opp,1);
+
+        CGAL_Q P[3];
+        plane_line_intersection(&d.exact_coords[3*v0],
+                                &d.exact_coords[3*v1],
+                                exact_target,
+                                &d.exact_coords[3*v2],
+                                &d.exact_coords[3*v3],P);        
+        // makes sure P is in between v2 and v3
+        assert(orient3d(&d.exact_coords[3*v0],&d.exact_coords[3*v1],P,&d.exact_coords[3*v2])*
+               orient3d(&d.exact_coords[3*v0],&d.exact_coords[3*v1],P,&d.exact_coords[3*v3])<0);
+
+        /* FOR THE MAPS
+        int eid_m0 = d.m0.edge_id(v2,v3);
+        assert(eid_m0>=0);
+        data.m0.edge_split(eid_m0);
+        */
+
+        uint new_vid = d.m.edge_split(opp);
+        assert(new_vid==d.exact_coords.size()/3);
+        d.exact_coords.push_back(P[0]);
+        d.exact_coords.push_back(P[1]);
+        d.exact_coords.push_back(P[2]);
+        d.m.vert(new_vid) = vec3d(CGAL::to_double(P[0]),
+                                      CGAL::to_double(P[1]),
+                                      CGAL::to_double(P[2]));
+
+        for(uint pid : d.m.adj_v2p(    vid)) assert(orient3d(d.m.poly_vert(pid, 0), d.m.poly_vert(pid, 1), d.m.poly_vert(pid, 2), d.m.poly_vert(pid, 3)) < 0);
+        for(uint pid : d.m.adj_v2p(new_vid)) assert(orient3d(d.m.poly_vert(pid, 0), d.m.poly_vert(pid, 1), d.m.poly_vert(pid, 2), d.m.poly_vert(pid, 3)) < 0);
+
+    } else if(see_target.size() == 3) {
+
+        std::cout << std::endl << "Unlock by edge split [vid: " << vid << ", case 3]" << std::endl;
+        if(see_target.size()!=3) std::cout << "see_target.size(): " << see_target.size() << std::endl;
+        assert(see_target.size()==3);
+
+        // make sure the first two faces are the ones that I need
+        uint f_opp = d.m.poly_face_opposite_to(pid,vid);
+        if(see_target[0]==f_opp) std::swap(see_target[0],see_target[2]); else
+        if(see_target[1]==f_opp) std::swap(see_target[1],see_target[2]);
+        assert(see_target[2]==f_opp);
+
+        int f_hid = -1;
+        for(uint fid : d.m.adj_p2f(pid))
+        {
+            auto vids = d.m.face_verts(fid);
+            if(d.m.poly_face_is_CW(pid,fid)) std::swap(vids[0],vids[1]);
+            if(orient3d(vids[0],vids[1],vids[2],target) < 0)
+            {
+                assert(f_hid==-1);
+                f_hid = fid;
+            }
+        }
+
+        CGAL_Q P[3];
+        plane_line_intersection(&d.exact_coords[3*d.m.face_vert_id(f_hid,0)],
+                                &d.exact_coords[3*d.m.face_vert_id(f_hid,1)],
+                                &d.exact_coords[3*d.m.face_vert_id(f_hid,2)],
+                                &d.exact_coords[3*d.m.poly_vert_opposite_to(pid,f_hid)],
+                                exact_target, P);
+
+        /*
+        int f_hid_m0 = data.m0.face_id(data.m1.face_verts_id(f_hid));
+        assert(f_hid_m0>=0);
+        data.m0.face_split(f_hid_m0);
+        */
+        uint vfresh = d.m.face_split(f_hid);
+        d.exact_coords.push_back(P[0]);
+        d.exact_coords.push_back(P[1]);
+        d.exact_coords.push_back(P[2]);
+        d.m.vert(vfresh) = vec3d(CGAL::to_double(P[0]),
+                                CGAL::to_double(P[1]),
+                                CGAL::to_double(P[2]));
+
+        for(uint pid : d.m.adj_v2p(vid))    assert(orient3d(d.m.poly_vert(pid, 0), d.m.poly_vert(pid, 1), d.m.poly_vert(pid, 2), d.m.poly_vert(pid, 3)) < 0);
+        for(uint pid : d.m.adj_v2p(vfresh)) assert(orient3d(d.m.poly_vert(pid, 0), d.m.poly_vert(pid, 1), d.m.poly_vert(pid, 2), d.m.poly_vert(pid, 3)) < 0);
+    
+    } else {
+        std::cout << TXT_BOLDMAGENTA;
+        std::cout << "you should not be here" << std::endl;
+        std::cout << "unlock_by_edge_split: " << see_target.size() << std::endl;
+        std::cout << TXT_RESET;
+    }
+
+
+
+
+}

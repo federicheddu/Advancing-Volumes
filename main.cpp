@@ -1,5 +1,5 @@
 #include "advancing_volumes.h"
-#include <chrono>
+#undef NDEBUG
 
 using namespace cinolib;
 
@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
             data.m.updateGL();
         }
 
-        if(ImGui::Button("Expand x10"))  {
+        if(ImGui::Button("Expand and Refine x10"))  {
             undo_data = data;
 
             for(int i = 0; i < 10; i++) {
