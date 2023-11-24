@@ -1,6 +1,6 @@
 #include "visualization.h"
 
-void UI_Manager(DrawableTetmesh<> &m , UI_Mode uiMode, Octree &oct, std::vector<DrawableArrow> &dir_arrows, std::vector<uint> &active_fronts, GLcanvas &gui) {
+void UI_Manager(DrawableTetmesh<> &m , UI_Mode uiMode, Octree *oct, std::vector<DrawableArrow> &dir_arrows, std::vector<uint> &active_fronts, GLcanvas &gui) {
     static UI_Mode prev = BLANK;
 
     if(prev == BLANK && uiMode == BLANK)
@@ -36,14 +36,14 @@ void UI_Manager(DrawableTetmesh<> &m , UI_Mode uiMode, Octree &oct, std::vector<
     prev = uiMode;
 }
 
-void showArrows(Tetmesh<> &m, Octree &oct, std::vector<DrawableArrow> &dir_arrows, std::vector<uint> &active_fronts, GLcanvas &gui) {
+void showArrows(Tetmesh<> &m, Octree *oct, std::vector<DrawableArrow> &dir_arrows, std::vector<uint> &active_fronts, GLcanvas &gui) {
 
     deleteArrows(dir_arrows, gui);
 
     for (auto vid : active_fronts) {
         dir_arrows.emplace_back(m.vert(vid),
                                 m.vert(vid) + m.vert_data(vid).normal *
-                                              oct.closest_point(m.vert(vid)).dist(m.vert(vid)));
+                                              oct->closest_point(m.vert(vid)).dist(m.vert(vid)));
         dir_arrows.back().size = 0.005;
     }
 

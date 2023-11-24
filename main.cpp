@@ -17,10 +17,6 @@ using namespace cinolib;
 
 int main(int argc, char *argv[]) {
 
-    //UI
-    GLcanvas gui(1080, 720);
-    gui.side_bar_alpha = 0.5;
-
     std::vector<std::string> data_paths = { "../data/cubespikes.mesh",           //0
                                             "../data/armadillo.mesh",            //1
                                             "../data/bunny.mesh",                //2
@@ -75,7 +71,12 @@ int main(int argc, char *argv[]) {
     bool load = argc > 1;
     std::string path = load ? argv[1] : data_paths[2];
     //load the data
-    Data data = setup(path.c_str(), load);
+    Octree oct;
+    Data data = setup(path.c_str(), &oct, load);
+
+    //UI
+    GLcanvas gui(1080, 720);
+    gui.side_bar_alpha = 0.5;
     data.gui = &gui;
 
     //gui push
@@ -330,7 +331,7 @@ int main(int argc, char *argv[]) {
                 //name of the model
                 std::cout << std::endl << TXT_BOLDYELLOW << model << TXT_RESET << std::endl;
                 //load the model
-                Data batch_data = setup(model.c_str());
+                Data batch_data = setup(model.c_str(), &oct);
 
                 //start the clock
                 auto start = std::chrono::high_resolution_clock::now();

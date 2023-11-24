@@ -7,23 +7,28 @@
 #include <cinolib/gl/volume_mesh_controls.h>
 #include <cinolib/octree.h>
 #include "rationals.h"
-
 #include "sphere.h"
 
 using namespace cinolib;
 
 typedef struct data {
+    //execution
+    bool running = true;
+    int step = 0;
+    bool expand_flag = true;
+    bool refine_flag = true;
+
     //structures
     DrawableTetmesh<> vol;
     DrawableTrimesh<> srf;
-    Octree oct;
+    Octree *oct;
 
     //model (sphere)
     DrawableTetmesh<> m;
     DrawableTrimesh<> m_srf;
 
     //rationals
-    bool use_rationals = false;
+    bool rationals = true;
     std::vector<CGAL_Q> exact_coords;
 
     //parameters

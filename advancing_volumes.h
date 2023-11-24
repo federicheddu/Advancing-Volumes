@@ -24,8 +24,8 @@ void refine(Data &d, bool internal = true);
 void final_projection(Data &d);
 
 //setup function
-Data setup(const char *path, bool load = false);
-Data init_data(const char *model);
+Data setup(const char *path, Octree *oct, bool load = false);
+Data init_data(const char *model, Octree *oct);
 Data load_data(const char *model, const char *target = nullptr);
 void init_model(Data &d);
 void set_param(Data &d);

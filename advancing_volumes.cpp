@@ -3,11 +3,33 @@
 //main function
 void advancing_volume(Data &data) {
 
+    data.gui->depth_cull_markers = false;
+
     //model expansion
-    expand(data);
-    std::cout << TXT_BOLDRED << "Verts stuck during expansion: " << data.stuck_in_place.size() << TXT_RESET << std::endl;
+    if(data.running) expand(data);
+    //std::cout << TXT_BOLDYELLOW << "Verts stuck in place: " << data.stuck_in_place.size() << TXT_RESET << std::endl;
+
+    /*
+
+    vec3d pos = data.m.vert(0);
+    CGAL_Q pos_r[3] = {data.m.vert(0).x(), data.m.vert(0).y(), data.m.vert(0).z()};
+    CGAL_Q pos_n[3] = {};
+    vert_normal(data, 0, pos_n);
+    pos_r[0] += pos_n[0];
+    pos_r[1] += pos_n[1];
+    pos_r[2] += pos_n[2];
+    vec3d pos_f = vec3d(CGAL::to_double(pos_r[0]), CGAL::to_double(pos_r[1]), CGAL::to_double(pos_r[2]));
+    data.gui->push_marker(pos, "v", Color::BLUE());
+    data.gui->push_marker(pos_f, "n", Color::RED());
+
+    std::cout << "pos: " << pos << std::endl;
+    std::cout << "pos_r: " << pos_r[0] << " " << pos_r[1] << " " << pos_r[2] << std::endl;
+    std::cout << "dist: " << sqrd_distance3d(&data.exact_coords[0], pos_r) << std::endl;
+
+    */
+
     //refinement
-    refine(data);
+    if(data.running) refine(data);
     add_last_rationals(data);
     //front update
     update_fronts(data);
@@ -26,19 +48,7 @@ void expand(Data &d) {
 
     //get all the distances from the target model
     std::vector<double> front_dist(d.fronts_active.size());
-    PARALLEL_FOR(0, d.fronts_active.size(), 1000, [&](int idx)
-    {
-        //get the vid
-        uint vid = d.fronts_active.at(idx);
-        //get the distance (if the vert is near the target, use the raycast to get the distance)
-        double dist = dist_calc(d, vid, false);
-        if(dist < d.eps_inactive*2)
-            dist = dist_calc(d, vid, true, true);
-        else
-            dist = dist_calc(d, vid, false, true);
-        //save the distance
-        front_dist.at(idx) = dist;
-    });
+    get_front_dist(d, front_dist); //default parallel - add false to get linear
 
     //move every vert in the active front
     for(uint idx = 0; idx < d.fronts_active.size(); idx++) {
@@ -47,19 +57,24 @@ void expand(Data &d) {
         uint vid = d.fronts_active.at(idx);
         assert(d.m.vert_is_on_srf(vid));
 
-        //og pos to get back if something goes wrong
+        //backup position and distance from the target
         vec3d og_pos = d.m.vert(vid);
-
-        //get the distance calculated before
         double dist = front_dist.at(idx);
 
         //move the vert
         double movement = dist * d.mov_speed;
-        vec3d newpos = d.m.vert(vid) + d.m.vert_data(vid).normal * movement;
-        for(uint pid : d.m.adj_v2p(vid))
-            if(tet_is_blocking(d, vid, pid, newpos))
-                unlock_by_edge_split(d, pid, vid, newpos);
-        d.m.vert(vid) = newpos;
+        vec3d moved = d.m.vert(vid) + d.m.vert_data(vid).normal * movement;
+
+        topological_unlock(d, vid, moved);
+        if (!d.running) return;
+
+        //update the vert (+ rationals)
+        d.m.vert(vid) = moved;
+        if(d.rationals) {
+            d.exact_coords[vid * 3 + 0] = moved.x();
+            d.exact_coords[vid * 3 + 1] = moved.y();
+            d.exact_coords[vid * 3 + 2] = moved.z();
+        }
 
         //put the vert in a safe place between [og_pos, actual_pos]
         bool check = go_back_safe(d, vid, og_pos);
@@ -109,7 +124,7 @@ void final_projection(Data &d) {
             og_pos = d.m.vert(vid);
 
             dist = dist_calc(d, vid, true);
-            d.oct.intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, aux);
+            d.oct->intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, aux);
             d.m.vert(vid) += d.m.vert_data(vid).normal * dist;
 
             go_back_safe(d, vid, og_pos);
@@ -121,11 +136,11 @@ void final_projection(Data &d) {
 /** ================================================================================================================ **/
 
 //set up the env with model, target, oct etc...
-Data setup(const char *path, bool load) {
-    return load ? load_data(path) : init_data(path);
+Data setup(const char *path, Octree *oct, bool load) {
+    return load ? load_data(path) : init_data(path, oct);
 }
 
-Data init_data(const char *model) {
+Data init_data(const char *model, Octree *oct) {
     Data data;
 
     //model vol
@@ -133,6 +148,10 @@ Data init_data(const char *model) {
     data.vol.show_mesh_points();
 
     set_param(data);
+
+    //octree
+    oct->build_from_mesh_polys(data.srf);
+    data.oct = oct;
 
     init_model(data);
 
@@ -174,7 +193,7 @@ void init_model(Data &d) {
         d.vol.vert_data(vid).uvw[0] = 0;
         //if not in the surface check the closest srf point and the distance to it
         if (!d.vol.vert_is_on_srf(vid)) {
-            d.vol.vert_data(vid).uvw[0] = d.oct.closest_point(d.vol.vert(vid)).dist(d.vol.vert(vid));
+            d.vol.vert_data(vid).uvw[0] = d.oct->closest_point(d.vol.vert(vid)).dist(d.vol.vert(vid));
             //check if its max distance
             if (d.vol.vert_data(vid).uvw[0] > center_dist) {
                 center_vid = vid;
@@ -192,9 +211,6 @@ void set_param(Data &d) {
     //model srf
     export_surface(d.vol, d.srf);
 
-    //octree build
-    d.oct.build_from_mesh_polys(d.srf);
-
     //edge length threshold
     d.edge_threshold = d.srf.bbox().diag() * 0.02;
 
@@ -205,7 +221,7 @@ void set_param(Data &d) {
 
 void set_exact_coords(Data &data) {
 
-    if(!rationals_are_working()) throw("Rationals numbers are not working");
+    if(!rationals_are_working()) std::exit(2);
     data.exact_coords.resize(data.m.num_verts()*3);
 
     for(uint vid=0; vid<data.m.num_verts(); vid++) {
@@ -218,10 +234,10 @@ void set_exact_coords(Data &data) {
 
 void add_last_rationals(Data &d) {
 
-    if(!rationals_are_working()) throw("Rationals numbers are not working");
+    if(!rationals_are_working()) std::exit(2);
 
     if(d.m.num_verts() > d.exact_coords.size() / 3) {
-        for(int vid = d.exact_coords.size() / 3; vid < d.m.num_verts(); vid++) {
+        for(int vid = (int)d.exact_coords.size() / 3; vid < d.m.num_verts(); vid++) {
             d.exact_coords.emplace_back(d.m.vert(vid).x());
             d.exact_coords.emplace_back(d.m.vert(vid).y());
             d.exact_coords.emplace_back(d.m.vert(vid).z());
@@ -229,4 +245,3 @@ void add_last_rationals(Data &d) {
     }
 
 }
-
