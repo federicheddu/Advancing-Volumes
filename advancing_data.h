@@ -11,12 +11,16 @@
 
 using namespace cinolib;
 
+enum {
+    DIST,
+    MOV,
+    UNUSED_AV
+};
+
 typedef struct data {
     //execution
     bool running = true;
     int step = 0;
-    bool expand_flag = true;
-    bool refine_flag = true;
 
     //structures
     DrawableTetmesh<> vol;
@@ -36,6 +40,13 @@ typedef struct data {
     double eps_percent = 0.1;       // % of the min edge length used for the inactive threshold
     double eps_inactive = 0.01;     // dist fot the inactivity (in setup is set to eps * srf max edge length)
     double edge_threshold = 0.01;   // edge length threshold for refinement (in setup is set to 2 * srf max edge length)
+
+    //utility
+    bool check_intersections = true;    // check if the mesh is self intersecting
+    bool verbose = true;                // print sub-steps
+    bool ultra_verbose = true;         // print everything (debug)
+    bool debug_colors = false;           // color the mesh for debug
+    int orient_sign = -1;               // sign for the orientation of the mesh (1 or -1)
 
     //fronts_active
     std::vector<uint> fronts_active;

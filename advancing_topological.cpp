@@ -81,7 +81,7 @@ void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map
 
         //set the activity
         d.m.vert_data(new_vid).label = false;
-        d.m.vert_data(new_vid).uvw.x() = 0;
+        d.m.vert_data(new_vid).uvw[MOV] = 0;
     }
 
 }
@@ -330,7 +330,7 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 void topological_unlock(Data &d, uint vid, vec3d &moved) {
 
     bool blocking; //if true restart the for + unlock by edge split
-    vec3d unlock_pos = moved + d.m.vert_data(vid).normal;
+    vec3d unlock_pos = moved + d.m.vert_data(vid).normal / 2;
 
     for(uint i = 0; i < d.m.adj_v2p(vid).size(); blocking ? i = 0 : i++) {
         uint pid = d.m.adj_v2p(vid)[i];
@@ -398,19 +398,30 @@ void unlock_by_edge_split(Data &d, const uint pid, const uint vid, const vec3d& 
 }
 
 void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<uint> &see_target) {
-    
-    std::cout << std::endl << "Unlock by edge split [vid: " << vid << ", case 3]" << std::endl;
-    if(see_target.size()!=3) std::cout << "see_target.size(): " << see_target.size() << std::endl;
+
+    if(d.ultra_verbose) std::cout << std::endl << "Unlock by edge split [vid: " << vid << ", case 3]" << std::endl;
+    if (see_target.size() != 3) std::cout << "see_target.size(): " << see_target.size() << std::endl;
     assert(see_target.size()==3);
 
     int f_hid = -1;
     for(uint fid : d.m.adj_p2f(pid)) {
-        bool flipped = vert_side(d,fid,exact_target);
-        if(d.m.poly_face_is_CW(pid,fid)) flipped = !flipped;
-        if(flipped) {
+        if(does_movement_flip(d, pid, fid, exact_target)) {
             assert(f_hid==-1);
             f_hid = fid;
         }
+    }
+
+    //error check -- this should never happen
+    if(f_hid==-1) {
+        std::cout << "f_hid: " << f_hid << std::endl;
+        std::cout << "see_target: ";
+        for(auto fid : see_target) std::cout << fid << " ";
+        std::cout << std::endl;
+        std::cout << "pid: " << pid << std::endl;
+        d.m.poly_data(pid).color = Color::RED();
+        d.m.updateGL();
+        d.running = false;
+        return;
     }
 
     CGAL_Q P[3];
@@ -420,6 +431,8 @@ void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
                             &d.exact_coords[3*d.m.poly_vert_opposite_to(pid,f_hid)],
                             exact_target, P);
 
+    uint num_polys = d.m.num_polys(); // need to know this before the split -- only for ultraverbose
+
     uint vfresh = d.m.face_split(f_hid);
     d.exact_coords.push_back(P[0]);
     d.exact_coords.push_back(P[1]);
@@ -428,13 +441,27 @@ void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
                              CGAL::to_double(P[1]),
                              CGAL::to_double(P[2]));
 
+    // ultra verbose -- give pid of the new polys
+    if(d.ultra_verbose) {
+        std::cout << "new poly: ";
+        for (uint pid: d.m.adj_v2p(vfresh))
+            if (pid >= num_polys) std::cout << pid << " ";
+        std::cout << std::endl;
+    }
+    // debug -- color the new polys
+    if(d.debug_colors) {
+        for (uint pid: d.m.adj_v2p(vfresh))
+            if (pid >= num_polys)
+                d.m.poly_data(pid).color = Color::MAGENTA();
+    }
+
     for(uint pid : d.m.adj_v2p(vid)) assert(orient3d(d.m.poly_vert(pid, 0), d.m.poly_vert(pid, 1), d.m.poly_vert(pid, 2), d.m.poly_vert(pid, 3)) < 0);
     for(uint pid : d.m.adj_v2p(vfresh)) assert(orient3d(d.m.poly_vert(pid, 0), d.m.poly_vert(pid, 1), d.m.poly_vert(pid, 2), d.m.poly_vert(pid, 3)) < 0);
-
 }
 
 void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<uint> &see_target) {
-    std::cout << std::endl << "Unlock by edge split [vid: " << vid << ", case 2]" << std::endl;
+
+    if(d.ultra_verbose) std::cout << std::endl << "Unlock by edge split [vid: " << vid << ", case 2]" << std::endl;
 
     uint f0 = see_target[0];
     uint f1 = see_target[1];
@@ -462,11 +489,7 @@ void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
     assert(orient3d(&d.exact_coords[3*v0],&d.exact_coords[3*v1],P,&d.exact_coords[3*v2])*
            orient3d(&d.exact_coords[3*v0],&d.exact_coords[3*v1],P,&d.exact_coords[3*v3])<0);
 
-    /* FOR THE MAPS
-    int eid_m0 = d.m0.edge_id(v2,v3);
-    assert(eid_m0>=0);
-    data.m0.edge_split(eid_m0);
-    */
+    uint num_polys = d.m.num_polys(); // need to know this before the split -- only for ultraverbose & debug
 
     uint new_vid = d.m.edge_split(opp);
     assert(new_vid==d.exact_coords.size()/3);
@@ -477,6 +500,20 @@ void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
                               CGAL::to_double(P[1]),
                               CGAL::to_double(P[2]));
 
+    // ultra verbose -- give pid of the new polys
+    if(d.ultra_verbose) {
+        std::cout << "new poly: ";
+        for (uint pid: d.m.adj_v2p(new_vid))
+            if (pid >= num_polys) std::cout << pid << " ";
+        std::cout << std::endl;
+    }
+    // debug -- color the new polys
+    if(d.debug_colors) {
+        for (uint pid: d.m.adj_v2p(new_vid))
+            if (pid >= num_polys)
+                d.m.poly_data(pid).color = Color::MAGENTA();
+    }
+
     for(uint ppid : d.m.adj_v2p(vid)) assert(orient3d(d.m.poly_vert(ppid, 0), d.m.poly_vert(ppid, 1), d.m.poly_vert(ppid, 2), d.m.poly_vert(ppid, 3)) < 0);
     for(uint pid : d.m.adj_v2p(new_vid)) assert(orient3d(d.m.poly_vert(pid, 0), d.m.poly_vert(pid, 1), d.m.poly_vert(pid, 2), d.m.poly_vert(pid, 3)) < 0);
 }
@@ -485,12 +522,8 @@ void unlock_see1(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
     std::cout << TXT_BOLDMAGENTA;
     std::cout << "you should not be here" << std::endl;
     std::cout << "unlock_by_edge_split: " << see_target.size() << " - vid: " << vid << " - fid: " << see_target[0] << std::endl;
-    std::cout << "pid: ";
-    for(auto pid : d.m.adj_f2p(see_target[0])) {
-        d.m.poly_data(pid).color = Color::RED();
-        std::cout << pid << " ";
-    }
-    std::cout << TXT_RESET << std::endl;
+    std::cout << "pid: " << pid << TXT_RESET << std::endl;
+    d.m.poly_data(pid).color = Color::RED();
     d.m.updateGL();
     d.running = false;
 }

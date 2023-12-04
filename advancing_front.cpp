@@ -4,7 +4,7 @@ void init_fronts(Data &d) {
     for(uint vid : d.m.get_surface_verts()) {
         d.fronts_active.emplace_back(vid);
         d.m.vert_data(vid).label = false;
-        d.m.vert_data(vid).uvw.x() = 0;
+        d.m.vert_data(vid).uvw[MOV] = 0;
     }
 
     d.fronts_bounds.emplace_back(d.fronts_active.size());
@@ -98,7 +98,7 @@ void front_from_seed(Data &d, uint seed, std::unordered_set<uint> &front) {
 
 }
 
-void get_front_dist(Data &d, std::vector<double> &front_dist, bool parallel) {
+void get_front_dist(Data &d, bool parallel) {
 
     if (parallel) {
 
@@ -112,7 +112,7 @@ void get_front_dist(Data &d, std::vector<double> &front_dist, bool parallel) {
             else
                 dist = dist_calc(d, vid, false, true);
             //save the distance
-            front_dist.at(idx) = dist;
+            d.m.vert_data(vid).uvw[DIST] = dist;
         });
 
     } else { //not parallel - linear
@@ -130,7 +130,7 @@ void get_front_dist(Data &d, std::vector<double> &front_dist, bool parallel) {
             else
                 dist = dist_calc(d, vid, false, true);
             //save the distance
-            front_dist.at(idx) = dist;
+            d.m.vert_data(vid).uvw[DIST] = dist;
         }
 
     }

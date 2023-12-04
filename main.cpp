@@ -76,7 +76,8 @@ int main(int argc, char *argv[]) {
 
     //UI
     GLcanvas gui(1080, 720);
-    gui.side_bar_alpha = 0.5;
+    gui.side_bar_alpha = 0.8;
+    gui.depth_cull_markers = false;
     data.gui = &gui;
 
     //gui push
@@ -92,7 +93,11 @@ int main(int argc, char *argv[]) {
     bool show_stuck_verts = false;
     bool show_stuck_edges = false;
     bool show_only_adj = false;
+    bool show_mov_diff = false;
     std::vector<DrawableArrow> dir_arrows;
+    DrawableSegmentSoup norms;
+    DrawableSegmentSoup movs;
+    movs.default_color = Color::BLUE();
     //vert movement parameters
     data.fronts_active = data.m.get_surface_verts();
     data.fronts_bounds.emplace_back(data.m.num_srf_verts());
@@ -139,6 +144,53 @@ int main(int argc, char *argv[]) {
             data.m.update_normals();
             UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
             data.m.updateGL();
+        }
+
+        if(ImGui::Button("Normals vs Displacement")) {
+
+            show_mov_diff = !show_mov_diff;
+
+            if(show_mov_diff) {
+
+                if(data.step == 0)
+                    get_front_dist(data);
+
+                norms.use_gl_lines = true;
+                norms.default_color = Color::RED();
+                movs.use_gl_lines = true;
+                movs.default_color = Color::BLUE();
+
+                for(int idx = 0; idx < data.fronts_active.size(); idx++) {
+
+                    uint vid = data.fronts_active.at(idx);
+
+                    //normal displacement
+                    vec3d v = data.m.vert(vid);
+                    vec3d n = data.m.vert_data(vid).normal;
+                    double l = data.m.vert_data(vid).uvw[DIST] * data.mov_speed;
+                    vec3d d = n*l;
+                    norms.push_seg(v, v+d);
+
+                    //movement with avg
+                    for(auto avid : data.m.vert_adj_srf_verts(vid)) {
+                        n = data.m.vert_data(avid).normal;
+                        l = data.m.vert_data(avid).uvw[DIST] * data.mov_speed;
+                        d += n*l;
+                    }
+                    d = d / (data.m.vert_adj_srf_verts(vid).size() + 1);
+                    movs.push_seg(v, v+d);
+                }
+
+                gui.push(&norms, false);
+                gui.push(&movs, false);
+
+            } else {
+                gui.pop(&norms);
+                gui.pop(&movs);
+                norms.clear();
+                movs.clear();
+            }
+
         }
 
         ImGui::Text("===========================");
@@ -194,6 +246,8 @@ int main(int argc, char *argv[]) {
             data.m.updateGL();
         }
 
+        ImGui::Text("===========================");
+
         if(ImGui::InputInt("vid", &sel_vid), 0) {}
 
         if(ImGui::Button("Adj SJ")) {
@@ -220,6 +274,8 @@ int main(int argc, char *argv[]) {
             data.m.updateGL();
         }
 
+        ImGui::Text("===========================");
+
         if(ImGui::InputInt("pid", &sel_pid), 0) {}
 
         if(ImGui::Button("HL in red")) {
@@ -230,6 +286,11 @@ int main(int argc, char *argv[]) {
         ImGui::Text("===========================");
 
         if(ImGui::Button("Undo")) {
+
+            //counter back
+            data.step--;
+            std::cout << TXT_BOLDYELLOW << "UNDO to ITERATION " << data.step << TXT_RESET << std::endl << std::endl;
+
             //pop of all
             gui.pop(&data.m);
 

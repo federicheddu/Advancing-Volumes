@@ -3,31 +3,15 @@
 //main function
 void advancing_volume(Data &data) {
 
-    data.gui->depth_cull_markers = false;
+    data.step++;
+    std::cout << TXT_BOLDMAGENTA << "Advancing volume ITERATION " << data.step << TXT_RESET << std::endl;
+
+    //clear colors if debug
+    if(data.debug_colors) clearColors(data.m);
 
     //model expansion
     if(data.running) expand(data);
-    //std::cout << TXT_BOLDYELLOW << "Verts stuck in place: " << data.stuck_in_place.size() << TXT_RESET << std::endl;
-
-    /*
-
-    vec3d pos = data.m.vert(0);
-    CGAL_Q pos_r[3] = {data.m.vert(0).x(), data.m.vert(0).y(), data.m.vert(0).z()};
-    CGAL_Q pos_n[3] = {};
-    vert_normal(data, 0, pos_n);
-    pos_r[0] += pos_n[0];
-    pos_r[1] += pos_n[1];
-    pos_r[2] += pos_n[2];
-    vec3d pos_f = vec3d(CGAL::to_double(pos_r[0]), CGAL::to_double(pos_r[1]), CGAL::to_double(pos_r[2]));
-    data.gui->push_marker(pos, "v", Color::BLUE());
-    data.gui->push_marker(pos_f, "n", Color::RED());
-
-    std::cout << "pos: " << pos << std::endl;
-    std::cout << "pos_r: " << pos_r[0] << " " << pos_r[1] << " " << pos_r[2] << std::endl;
-    std::cout << "dist: " << sqrd_distance3d(&data.exact_coords[0], pos_r) << std::endl;
-
-    */
-
+    if(data.check_intersections) check_self_intersection(data);
     //refinement
     if(data.running) refine(data);
     add_last_rationals(data);
@@ -36,19 +20,24 @@ void advancing_volume(Data &data) {
 
     //update model and UI
     data.m.update_normals();
+
+    std::cout << TXT_BOLDMAGENTA << "Advancing volume ITERATION " << data.step << TXT_RESET;
+    if(data.running) std::cout << TXT_BOLDGREEN << " DONE" << TXT_RESET << std::endl;
+    else std::cout << TXT_BOLDRED << " STOPPED" << TXT_RESET << std::endl;
+    std::cout << std::endl;
 }
 
 //move the verts toward the target
 void expand(Data &d) {
 
-    std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET;
+    if(d.verbose)
+        std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET;
 
     d.gui->pop_all_markers();
     d.stuck_in_place.clear();
 
     //get all the distances from the target model
-    std::vector<double> front_dist(d.fronts_active.size());
-    get_front_dist(d, front_dist); //default parallel - add false to get linear
+    get_front_dist(d); //default parallel - add false to get linear
 
     //move every vert in the active front
     for(uint idx = 0; idx < d.fronts_active.size(); idx++) {
@@ -59,11 +48,24 @@ void expand(Data &d) {
 
         //backup position and distance from the target
         vec3d og_pos = d.m.vert(vid);
-        double dist = front_dist.at(idx);
+        double dist = d.m.vert_data(vid).uvw[DIST];
 
         //move the vert
         double movement = dist * d.mov_speed;
-        vec3d moved = d.m.vert(vid) + d.m.vert_data(vid).normal * movement;
+        vec3d moved = d.m.vert_data(vid).normal * movement;
+
+        // TODO: redo this part
+        //for(uint avid : d.m.vert_adj_srf_verts(vid)) {
+        //    //get the distance (if the vert is near the target, use the raycast to get the distance)
+        //    dist = dist_calc(d, avid, false);
+        //    if (dist < d.eps_inactive * 2)
+        //        dist = dist_calc(d, avid, true, true);
+        //    else
+        //        dist = dist_calc(d, avid, false, true);
+        //    moved += d.m.vert_data(avid).normal * dist * d.mov_speed;
+        //}
+        //moved = moved / (d.m.vert_adj_srf_verts(vid).size() + 1);
+        moved = og_pos + moved;
 
         topological_unlock(d, vid, moved);
         if (!d.running) return;
@@ -86,21 +88,23 @@ void expand(Data &d) {
 
         //if the vertex remains stationary for 5 iterations it is deactivated
         if(d.m.vert(vid) == og_pos) {
-            d.m.vert_data(vid).uvw.x()++;
-            if(d.m.vert_data(vid).uvw.x() == 5)
+            d.m.vert_data(vid).uvw[MOV]++;
+            if(d.m.vert_data(vid).uvw[MOV] == 5)
                 d.m.vert_data(vid).label = true;
         } else
-            d.m.vert_data(vid).uvw.x() = 0;
+            d.m.vert_data(vid).uvw[MOV] = 0;
 
     }
 
-    std::cout << TXT_GREEN << "DONE" << TXT_RESET << std::endl;
+    if(d.verbose)
+        std::cout << TXT_GREEN << "DONE" << TXT_RESET << std::endl;
 
 }
 
 void refine(Data &d, bool internal) {
 
-    std::cout << TXT_CYAN << "Refining the model..." << TXT_RESET;
+    if(d.verbose)
+        std::cout << TXT_BOLDCYAN << "Refining the model..." << TXT_RESET;
 
     //refine external edges
     split_n_flip(d, true);
@@ -111,7 +115,8 @@ void refine(Data &d, bool internal) {
         split_int(d, edges_to_split);
     }
 
-    std::cout << TXT_GREEN << "DONE" << TXT_RESET << std::endl;
+    if(d.verbose)
+        std::cout << TXT_GREEN << "DONE" << TXT_RESET << std::endl;
 
 }
 
@@ -190,14 +195,14 @@ void init_model(Data &d) {
     //for every vid in the vol
     for (uint vid = 0; vid < d.vol.num_verts(); vid++) {
         //default
-        d.vol.vert_data(vid).uvw[0] = 0;
+        d.vol.vert_data(vid).uvw[DIST] = 0;
         //if not in the surface check the closest srf point and the distance to it
         if (!d.vol.vert_is_on_srf(vid)) {
-            d.vol.vert_data(vid).uvw[0] = d.oct->closest_point(d.vol.vert(vid)).dist(d.vol.vert(vid));
+            d.vol.vert_data(vid).uvw[DIST] = d.oct->closest_point(d.vol.vert(vid)).dist(d.vol.vert(vid));
             //check if its max distance
-            if (d.vol.vert_data(vid).uvw[0] > center_dist) {
+            if (d.vol.vert_data(vid).uvw[DIST] > center_dist) {
                 center_vid = vid;
-                center_dist = d.vol.vert_data(vid).uvw[0];
+                center_dist = d.vol.vert_data(vid).uvw[DIST];
             }
         }
     }

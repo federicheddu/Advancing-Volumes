@@ -30,6 +30,23 @@ double dist_calc(Data &d, uint vid, bool raycast, bool flat) {
     return dist;
 }
 
+double get_dist(Data &d, uint vid) {
+    double dist;
+
+    for(int idx = 0; idx < d.fronts_active.size(); idx++) {
+        //get the vid
+        vid = d.fronts_active.at(idx);
+        //get the distance (if the vert is near the target, use the raycast to get the distance)
+        dist = dist_calc(d, vid, false);
+        if (dist < d.eps_inactive * 2)
+            dist = dist_calc(d, vid, true, true);
+        else
+            dist = dist_calc(d, vid, false, true);
+    }
+
+    return dist;
+}
+
 //check if the movement of the vert is safe, if not it goes back by bisection
 bool go_back_safe(Data &d, uint vid, vec3d &og_pos) {
 
@@ -150,16 +167,37 @@ bool vert_side(Data &d, uint fid, CGAL_Q *vert) {
 
     uint verts_id[] = {d.m.face_verts_id(fid)[0], d.m.face_verts_id(fid)[1], d.m.face_verts_id(fid)[2]};
     CGAL_Q verts[3][3] = {{d.exact_coords[verts_id[0]*3+0], d.exact_coords[verts_id[0]*3+1], d.exact_coords[verts_id[0]*3+2]},
-                          {d.exact_coords[verts_id[0]*3+0], d.exact_coords[verts_id[0]*3+1], d.exact_coords[verts_id[0]*3+2]},
-                          {d.exact_coords[verts_id[0]*3+0], d.exact_coords[verts_id[0]*3+1], d.exact_coords[verts_id[0]*3+2]}};
+                          {d.exact_coords[verts_id[1]*3+0], d.exact_coords[verts_id[1]*3+1], d.exact_coords[verts_id[1]*3+2]},
+                          {d.exact_coords[verts_id[2]*3+0], d.exact_coords[verts_id[2]*3+1], d.exact_coords[verts_id[2]*3+2]}};
     side = orient3d(verts[0], verts[1], verts[2], vert) > 0;
 
     return side;
 }
 
-// ==================== RATIONALS ====================
+bool does_movement_flip(Data &d, uint pid, uint fid, vec3d &target) {
+    bool flipped;
 
-void vert_snap(Data &d, int vid) {
+    vec3d verts[] = {d.m.face_verts(fid)[0], d.m.face_verts(fid)[1], d.m.face_verts(fid)[2]};
+    if (d.m.poly_face_is_CW(pid, fid)) std::swap(verts[0], verts[1]);
+    flipped = orient3d(verts[0], verts[1], verts[2], target) * d.orient_sign <= 0; //if the signs are discordant we have a flip
+
+    return flipped;
+}
+
+bool does_movement_flip(Data &d, uint pid, uint fid, CGAL_Q *target) {
+    bool flipped;
+
+    uint verts_id[] = {d.m.face_verts_id(fid)[0], d.m.face_verts_id(fid)[1], d.m.face_verts_id(fid)[2]};
+    if(d.m.poly_face_is_CW(pid, fid)) std::swap(verts_id[0], verts_id[1]);
+    CGAL_Q verts[3][3] = {{d.exact_coords[verts_id[0]*3+0], d.exact_coords[verts_id[0]*3+1], d.exact_coords[verts_id[0]*3+2]},
+                          {d.exact_coords[verts_id[1]*3+0], d.exact_coords[verts_id[1]*3+1], d.exact_coords[verts_id[1]*3+2]},
+                          {d.exact_coords[verts_id[2]*3+0], d.exact_coords[verts_id[2]*3+1], d.exact_coords[verts_id[2]*3+2]}};
+    flipped = orient3d(verts[0], verts[1], verts[2], target) * d.orient_sign <= 0; //if the signs are discordant we have a flip
+
+    return flipped;
+}
+
+void vert_snap(Data &d, uint vid) {
 
     bool can_snap = true;
 
@@ -184,7 +222,7 @@ void vert_snap(Data &d, int vid) {
         CGAL_Q forient = orient3d(fverts[0], fverts[1], fverts[2], fverts[3]);
         CGAL_Q rorient = orient3d(rverts[0], rverts[1], rverts[2], rverts[3]);
 
-        if(dot(&forient, &rorient) < 0) {
+        if(forient * rorient < 0) {
             can_snap = false;
             break;
         }
@@ -219,4 +257,29 @@ void vert_normal(Data &d, uint vid, CGAL_Q *normal) {
     normal[1] = normal[1] / size;
     normal[2] = normal[2] / size;
 
+}
+
+bool check_self_intersection(Data &d) {
+
+    if(d.verbose)
+        std::cout << TXT_BOLDCYAN << "Checking self-intersection..." << TXT_RESET;
+
+    bool intersection;
+    std::set<ipair> intersections;
+
+    //checks for early stop (fail)
+    export_surface(d.m, d.m_srf);
+    intersections.clear();
+    find_intersections(d.m_srf, intersections);
+    intersection = !intersections.empty();
+
+    //feedback print
+    if(intersection)
+        std::cout << std::endl << TXT_BOLDRED << "FAILED: " << TXT_RESET << TXT_RED << "AUTO-INTERSECTION" << TXT_RESET << std::endl;
+    else if(d.verbose)
+        std::cout << TXT_BOLDGREEN << "PASSED" << TXT_RESET << std::endl;
+
+    d.running = !intersection;
+
+    return intersection;
 }
