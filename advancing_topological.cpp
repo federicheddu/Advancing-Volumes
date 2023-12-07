@@ -327,20 +327,23 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 
 // ==================== TOPOLOGICAL UNLOCK ====================
 
-void topological_unlock(Data &d, uint vid, vec3d &moved) {
+void topological_unlock(Data &d, uint vid, CGAL_Q *moved, CGAL_Q *move) {
 
     bool blocking; //if true restart the for + unlock by edge split
-    vec3d unlock_pos = moved + d.m.vert_data(vid).normal / 2;
 
     for(uint i = 0; i < d.m.adj_v2p(vid).size(); blocking ? i = 0 : i++) {
         uint pid = d.m.adj_v2p(vid)[i];
         blocking = tet_is_blocking(d, vid, pid, moved);
-        if(blocking)
+        if(blocking) {
+            CGAL_Q unlock_pos[3] = {moved[0] + move[0] / 2,
+                                    moved[1] + move[1] / 2,
+                                    moved[2] + move[2] / 2};
             unlock_by_edge_split(d, pid, vid, unlock_pos);
+        }
         if(!d.running) {
-            d.gui->push_marker(d.m.vert(vid), "og");
-            d.gui->push_marker(moved, "new");
-            d.gui->depth_cull_markers = false;
+            vec3d flt_moved = vec3d(CGAL::to_double(moved[0]), CGAL::to_double(moved[1]), CGAL::to_double(moved[2]));
+            d.gui->push_marker(d.m.vert(vid), "og", Color::BLUE(), 2, 4);
+            d.gui->push_marker(flt_moved, "new", Color::BLUE(), 2, 4);
             d.running = false;
             return;
         }
@@ -348,11 +351,9 @@ void topological_unlock(Data &d, uint vid, vec3d &moved) {
 
 }
 
-bool tet_is_blocking(Data &data, const uint vid, const uint pid, const vec3d& target)
+bool tet_is_blocking(Data &data, const uint vid, const uint pid, CGAL_Q *target)
 {
     assert(data.m.poly_contains_vert(pid,vid));
-
-    CGAL_Q exact_target[3] = {target.x(), target.y(), target.z()};
 
     uint f_opp = data.m.poly_face_opposite_to(pid,vid);
     uint v0 = data.m.face_vert_id(f_opp,0);
@@ -365,16 +366,13 @@ bool tet_is_blocking(Data &data, const uint vid, const uint pid, const vec3d& ta
     if(orient3d(&data.exact_coords[3*v0],
                 &data.exact_coords[3*v1],
                 &data.exact_coords[3*v2],
-                exact_target)>=0) return true;
+                target)>=0) return true;
     return false;
 }
 
-void unlock_by_edge_split(Data &d, const uint pid, const uint vid, const vec3d& target) {
+void unlock_by_edge_split(Data &d, const uint pid, const uint vid, CGAL_Q *target) {
     
     assert(d.m.poly_contains_vert(pid,vid));
-
-    // get rational coords of target
-    CGAL_Q exact_target[3] = {target.x(), target.y(), target.z()};
 
     // get how many faces are blocking the movement
     std::vector<uint> see_target;
@@ -385,15 +383,15 @@ void unlock_by_edge_split(Data &d, const uint pid, const uint vid, const vec3d& 
         if(orient3d(&d.exact_coords[3*vids[0]],
                     &d.exact_coords[3*vids[1]],
                     &d.exact_coords[3*vids[2]],
-                    exact_target)<0) see_target.push_back(fid);
+                    target)<0) see_target.push_back(fid);
     }
 
     if(see_target.size() == 3)
-        unlock_see3(d, vid, pid, exact_target, see_target);
+        unlock_see3(d, vid, pid, target, see_target);
     else if(see_target.size() == 2)
-        unlock_see2(d, vid, pid, exact_target, see_target);
+        unlock_see2(d, vid, pid, target, see_target);
     else
-        unlock_see1(d, vid, pid, exact_target, see_target);
+        unlock_see1(d, vid, pid, target, see_target);
 
 }
 
@@ -455,8 +453,18 @@ void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
                 d.m.poly_data(pid).color = Color::MAGENTA();
     }
 
-    for(uint pid : d.m.adj_v2p(vid)) assert(orient3d(d.m.poly_vert(pid, 0), d.m.poly_vert(pid, 1), d.m.poly_vert(pid, 2), d.m.poly_vert(pid, 3)) < 0);
-    for(uint pid : d.m.adj_v2p(vfresh)) assert(orient3d(d.m.poly_vert(pid, 0), d.m.poly_vert(pid, 1), d.m.poly_vert(pid, 2), d.m.poly_vert(pid, 3)) < 0);
+    for(uint pid : d.m.adj_v2p(vid)) {
+        assert(orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
+                        &d.exact_coords[d.m.poly_vert_id(pid, 1)*3],
+                        &d.exact_coords[d.m.poly_vert_id(pid, 2)*3],
+                        &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) < 0);
+    }
+    for(uint pid : d.m.adj_v2p(vfresh)) {
+        assert(orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
+                        &d.exact_coords[d.m.poly_vert_id(pid, 1)*3],
+                       &d.exact_coords[d.m.poly_vert_id(pid, 2)*3],
+                       &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) < 0);
+    }
 }
 
 void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<uint> &see_target) {
@@ -514,16 +522,78 @@ void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
                 d.m.poly_data(pid).color = Color::MAGENTA();
     }
 
-    for(uint ppid : d.m.adj_v2p(vid)) assert(orient3d(d.m.poly_vert(ppid, 0), d.m.poly_vert(ppid, 1), d.m.poly_vert(ppid, 2), d.m.poly_vert(ppid, 3)) < 0);
-    for(uint pid : d.m.adj_v2p(new_vid)) assert(orient3d(d.m.poly_vert(pid, 0), d.m.poly_vert(pid, 1), d.m.poly_vert(pid, 2), d.m.poly_vert(pid, 3)) < 0);
+    for(uint pid : d.m.adj_v2p(vid)) {
+        assert(orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
+                        &d.exact_coords[d.m.poly_vert_id(pid, 1)*3],
+                        &d.exact_coords[d.m.poly_vert_id(pid, 2)*3],
+                        &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) < 0);
+    }
+    for(uint pid : d.m.adj_v2p(new_vid)) {
+        assert(orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
+                        &d.exact_coords[d.m.poly_vert_id(pid, 1)*3],
+                        &d.exact_coords[d.m.poly_vert_id(pid, 2)*3],
+                        &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) < 0);
+    }
 }
 
 void unlock_see1(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<uint> &see_target) {
-    std::cout << TXT_BOLDMAGENTA;
+
+    std::cout << TXT_BOLDRED << std::endl;
     std::cout << "you should not be here" << std::endl;
-    std::cout << "unlock_by_edge_split: " << see_target.size() << " - vid: " << vid << " - fid: " << see_target[0] << std::endl;
-    std::cout << "pid: " << pid << TXT_RESET << std::endl;
-    d.m.poly_data(pid).color = Color::RED();
+    std::cout << "unlock_by_edge_split: " << see_target.size() << std::endl;
+
+    std::cout << "vid: " << vid << " - fid seen: " << see_target[0] << std::endl;
+
+    std::cout << "pid blocking: " << pid << std::endl;
+
+    std::cout << "pid adj face: " << TXT_RESET;
+    std::cout << TXT_BOLDCYAN << d.m.adj_f2p(see_target[0])[0] << " " << TXT_RESET;
+    d.m.poly_data(d.m.adj_f2p(see_target[0])[0]).color = Color::CYAN();
+    std::cout << TXT_BOLDGREEN << d.m.adj_f2p(see_target[0])[1] << TXT_RESET;
+    d.m.poly_data(d.m.adj_f2p(see_target[0])[1]).color = Color::GREEN();
+
+    std::cout << std::endl << std::endl;
+
+    std::vector<uint> pos, neg, nul;
+    for(uint fid : d.m.adj_p2f(pid))
+    {
+        auto vids = d.m.face_verts_id(fid);
+        if(d.m.poly_face_is_CW(pid,fid)) std::swap(vids[0],vids[1]);
+        if(orient3d(&d.exact_coords[3*vids[0]],
+                    &d.exact_coords[3*vids[1]],
+                    &d.exact_coords[3*vids[2]],
+                    exact_target) == 0) nul.push_back(fid);
+        if(orient3d(&d.exact_coords[3*vids[0]],
+                    &d.exact_coords[3*vids[1]],
+                    &d.exact_coords[3*vids[2]],
+                    exact_target) > 0) pos.push_back(fid);
+        if(orient3d(&d.exact_coords[3*vids[0]],
+                    &d.exact_coords[3*vids[1]],
+                    &d.exact_coords[3*vids[2]],
+                    exact_target) < 0) neg.push_back(fid);
+    }
+
+    if(!nul.empty()) {
+        std::cout << "Ci sono pid collassati" << std::endl;
+        for(auto i : see_target)
+            std::cout << "Fid:" << i << " - pid: " << d.m.adj_f2p(i)[0] << " - " << d.m.adj_f2p(i)[1] << std::endl;
+    }
+    std::cout << std::endl << std::endl;
+
+    std::cout << "Ci sono " << pos.size() << " positivi" << std::endl;
+    std::cout << "Ci sono " << neg.size() << " negativi" << std::endl;
+    std::cout << "Ci sono " << nul.size() << " nulli" << std::endl;
+
+    std::cout << std::endl << std::endl;
+
+    for(int pid = 0; pid < d.m.num_polys(); pid++) {
+        if(orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
+                    &d.exact_coords[d.m.poly_vert_id(pid, 1)*3],
+                    &d.exact_coords[d.m.poly_vert_id(pid, 2)*3],
+                    &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) == 0)
+            std::cout << TXT_BOLDRED << "Ci sono pid collassati (" << pid << ")" << std::endl;
+    }
+
     d.m.updateGL();
     d.running = false;
 }

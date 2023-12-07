@@ -11,7 +11,7 @@ void advancing_volume(Data &data) {
 
     //model expansion
     if(data.running) expand(data);
-    if(data.check_intersections) check_self_intersection(data);
+    if(data.running && data.check_intersections) check_self_intersection(data);
     //refinement
     if(data.running) refine(data);
     add_last_rationals(data);
@@ -46,36 +46,37 @@ void expand(Data &d) {
         uint vid = d.fronts_active.at(idx);
         assert(d.m.vert_is_on_srf(vid));
 
-        //backup position and distance from the target
+        //backup position
         vec3d og_pos = d.m.vert(vid);
-        double dist = d.m.vert_data(vid).uvw[DIST];
 
-        //move the vert
-        double movement = dist * d.mov_speed;
-        vec3d moved = d.m.vert_data(vid).normal * movement;
+        //displacement of the vert
+        vec3d move = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * d.mov_speed;
 
-        // TODO: redo this part
-        //for(uint avid : d.m.vert_adj_srf_verts(vid)) {
-        //    //get the distance (if the vert is near the target, use the raycast to get the distance)
-        //    dist = dist_calc(d, avid, false);
-        //    if (dist < d.eps_inactive * 2)
-        //        dist = dist_calc(d, avid, true, true);
-        //    else
-        //        dist = dist_calc(d, avid, false, true);
-        //    moved += d.m.vert_data(avid).normal * dist * d.mov_speed;
-        //}
-        //moved = moved / (d.m.vert_adj_srf_verts(vid).size() + 1);
-        moved = og_pos + moved;
+        //avg the direction of the move with the adjs
+        for(auto avid : d.m.vert_adj_srf_verts(vid)) {
+            vec3d adj_move = d.m.vert_data(avid).normal * d.m.vert_data(avid).uvw[DIST] * d.mov_speed;
+            move = move + adj_move;
+        }
 
-        topological_unlock(d, vid, moved);
+        //new position
+        move = move / (d.m.vert_adj_srf_verts(vid).size() + 1);
+        CGAL_Q rt_move[3] = {move.x(), move.y(), move.z()};
+        CGAL_Q rt_moved[3] = {d.exact_coords[vid * 3 + 0] + move.x(),
+                              d.exact_coords[vid * 3 + 1] + move.y(),
+                              d.exact_coords[vid * 3 + 2] + move.z()};
+
+        //get sure we can move the vert where we want
+        topological_unlock(d, vid, rt_moved, rt_move);
         if (!d.running) return;
 
         //update the vert (+ rationals)
-        d.m.vert(vid) = moved;
+        d.m.vert(vid) = vec3d(CGAL::to_double(rt_moved[0]),
+                              CGAL::to_double(rt_moved[1]),
+                              CGAL::to_double(rt_moved[2]));
         if(d.rationals) {
-            d.exact_coords[vid * 3 + 0] = moved.x();
-            d.exact_coords[vid * 3 + 1] = moved.y();
-            d.exact_coords[vid * 3 + 2] = moved.z();
+            d.exact_coords[vid * 3 + 0] = rt_moved[0];
+            d.exact_coords[vid * 3 + 1] = rt_moved[1];
+            d.exact_coords[vid * 3 + 2] = rt_moved[2];
         }
 
         //put the vert in a safe place between [og_pos, actual_pos]

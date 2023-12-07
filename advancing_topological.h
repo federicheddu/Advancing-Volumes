@@ -22,9 +22,9 @@ void flip(Data &d, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges
 void split_n_flip(Data &d, bool selective = false);
 bool flip2to2(DrawableTetmesh<> &m, uint eid);
 bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1);
-bool tet_is_blocking(Data &data, uint vid, uint pid, const vec3d& target);
-void unlock_by_edge_split(Data &d, uint pid, uint vid, const vec3d& target);
-void topological_unlock(Data &d, uint vid, vec3d &moved);
+bool tet_is_blocking(Data &data, uint vid, uint pid, CGAL_Q *target);
+void unlock_by_edge_split(Data &d, uint pid, uint vid, CGAL_Q *target);
+void topological_unlock(Data &d, uint vid, CGAL_Q *moved, CGAL_Q *move);
 void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<uint> &see_target);
 void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<uint> &see_target);
 void unlock_see1(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<uint> &see_target);

@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
             data.m.updateGL();
         }
 
-        if(ImGui::Button("Normals vs Displacement")) {
+        if(ImGui::Button("Old vs New movement")) {
 
             show_mov_diff = !show_mov_diff;
 
@@ -184,7 +184,7 @@ int main(int argc, char *argv[]) {
                 gui.push(&norms, false);
                 gui.push(&movs, false);
 
-            } else {
+            } else { //dont show the displacement
                 gui.pop(&norms);
                 gui.pop(&movs);
                 norms.clear();
