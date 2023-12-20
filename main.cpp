@@ -17,6 +17,36 @@ using namespace cinolib;
 
 int main(int argc, char *argv[]) {
 
+    /* do stupid things here
+
+    GLcanvas gui(1920, 720);
+
+    Data d;
+    d.rationals = false;
+
+    for(const vec3d &v : REFERENCE_TET_VERTS)
+        d.m.vert_add(v);
+    d.m.poly_add({0, 1, 2, 3});
+
+    for (uint vid = 0; vid < d.m.num_verts(); vid++)
+        d.m.vert_data(vid).label = false;
+
+    gui.push(&d.m);
+    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&d.m, &gui));
+
+    std::set<uint> edge_to_split;
+    std::map<ipair, uint> v_map;
+    std::queue<edge_to_flip> edges_to_flip;
+    for(uint eid = 0; eid < d.m.num_edges(); eid++)
+        edge_to_split.insert(eid);
+    split(d, edge_to_split, v_map, edges_to_flip);
+    flip(d, v_map, edges_to_flip);
+    d.m.updateGL();
+
+    return gui.launch();
+
+    /* end of stupid things */
+
     std::vector<std::string> data_paths = { "../data/cubespikes.mesh",           //0
                                             "../data/armadillo.mesh",            //1
                                             "../data/bunny.mesh",                //2
@@ -146,6 +176,17 @@ int main(int argc, char *argv[]) {
             data.m.updateGL();
         }
 
+        if(ImGui::Button("Go until convergence")) {
+
+            data.ultra_verbose = false;
+
+            while(!data.fronts_active.empty() && data.running)
+                advancing_volume(data);
+
+            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            data.m.updateGL();
+        }
+
         if(ImGui::Button("Old vs New movement")) {
 
             show_mov_diff = !show_mov_diff;
@@ -191,6 +232,22 @@ int main(int argc, char *argv[]) {
                 movs.clear();
             }
 
+        }
+
+        if(ImGui::Button("Debug panic")) {
+
+            std::map<uint, vec3d> movements = get_movements(data, 1);
+
+            if(data.step == 0)
+                get_front_dist(data);
+
+            for(uint vid : data.m.get_surface_verts()) {
+                vec3d move = movements[vid];
+                vec3d v = data.m.vert(vid);
+                norms.push_seg(v, v+move);
+            }
+
+            gui.push(&norms, false);
         }
 
         ImGui::Text("===========================");
@@ -441,4 +498,6 @@ int main(int argc, char *argv[]) {
     };
 
     return gui.launch();
+
+    /**/
 }

@@ -43,6 +43,7 @@ void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map
     //split parameters
     uint new_vid;
     ipair og_edge;
+
     //split all the edges in the set
     for(uint eid : edges_to_split) {
         og_edge = unique_pair(d.m.edge_vert_id(eid, 0), d.m.edge_vert_id(eid, 1));
@@ -59,22 +60,27 @@ void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map
                 edges_to_flip.push(etf);
             }
 
-        //get rational split point
-        uint vid_left = d.m.edge_vert_id(eid, 0);
-        uint vid_right = d.m.edge_vert_id(eid, 1);
-        CGAL_Q rmp[3]; //rational midpoint
-        midpoint(&d.exact_coords[3*vid_left], &d.exact_coords[3*vid_right], rmp);
+        if(d.rationals) {
+            //get rational split point
+            uint vid_left = d.m.edge_vert_id(eid, 0);
+            uint vid_right = d.m.edge_vert_id(eid, 1);
+            CGAL_Q rmp[3]; //rational midpoint
+            midpoint(&d.exact_coords[3 * vid_left], &d.exact_coords[3 * vid_right], rmp);
 
-        //split and map update
-        vec3d fmp = vec3d(CGAL::to_double(rmp[0]),
-                          CGAL::to_double(rmp[1]),
-                          CGAL::to_double(rmp[2]));
-        new_vid = d.m.edge_split(eid, fmp);
+            //split and map update
+            vec3d fmp = vec3d(CGAL::to_double(rmp[0]),
+                              CGAL::to_double(rmp[1]),
+                              CGAL::to_double(rmp[2]));
+            new_vid = d.m.edge_split(eid, fmp);
 
-        //update rational coords
-        d.exact_coords.push_back(rmp[0]);
-        d.exact_coords.push_back(rmp[1]);
-        d.exact_coords.push_back(rmp[2]);
+            //update rational coords
+            d.exact_coords.push_back(rmp[0]);
+            d.exact_coords.push_back(rmp[1]);
+            d.exact_coords.push_back(rmp[2]);
+        } else {
+            //split and map update
+            new_vid = d.m.edge_split(eid);
+        }
 
         //update the map
         v_map.emplace(og_edge,new_vid);
@@ -127,6 +133,8 @@ void split_int(Data &d, std::set<uint> &edges_to_split) {
 //flip every edge passed as parameter in the list
 void flip(Data &d, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges_to_flip) {
 
+    //std::cout << "Flipping" << std::endl;
+
     std::map<ipair, uint> try_again;
     while(!edges_to_flip.empty()) {
 
@@ -137,6 +145,7 @@ void flip(Data &d, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges
 
         //if the edge isn't on the srf we do the flip 4-4
         if(!d.m.edge_is_on_srf(eid) ) {
+            //std::cout << "4-4" << std::endl;
 
             //flip parameters
             uint vid0, vid1;
@@ -175,6 +184,7 @@ void flip(Data &d, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges
 
             //if not we do the flip 2-2 (we need to check if the edge is from an active face)
         } else if(!d.m.vert_data(etf.opp_vid).label) {
+            //std::cout << "2-2" << std::endl;
 
             //flip
             bool result = flip2to2(d.m, eid);
@@ -203,9 +213,6 @@ void flip(Data &d, std::map<ipair, uint> &v_map, std::queue<edge_to_flip> &edges
 //split all the edges in the active front and flip who needs to be flipped
 void split_n_flip(Data &d, bool selective) {
 
-    //data that we need for later
-    uint offset = d.m.num_verts();
-
     //search of the edges to split inside the front
     std::set<uint> edges_to_split = search_split(d, selective);
     //split the edges while keep tracking of the edge/map relationship and the edges that will need to be flipped
@@ -216,7 +223,7 @@ void split_n_flip(Data &d, bool selective) {
     // flip every edge we need to
     flip(d, v_map, edges_to_flip);
 
-    split_separating_simplices(d.m);
+    //split_separating_simplices(d.m);
 
 }
 
@@ -435,9 +442,9 @@ void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
     d.exact_coords.push_back(P[0]);
     d.exact_coords.push_back(P[1]);
     d.exact_coords.push_back(P[2]);
-    d.m.vert(vfresh) = vec3d(CGAL::to_double(P[0]),
-                             CGAL::to_double(P[1]),
-                             CGAL::to_double(P[2]));
+    d.m.vert(vfresh) = vec3d(CGAL::to_double(P[0]),CGAL::to_double(P[1]),CGAL::to_double(P[2]));
+    if(d.enable_snap_rounding)
+        snap_rounding(d, vfresh);
 
     // ultra verbose -- give pid of the new polys
     if(d.ultra_verbose) {

@@ -22,6 +22,7 @@ void advancing_volume(Data &data);
 void expand(Data &d);
 void refine(Data &d, bool internal = true);
 void final_projection(Data &d);
+std::map<uint, vec3d> get_movements(Data &d, int iter = 5);
 
 //setup function
 Data setup(const char *path, Octree *oct, bool load = false);

@@ -38,6 +38,7 @@ void expand(Data &d) {
 
     //get all the distances from the target model
     get_front_dist(d); //default parallel - add false to get linear
+    std::map<uint, vec3d> movements = get_movements(d);
 
     //move every vert in the active front
     for(uint idx = 0; idx < d.fronts_active.size(); idx++) {
@@ -46,20 +47,15 @@ void expand(Data &d) {
         uint vid = d.fronts_active.at(idx);
         assert(d.m.vert_is_on_srf(vid));
 
-        //backup position
+        //backup positions
         vec3d og_pos = d.m.vert(vid);
+        CGAL_Q rt_og_pos[3];
+        copy(&d.exact_coords[vid*3], rt_og_pos);
 
         //displacement of the vert
-        vec3d move = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * d.mov_speed;
+        vec3d move = movements[vid];
+        //vec3d move = movements[vid] * d.m.vert_data(vid).uvw[DIST] * d.mov_speed;
 
-        //avg the direction of the move with the adjs
-        for(auto avid : d.m.vert_adj_srf_verts(vid)) {
-            vec3d adj_move = d.m.vert_data(avid).normal * d.m.vert_data(avid).uvw[DIST] * d.mov_speed;
-            move = move + adj_move;
-        }
-
-        //new position
-        move = move / (d.m.vert_adj_srf_verts(vid).size() + 1);
         CGAL_Q rt_move[3] = {move.x(), move.y(), move.z()};
         CGAL_Q rt_moved[3] = {d.exact_coords[vid * 3 + 0] + move.x(),
                               d.exact_coords[vid * 3 + 1] + move.y(),
@@ -73,15 +69,17 @@ void expand(Data &d) {
         d.m.vert(vid) = vec3d(CGAL::to_double(rt_moved[0]),
                               CGAL::to_double(rt_moved[1]),
                               CGAL::to_double(rt_moved[2]));
-        if(d.rationals) {
-            d.exact_coords[vid * 3 + 0] = rt_moved[0];
-            d.exact_coords[vid * 3 + 1] = rt_moved[1];
-            d.exact_coords[vid * 3 + 2] = rt_moved[2];
-        }
+        d.exact_coords[vid * 3 + 0] = rt_moved[0];
+        d.exact_coords[vid * 3 + 1] = rt_moved[1];
+        d.exact_coords[vid * 3 + 2] = rt_moved[2];
 
         //put the vert in a safe place between [og_pos, actual_pos]
-        bool check = go_back_safe(d, vid, og_pos);
+        bool check = go_back_safe(d, vid, rt_og_pos);
         if (!check) d.stuck_in_place.insert(vid);
+
+        // snap the rational coords to the closest double
+        if(d.enable_snap_rounding)
+            snap_rounding(d, vid);
 
         //update the mask
         if(dist_calc(d, vid, true) < d.eps_inactive)
@@ -124,19 +122,49 @@ void refine(Data &d, bool internal) {
 void final_projection(Data &d) {
 
     vec3d og_pos;
+    CGAL_Q rt_og_pos[3];
     double dist; uint aux;
     for(int iter = 0; iter < 5; iter++){
         for (uint vid: d.m.get_surface_verts()) {
             og_pos = d.m.vert(vid);
+            copy(&d.exact_coords[vid*3], rt_og_pos);
 
             dist = dist_calc(d, vid, true);
             d.oct->intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, aux);
             d.m.vert(vid) += d.m.vert_data(vid).normal * dist;
 
-            go_back_safe(d, vid, og_pos);
+            go_back_safe(d, vid, rt_og_pos);
         }
     }
 
+}
+
+std::map<uint, vec3d> get_movements(Data &d, int iter) {
+
+    std::map<uint, vec3d> normals;
+    std::map<uint, vec3d> new_normals;
+
+    // init normals
+    for (uint vid: d.m.get_surface_verts()) {
+        normals[vid] = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * d.mov_speed;
+    }
+
+    //* smoothing iterations
+    for (int it = 0; it < iter; it++) {
+
+        // compute new normals
+        for (uint vid : d.m.get_surface_verts()) {
+            new_normals[vid] = normals[vid];
+            for (uint adj: d.m.vert_adj_srf_verts(vid))
+                new_normals[vid] += normals[adj];
+            new_normals[vid] = new_normals[vid] / (d.m.vert_adj_srf_verts(vid).size() + 1);
+        }
+        normals = new_normals;
+    }
+
+    /**/
+
+    return normals;
 }
 
 /** ================================================================================================================ **/
@@ -162,8 +190,32 @@ Data init_data(const char *model, Octree *oct) {
     init_model(data);
 
     //fronts build
-    set_exact_coords(data);
     init_fronts(data);
+
+
+    // refine the sphere
+    std::set<uint> edges_to_split;
+    std::map<ipair, uint> v_map;
+    std::queue<edge_to_flip> edges_to_flip;
+    data.rationals = false;
+    std::cout << "Edge threshold: " << data.edge_threshold << std::endl;
+    while(data.m.edge_min_length() > data.edge_threshold / 2) {
+        std::cout << "Avg edge length: " << data.m.edge_min_length() << std::endl;
+
+        edges_to_split.clear();
+        v_map.clear();
+        edges_to_flip = std::queue<edge_to_flip>();
+
+        for (int eid = 0; eid < data.m.num_edges(); eid++)
+            edges_to_split.insert(eid);
+        split(data, edges_to_split, v_map, edges_to_flip);
+        flip(data, v_map, edges_to_flip);
+    }
+    std::cout << "Avg edge length: " << data.m.edge_min_length() << std::endl;
+    data.rationals = true;
+    data.m.updateGL();
+
+    set_exact_coords(data);
 
     return data;
 }
@@ -209,7 +261,7 @@ void init_model(Data &d) {
     }
 
     //sphere build
-    d.m = get_sphere(d.vol.vert(center_vid), center_dist / 2);
+    d.m = get_sphere(d.vol.vert(center_vid), center_dist * d.sphere_rad);
 }
 
 void set_param(Data &d) {

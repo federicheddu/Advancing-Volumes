@@ -48,27 +48,37 @@ double get_dist(Data &d, uint vid) {
 }
 
 //check if the movement of the vert is safe, if not it goes back by bisection
-bool go_back_safe(Data &d, uint vid, vec3d &og_pos) {
+bool go_back_safe(Data &d, uint vid, CGAL_Q *rt_pos) {
 
     int iter_counter = 0;
     int max_iter = 7;
     bool same_side = true;
     bool check = true;
+        CGAL_Q tmp[3];
 
     //check for intersections (only if on surface)
     if(d.m.vert_is_on_srf(vid)) {
         iter_counter = 0;
         while (check_intersection(d, vid) && iter_counter < max_iter) {
-            d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
+            midpoint(&d.exact_coords[vid * 3], rt_pos, tmp);
+            copy(tmp, &d.exact_coords[vid * 3]);
+            d.m.vert(vid) = vec3d(CGAL::to_double(d.exact_coords[vid*3+0]),
+                                  CGAL::to_double(d.exact_coords[vid*3+1]),
+                                  CGAL::to_double(d.exact_coords[vid*3+2]));
             iter_counter++;
         }
         //if edge still outside get back the vid
         if (iter_counter == max_iter && check_intersection(d, vid)) {
-            d.m.vert(vid) = og_pos;
+            copy(rt_pos, &d.exact_coords[vid * 3]);
+            d.m.vert(vid) = vec3d(CGAL::to_double(rt_pos[0]),
+                                  CGAL::to_double(rt_pos[1]),
+                                  CGAL::to_double(rt_pos[2]));
             //std::cout << TXT_BOLDRED << "The vert " << vid << " failed the line search for intersection" << TXT_RESET << std::endl;
             check = false;
         }
     }
+
+    /** this should not be necessary anymore
 
     //if it is not already putted back to the og pos
     //check the volume with orient3D
@@ -84,6 +94,8 @@ bool go_back_safe(Data &d, uint vid, vec3d &og_pos) {
             check = false;
         }
     }
+
+    **/
 
     return check;
 }
@@ -140,7 +152,7 @@ bool vert_flipped(Data &d, uint vid, CGAL_Q *og_pos) {
     bool sides[2];
     bool flipped;
 
-    for (uint pid: d.m.adj_v2p(vid)) {
+    for(uint pid : d.m.adj_v2p(vid)) {
         sides[0] = vert_side(d, d.m.poly_face_opposite_to(pid, vid), og_pos);
         sides[1] = vert_side(d, d.m.poly_face_opposite_to(pid, vid), &d.exact_coords[vid]);
         flipped = sides[0] != sides[1];
@@ -197,43 +209,6 @@ bool does_movement_flip(Data &d, uint pid, uint fid, CGAL_Q *target) {
     return flipped;
 }
 
-void vert_snap(Data &d, uint vid) {
-
-    bool can_snap = true;
-
-    //float verts
-    vec3d fverts[4];
-    //rational verts
-    CGAL_Q rverts[4][3];
-
-    for(auto adj_pid : d.m.adj_v2p(vid)) {
-        //float verts
-        for(int i = 0; i < 4; i++)
-            fverts[i] = d.m.poly_vert(adj_pid, i);
-        //rational verts
-        for(int i = 0; i < 4; i++) {
-            uint vid = d.m.poly_vert_id(adj_pid, i);
-            rverts[i][0] = d.exact_coords[vid*3+0];
-            rverts[i][1] = d.exact_coords[vid*3+1];
-            rverts[i][2] = d.exact_coords[vid*3+2];
-        }
-
-        //snap
-        CGAL_Q forient = orient3d(fverts[0], fverts[1], fverts[2], fverts[3]);
-        CGAL_Q rorient = orient3d(rverts[0], rverts[1], rverts[2], rverts[3]);
-
-        if(forient * rorient < 0) {
-            can_snap = false;
-            break;
-        }
-    }
-
-    if(can_snap)
-        for(int i = 0; i < 3; i++)
-            d.exact_coords[vid*3+i] = CGAL::to_double(d.exact_coords[vid*3+i]);
-
-}
-
 void vert_normal(Data &d, uint vid, CGAL_Q *normal) {
 
     //init
@@ -282,4 +257,30 @@ bool check_self_intersection(Data &d) {
     d.running = !intersection;
 
     return intersection;
+}
+
+bool snap_rounding(Data &d, const uint vid)
+{
+    if(!d.enable_snap_rounding) return true;
+
+    // keep a safe copy of the exact coordinates
+    CGAL_Q tmp[3];
+
+    // round them to the closest double
+    tmp[0] = CGAL::to_double(d.exact_coords[3*vid+0]);
+    tmp[1] = CGAL::to_double(d.exact_coords[3*vid+1]);
+    tmp[2] = CGAL::to_double(d.exact_coords[3*vid+2]);
+
+    // check for flips
+    bool flips = vert_flipped(d, vid, tmp);
+
+    // no flips => i can snap
+    if(!flips) {
+        copy(tmp, &d.exact_coords[3 * vid]);
+        d.m.vert(vid) = vec3d(CGAL::to_double(d.exact_coords[vid * 3 + 0]),
+                              CGAL::to_double(d.exact_coords[vid * 3 + 1]),
+                              CGAL::to_double(d.exact_coords[vid * 3 + 2]));
+    }
+
+    return flips;
 }

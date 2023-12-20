@@ -184,3 +184,5 @@ void plane_line_intersection(const CGAL_Q * p0,
 
     assert(orient3d(p0,p1,p2,res)==0);
 }
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

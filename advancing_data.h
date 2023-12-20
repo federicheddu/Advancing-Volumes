@@ -36,13 +36,15 @@ typedef struct data {
     std::vector<CGAL_Q> exact_coords;
 
     //parameters
-    double mov_speed = 0.1;         // % of the distance used for the movement
+    double sphere_rad = 0.98;
+    double mov_speed = 0.2;         // % of the distance used for the movement
     double eps_percent = 0.1;       // % of the min edge length used for the inactive threshold
     double eps_inactive = 0.01;     // dist fot the inactivity (in setup is set to eps * srf max edge length)
     double edge_threshold = 0.01;   // edge length threshold for refinement (in setup is set to 2 * srf max edge length)
 
     //utility
     bool check_intersections = true;    // check if the mesh is self intersecting
+    bool enable_snap_rounding = false;   // snap the rational coords to the closest double
     bool verbose = true;                // print sub-steps
     bool ultra_verbose = true;         // print everything (debug)
     bool debug_colors = false;           // color the mesh for debug
