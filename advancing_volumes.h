@@ -26,11 +26,16 @@ std::map<uint, vec3d> get_movements(Data &d, int iter = 5);
 
 //setup function
 Data setup(const char *path, Octree *oct, bool load = false);
-Data init_data(const char *model, Octree *oct);
-Data load_data(const char *model, const char *target = nullptr);
+Data init_data(Octree *oct, const char *mode);
+Data load_data(Octree *oct, const char *model, const char *target = nullptr);
+void save_data(Data &d);
 void init_model(Data &d);
 void set_param(Data &d);
+
+//rationals functions
 void set_exact_coords(Data &d);
 void add_last_rationals(Data &d);
+void save_rationals(Data &d, std::string &path);
+void load_rationals(Data &d, std::string &path);
 
 #endif //ADVANCING_VOLUMES_ADVANCING_VOLUMES_H

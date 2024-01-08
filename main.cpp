@@ -382,9 +382,7 @@ int main(int argc, char *argv[]) {
         }
 
         if(ImGui::Button("Save")) {
-            int offset = load ? 11 : 8;
-            std::string save_path = "../results/" + path.substr(offset, path.size()-offset);
-            data.m.save(save_path.c_str());
+            save_data(data);
         }
 
         ImGui::Text("===========================");

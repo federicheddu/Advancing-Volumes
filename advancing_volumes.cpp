@@ -171,10 +171,12 @@ std::map<uint, vec3d> get_movements(Data &d, int iter) {
 
 //set up the env with model, target, oct etc...
 Data setup(const char *path, Octree *oct, bool load) {
-    return load ? load_data(path) : init_data(path, oct);
+
+
+    return load ? load_data(oct, path) : init_data(oct, path);
 }
 
-Data init_data(const char *model, Octree *oct) {
+Data init_data(Octree *oct, const char *model) {
     Data data;
 
     //model vol
@@ -220,11 +222,11 @@ Data init_data(const char *model, Octree *oct) {
     return data;
 }
 
-Data load_data(const char *model, const char *target) {
+Data load_data(Octree *oct, const char *model, const char *target) {
     Data data;
 
     std::string model_path = model;
-    std::string target_path = target == nullptr ? "../data/" + model_path.substr(11, model_path.size()-11) : target;;
+    std::string target_path = target == nullptr ? get_target_path(model_path) : target;;
 
     data.m = DrawableTetmesh<>(model_path.c_str());
     data.vol = DrawableTetmesh<>(target_path.c_str());
@@ -233,11 +235,49 @@ Data load_data(const char *model, const char *target) {
     //set other parameters of data struct
     set_param(data);
 
-    //compute the fronts
-    set_exact_coords(data);
+    //octree
+    oct->build_from_mesh_polys(data.srf);
+    data.oct = oct;
+
+    //load rationals
+    std::string &r_path = data.m.mesh_data().filename;
+    size_t pos = r_path.find_last_of('.');
+    r_path = (pos>=r_path.size()) ? r_path : r_path.substr(0, pos+1);
+    r_path += "txt";
+    load_rationals(data, r_path);
+
+    assert(data.exact_coords.size() / 3 == data.m.num_verts());
+
+    //load fronts
     load_fronts(data);
 
     return data;
+}
+
+void save_data(Data &d) {
+
+    std::cout << std::endl << "SAVING..." << std::endl;
+    std::string name = get_file_name(d.vol.mesh_data().filename, false);
+
+    std::string folder_path = "../" + name + "/";
+    std::cout << "Folder path: " << folder_path << std::endl;
+
+    std::string mesh_path = folder_path + name + "_" + std::to_string(d.step) + ".mesh";
+    std::cout << "Tetmesh: " << mesh_path << std::endl;
+
+    std::string rat_path = folder_path + name + "_" + std::to_string(d.step) + ".txt";
+    std::cout << "Rationals: " << rat_path << std::endl;
+
+    /*
+    std::string srf_path = folder_path + name + ".obj";
+    std::cout << "Trimesh: " << srf_path << std::endl;
+    */
+
+    d.m.save(mesh_path.c_str());
+    save_rationals(d, rat_path);
+    //d.srf.save(srf_path.c_str());
+
+    std::cout << "DONE" << std::endl;
 }
 
 void init_model(Data &d) {
@@ -277,6 +317,8 @@ void set_param(Data &d) {
 
 }
 
+/** ================================================================================================================ **/
+
 void set_exact_coords(Data &data) {
 
     if(!rationals_are_working()) std::exit(2);
@@ -301,5 +343,38 @@ void add_last_rationals(Data &d) {
             d.exact_coords.emplace_back(d.m.vert(vid).z());
         }
     }
+
+}
+
+void save_rationals(Data &d, std::string &path) {
+    FILE *file = nullptr;
+    file = fopen(path.c_str(), "w");
+    if (file == nullptr) exit(1);
+
+    for(auto &rt : d.exact_coords) {
+        mpq_out_str(file, 10, rt.exact().mpq());
+        fprintf(file, "\n");
+    }
+
+    fclose(file);
+}
+
+void load_rationals(Data &d, std::string &path) {
+
+    FILE *file = nullptr;
+    file = fopen(path.c_str(), "r");
+    if (file == nullptr) exit(1);
+
+    int check;
+    mpq_ptr aux = nullptr;
+    aux = (mpq_ptr) malloc(sizeof(__mpq_struct));
+    if(aux == nullptr) exit(1);
+    do {
+        check = mpq_inp_str(aux, file, 10);
+        if(check != 0) d.exact_coords.emplace_back(aux);
+    } while(check != 0);
+
+    free(aux);
+    fclose(file);
 
 }
