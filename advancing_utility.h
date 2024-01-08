@@ -29,4 +29,8 @@ void vert_normal(Data &d, uint vid, CGAL_Q *normal);
 bool check_self_intersection(Data &d);
 bool snap_rounding(Data &data, const uint vid);
 
+//file utils
+std::string get_target_path(std::string &base);
+void folder_check(std::string &path);
+
 #endif //ADVANCING_VOLUMES_ADVANCING_UTILITY_H

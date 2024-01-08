@@ -284,3 +284,19 @@ bool snap_rounding(Data &d, const uint vid)
 
     return flips;
 }
+
+
+//get the path of the target model
+std::string get_target_path(std::string &base) {
+    std::string path = get_file_name(base, false);
+
+    size_t pos = path.find_last_of('_');
+    path = (pos>=path.size()) ? path : path.substr(0, pos);
+
+    path = "../data/" + path + ".mesh";
+
+    return path;
+}
+
+void folder_check(std::string &path) {
+}
