@@ -17,36 +17,6 @@ using namespace cinolib;
 
 int main(int argc, char *argv[]) {
 
-    /* do stupid things here
-
-    GLcanvas gui(1920, 720);
-
-    Data d;
-    d.rationals = false;
-
-    for(const vec3d &v : REFERENCE_TET_VERTS)
-        d.m.vert_add(v);
-    d.m.poly_add({0, 1, 2, 3});
-
-    for (uint vid = 0; vid < d.m.num_verts(); vid++)
-        d.m.vert_data(vid).label = false;
-
-    gui.push(&d.m);
-    gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&d.m, &gui));
-
-    std::set<uint> edge_to_split;
-    std::map<ipair, uint> v_map;
-    std::queue<edge_to_flip> edges_to_flip;
-    for(uint eid = 0; eid < d.m.num_edges(); eid++)
-        edge_to_split.insert(eid);
-    split(d, edge_to_split, v_map, edges_to_flip);
-    flip(d, v_map, edges_to_flip);
-    d.m.updateGL();
-
-    return gui.launch();
-
-    /* end of stupid things */
-
     std::vector<std::string> data_paths = { "../data/cubespikes.mesh",           //0
                                             "../data/armadillo.mesh",            //1
                                             "../data/bunny.mesh",                //2
@@ -99,7 +69,7 @@ int main(int argc, char *argv[]) {
     };
 
     bool load = argc > 1;
-    std::string path = load ? argv[1] : data_paths[2];
+    std::string path = load ? argv[1] : data_paths[28];
     //load the data
     Octree oct;
     Data data = setup(path.c_str(), &oct, load);
