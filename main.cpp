@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
     int sel_pid = 0;
 
     //GUI button callbacks
-    gui.callback_app_controls = [&]() {
+    if(data.render) gui.callback_app_controls = [&]() {
 
         if(ImGui::Button("Expand and Refine")) {
             //undo backup
@@ -406,7 +406,12 @@ int main(int argc, char *argv[]) {
 
     };
 
-    return gui.launch();
+    if(!data.render) {
+        while(!data.fronts_active.empty() && data.running)
+            advancing_volume(data);
+    }
+
+    return data.render ? gui.launch() : 0;
 
     /**/
 }
