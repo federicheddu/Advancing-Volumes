@@ -26,6 +26,7 @@ typedef struct data {
 
     //execution
     bool running = true;
+    bool batch = false;
     int step = 0;
     int save_every = 1;
 

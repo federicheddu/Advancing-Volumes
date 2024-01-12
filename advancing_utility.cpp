@@ -54,7 +54,7 @@ bool go_back_safe(Data &d, uint vid, CGAL_Q *rt_pos) {
     int max_iter = 7;
     bool same_side = true;
     bool check = true;
-        CGAL_Q tmp[3];
+    CGAL_Q tmp[3];
 
     //check for intersections (only if on surface)
     if(d.m.vert_is_on_srf(vid)) {
@@ -77,25 +77,6 @@ bool go_back_safe(Data &d, uint vid, CGAL_Q *rt_pos) {
             check = false;
         }
     }
-
-    /** this should not be necessary anymore
-
-    //if it is not already putted back to the og pos
-    //check the volume with orient3D
-    if(!(d.m.vert(vid) == og_pos)) {
-        iter_counter = 0;
-        while(vert_flipped(d, vid, og_pos) && iter_counter < max_iter) {
-            d.m.vert(vid) -= (d.m.vert(vid) - og_pos) / 2;
-            iter_counter++;
-        }
-        if(iter_counter == max_iter && vert_flipped(d, vid, og_pos)) {
-            d.m.vert(vid) = og_pos;
-            //std::cout << TXT_BOLDRED << "The vert " << vid << " failed the line search for volume sign" << TXT_RESET << std::endl;
-            check = false;
-        }
-    }
-
-    **/
 
     return check;
 }
@@ -277,9 +258,11 @@ bool snap_rounding(Data &d, const uint vid)
     // no flips => i can snap
     if(!flips) {
         copy(tmp, &d.exact_coords[3 * vid]);
-        d.m.vert(vid) = vec3d(CGAL::to_double(d.exact_coords[vid * 3 + 0]),
-                              CGAL::to_double(d.exact_coords[vid * 3 + 1]),
-                              CGAL::to_double(d.exact_coords[vid * 3 + 2]));
+        if(d.render || d.m.vert_is_on_srf(vid)) {
+            d.m.vert(vid) = vec3d(CGAL::to_double(d.exact_coords[vid * 3 + 0]),
+                                  CGAL::to_double(d.exact_coords[vid * 3 + 1]),
+                                  CGAL::to_double(d.exact_coords[vid * 3 + 2]));
+        }
     }
 
     return flips;

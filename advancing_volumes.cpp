@@ -172,12 +172,25 @@ std::map<uint, vec3d> get_movements(Data &d, int iter) {
 
 /** ================================================================================================================ **/
 
+//set up the env with model, target, oct etc...
+void setup(Data &data, int argc, char *argv[], Octree *oct) {
+    parse_input(data, argc, argv);
+
+    if(data.load_model.empty())
+        init_data(data, oct);
+    else
+        load_data(data, oct);
+
+}
+
 void parse_input(Data &d, int argc, char *argv[]) {
 
     FILE *f = nullptr;
     int load = 0;
     int choice = 0;
     bool check;
+
+    d.save_every = -1;
 
     //case no input
     switch (argc) {
@@ -275,6 +288,31 @@ void parse_input(Data &d, int argc, char *argv[]) {
             }
             break;
         }
+        //only target & number (save_every) -> default no rendering & batch true
+        case 3: {
+            //aux for error check
+            char *endptr;
+
+            //get args
+            d.load_target = argv[1];
+            check = file_check(d.load_target);
+            d.save_every = (int) strtol(argv[2], &endptr, 10);
+            check = check && endptr != argv[2];
+
+            //default settings
+            d.render = false;
+            d.batch = true;
+            d.ultra_verbose = false;
+
+            //exit
+            if(!check) {
+                std::cout << TXT_BOLDRED << "Input not valid" << TXT_RESET << std::endl;
+                exit(1);
+            }
+
+            //no need to go on (ik is bad programming)
+            return;
+        }
         //all parameters -> load model
         case 4: {
             //get the paths
@@ -330,18 +368,10 @@ void parse_input(Data &d, int argc, char *argv[]) {
     d.render = choice == 1;
 }
 
-//set up the env with model, target, oct etc...
-Data setup(const char *path, Octree *oct, bool load) {
-
-
-    return load ? load_data(oct, path) : init_data(oct, path);
-}
-
-Data init_data(Octree *oct, const char *model) {
-    Data data;
+void init_data(Data &data, Octree *oct) {
 
     //model vol
-    data.vol = DrawableTetmesh<>(model);
+    data.vol = DrawableTetmesh<>(data.load_target.c_str());
     data.vol.show_mesh_points();
 
     set_param(data);
@@ -350,11 +380,11 @@ Data init_data(Octree *oct, const char *model) {
     oct->build_from_mesh_polys(data.srf);
     data.oct = oct;
 
+    //get the sphere
     init_model(data);
 
     //fronts build
     init_fronts(data);
-
 
     // refine the sphere
     std::set<uint> edges_to_split;
@@ -380,17 +410,12 @@ Data init_data(Octree *oct, const char *model) {
 
     set_exact_coords(data);
 
-    return data;
 }
 
-Data load_data(Octree *oct, const char *model, const char *target) {
-    Data data;
+void load_data(Data &data, Octree *oct) {
 
-    std::string model_path = model;
-    std::string target_path = target == nullptr ? get_target_path(model_path) : target;;
-
-    data.m = DrawableTetmesh<>(model_path.c_str());
-    data.vol = DrawableTetmesh<>(target_path.c_str());
+    data.m = DrawableTetmesh<>(data.load_model.c_str());
+    data.vol = DrawableTetmesh<>(data.load_target.c_str());
     data.vol.show_mesh_points();
 
     //set other parameters of data struct
@@ -412,7 +437,6 @@ Data load_data(Octree *oct, const char *model, const char *target) {
     //load fronts
     load_fronts(data);
 
-    return data;
 }
 
 void save_data(Data &d) {

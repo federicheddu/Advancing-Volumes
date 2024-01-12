@@ -25,10 +25,10 @@ void final_projection(Data &d);
 std::map<uint, vec3d> get_movements(Data &d, int iter = 5);
 
 //setup function
-void parse_input(int argc, char *argv[]);
-Data setup(const char *path, Octree *oct, bool load = false);
-Data init_data(Octree *oct, const char *mode);
-Data load_data(Octree *oct, const char *model, const char *target = nullptr);
+void setup(Data &data, int argc, char *argv[], Octree *oct);
+void parse_input(Data &d, int argc, char *argv[]);
+void init_data(Data &data, Octree *oct);
+void load_data(Data &data, Octree *oct);
 void save_data(Data &d);
 void init_model(Data &d);
 void set_param(Data &d);

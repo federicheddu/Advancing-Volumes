@@ -67,18 +67,22 @@ void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map
             CGAL_Q rmp[3]; //rational midpoint
             midpoint(&d.exact_coords[3 * vid_left], &d.exact_coords[3 * vid_right], rmp);
 
-            //split and map update
-            vec3d fmp = vec3d(CGAL::to_double(rmp[0]),
-                              CGAL::to_double(rmp[1]),
-                              CGAL::to_double(rmp[2]));
-            new_vid = d.m.edge_split(eid, fmp);
+            //split
+            if(d.render || d.m.edge_is_on_srf(eid)) { //update floating point only if rendering or its on srf (need for octree)
+                vec3d fmp = vec3d(CGAL::to_double(rmp[0]),
+                                  CGAL::to_double(rmp[1]),
+                                  CGAL::to_double(rmp[2]));
+                new_vid = d.m.edge_split(eid, fmp);
+            } else {
+                new_vid = d.m.edge_split(eid);
+            }
 
             //update rational coords
             d.exact_coords.push_back(rmp[0]);
             d.exact_coords.push_back(rmp[1]);
             d.exact_coords.push_back(rmp[2]);
         } else {
-            //split and map update
+            //split
             new_vid = d.m.edge_split(eid);
         }
 
@@ -116,16 +120,18 @@ void split_int(Data &d, std::set<uint> &edges_to_split) {
 
     //split all the edges
     for(uint eid : edges_to_split) {
+        //get edge vid
         vid_left = d.m.edge_vert_id(eid, 0);
         vid_right = d.m.edge_vert_id(eid, 1);
+        //rational midpoint
         midpoint(&d.exact_coords[3*vid_left], &d.exact_coords[3*vid_right], rmp);
-        fmp.x() = CGAL::to_double(rmp[0]);
-        fmp.y() = CGAL::to_double(rmp[1]);
-        fmp.z() = CGAL::to_double(rmp[2]);
+        //if rendering is on update the floating point
+        if(d.render) fmp = vec3d(CGAL::to_double(rmp[0]), CGAL::to_double(rmp[1]), CGAL::to_double(rmp[2]));
         d.exact_coords.push_back(rmp[0]);
         d.exact_coords.push_back(rmp[1]);
         d.exact_coords.push_back(rmp[2]);
-        d.m.edge_split(eid, fmp);
+        //if rendering is on use the floating point
+        d.render ? d.m.edge_split(eid, fmp) : d.m.edge_split(eid);
     }
 
 }
@@ -348,6 +354,7 @@ void topological_unlock(Data &d, uint vid, CGAL_Q *moved, CGAL_Q *move) {
             unlock_by_edge_split(d, pid, vid, unlock_pos);
         }
         if(!d.running) {
+            assert(d.render); //if not rendering end the program
             vec3d flt_moved = vec3d(CGAL::to_double(moved[0]), CGAL::to_double(moved[1]), CGAL::to_double(moved[2]));
             d.gui->push_marker(d.m.vert(vid), "og", Color::BLUE(), 2, 4);
             d.gui->push_marker(flt_moved, "new", Color::BLUE(), 2, 4);
@@ -418,6 +425,7 @@ void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
 
     //error check -- this should never happen
     if(f_hid==-1) {
+        assert(d.render); //if !d.render the program ends
         std::cout << "f_hid: " << f_hid << std::endl;
         std::cout << "see_target: ";
         for(auto fid : see_target) std::cout << fid << " ";
@@ -442,7 +450,8 @@ void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
     d.exact_coords.push_back(P[0]);
     d.exact_coords.push_back(P[1]);
     d.exact_coords.push_back(P[2]);
-    d.m.vert(vfresh) = vec3d(CGAL::to_double(P[0]),CGAL::to_double(P[1]),CGAL::to_double(P[2]));
+    if(d.render || d.m.vert_is_on_srf(vid))
+        d.m.vert(vfresh) = vec3d(CGAL::to_double(P[0]),CGAL::to_double(P[1]),CGAL::to_double(P[2]));
     if(d.enable_snap_rounding)
         snap_rounding(d, vfresh);
 
@@ -511,20 +520,19 @@ void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
     d.exact_coords.push_back(P[0]);
     d.exact_coords.push_back(P[1]);
     d.exact_coords.push_back(P[2]);
-    d.m.vert(new_vid) = vec3d(CGAL::to_double(P[0]),
-                              CGAL::to_double(P[1]),
-                              CGAL::to_double(P[2]));
+    if(d.render || d.m.vert_is_on_srf(new_vid))
+        d.m.vert(new_vid) = vec3d(CGAL::to_double(P[0]),CGAL::to_double(P[1]),CGAL::to_double(P[2]));
 
     // ultra verbose -- give pid of the new polys
     if(d.ultra_verbose) {
         std::cout << "new poly: ";
-        for (uint pid: d.m.adj_v2p(new_vid))
+        for (uint pid : d.m.adj_v2p(new_vid))
             if (pid >= num_polys) std::cout << pid << " ";
         std::cout << std::endl;
     }
     // debug -- color the new polys
     if(d.debug_colors) {
-        for (uint pid: d.m.adj_v2p(new_vid))
+        for (uint pid : d.m.adj_v2p(new_vid))
             if (pid >= num_polys)
                 d.m.poly_data(pid).color = Color::MAGENTA();
     }
@@ -601,6 +609,7 @@ void unlock_see1(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
             std::cout << TXT_BOLDRED << "Ci sono pid collassati (" << pid << ")" << std::endl;
     }
 
+    assert(d.render); //if !d.render the program ends
     d.m.updateGL();
     d.running = false;
 }
