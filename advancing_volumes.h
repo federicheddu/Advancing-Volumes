@@ -20,6 +20,7 @@ void advancing_volume(Data &data);
 
 //vert operations
 void expand(Data &d);
+bool move(Data &d, uint vid, std::map<uint, vec3d> &movements);
 void refine(Data &d, bool internal = true);
 void final_projection(Data &d);
 std::map<uint, vec3d> get_movements(Data &d, int iter = 5);

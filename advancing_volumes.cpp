@@ -33,10 +33,11 @@ void advancing_volume(Data &data) {
 //move the verts toward the target
 void expand(Data &d) {
 
-    if(d.verbose)
-        std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET;
+    uint vid;
+    std::queue<uint> try_later;
 
-    d.gui->pop_all_markers();
+    if(d.verbose) std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET;
+    if(d.render) d.gui->pop_all_markers();
     d.stuck_in_place.clear();
 
     //get all the distances from the target model
@@ -47,60 +48,81 @@ void expand(Data &d) {
     for(uint idx = 0; idx < d.fronts_active.size(); idx++) {
 
         //get the vid
-        uint vid = d.fronts_active.at(idx);
+        vid = d.fronts_active.at(idx);
         assert(d.m.vert_is_on_srf(vid));
 
-        //backup positions
-        vec3d og_pos = d.m.vert(vid);
-        CGAL_Q rt_og_pos[3];
-        copy(&d.exact_coords[vid*3], rt_og_pos);
+        if(!move(d, vid, movements)) {
+            try_later.push(vid);
+            if(d.ultra_verbose) std::cout << "Pushed " << vid << " to try_later" << std::endl;
+        }
+    }
 
-        //displacement of the vert
-        vec3d move = movements[vid];
-        //vec3d move = movements[vid] * d.m.vert_data(vid).uvw[DIST] * d.mov_speed;
-
-        CGAL_Q rt_move[3] = {move.x(), move.y(), move.z()};
-        CGAL_Q rt_moved[3] = {d.exact_coords[vid * 3 + 0] + move.x(),
-                              d.exact_coords[vid * 3 + 1] + move.y(),
-                              d.exact_coords[vid * 3 + 2] + move.z()};
-
-        //get sure we can move the vert where we want
-        topological_unlock(d, vid, rt_moved, rt_move);
-        if (!d.running) return;
-
-        //update the vert (+ rationals)
-        d.m.vert(vid) = vec3d(CGAL::to_double(rt_moved[0]),
-                              CGAL::to_double(rt_moved[1]),
-                              CGAL::to_double(rt_moved[2]));
-        d.exact_coords[vid * 3 + 0] = rt_moved[0];
-        d.exact_coords[vid * 3 + 1] = rt_moved[1];
-        d.exact_coords[vid * 3 + 2] = rt_moved[2];
-
-        //put the vert in a safe place between [og_pos, actual_pos]
-        bool check = go_back_safe(d, vid, rt_og_pos);
-        if (!check) d.stuck_in_place.insert(vid);
-
-        // snap the rational coords to the closest double
-        if(d.enable_snap_rounding)
-            snap_rounding(d, vid);
-
-        //update the mask
-        if(dist_calc(d, vid, true) < d.eps_inactive)
-            d.m.vert_data(vid).label = true;
-
-        //if the vertex remains stationary for 5 iterations it is deactivated
-        if(d.m.vert(vid) == og_pos) {
-            d.m.vert_data(vid).uvw[MOV]++;
-            if(d.m.vert_data(vid).uvw[MOV] == 5)
-                d.m.vert_data(vid).label = true;
-        } else
-            d.m.vert_data(vid).uvw[MOV] = 0;
-
+    //do all the try-laters
+    while(!try_later.empty()) {
+        vid = try_later.front();
+        if(!move(d, vid, movements)) {
+            try_later.push(vid);
+            if(d.ultra_verbose) std::cout << "Pushed " << vid << " to try_later" << std::endl;
+        }
+        try_later.pop();
     }
 
     if(d.verbose)
         std::cout << TXT_GREEN << "DONE" << TXT_RESET << std::endl;
 
+}
+
+bool move(Data &d, uint vid, std::map<uint, vec3d> &movements) {
+
+    bool moved = true;
+
+    //backup positions
+    vec3d og_pos = d.m.vert(vid);
+    CGAL_Q rt_og_pos[3];
+    copy(&d.exact_coords[vid*3], rt_og_pos);
+
+    //displacement of the vert
+    vec3d move = movements[vid];
+    //vec3d move = movements[vid] * d.m.vert_data(vid).uvw[DIST] * d.mov_speed;
+
+    CGAL_Q rt_move[3] = {move.x(), move.y(), move.z()};
+    CGAL_Q rt_moved[3] = {d.exact_coords[vid * 3 + 0] + move.x(),
+                          d.exact_coords[vid * 3 + 1] + move.y(),
+                          d.exact_coords[vid * 3 + 2] + move.z()};
+
+    //get sure we can move the vert where we want
+    moved = topological_unlock(d, vid, rt_moved, rt_move);
+    if (!d.running || !moved) return false;
+
+    //update the vert (+ rationals)
+    d.m.vert(vid) = vec3d(CGAL::to_double(rt_moved[0]),
+                          CGAL::to_double(rt_moved[1]),
+                          CGAL::to_double(rt_moved[2]));
+    d.exact_coords[vid * 3 + 0] = rt_moved[0];
+    d.exact_coords[vid * 3 + 1] = rt_moved[1];
+    d.exact_coords[vid * 3 + 2] = rt_moved[2];
+
+    //put the vert in a safe place between [og_pos, actual_pos]
+    bool check = go_back_safe(d, vid, rt_og_pos);
+    if (!check) d.stuck_in_place.insert(vid);
+
+    // snap the rational coords to the closest double
+    if(d.enable_snap_rounding)
+        snap_rounding(d, vid);
+
+    //update the mask
+    if(dist_calc(d, vid, true) < d.eps_inactive)
+        d.m.vert_data(vid).label = true;
+
+    //if the vertex remains stationary for 5 iterations it is deactivated
+    if(d.m.vert(vid) == og_pos) {
+        d.m.vert_data(vid).uvw[MOV]++;
+        if(d.m.vert_data(vid).uvw[MOV] == 5)
+            d.m.vert_data(vid).label = true;
+    } else
+        d.m.vert_data(vid).uvw[MOV] = 0;
+
+    return moved;
 }
 
 void refine(Data &d, bool internal) {

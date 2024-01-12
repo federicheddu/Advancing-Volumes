@@ -340,11 +340,11 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 
 // ==================== TOPOLOGICAL UNLOCK ====================
 
-void topological_unlock(Data &d, uint vid, CGAL_Q *moved, CGAL_Q *move) {
+bool topological_unlock(Data &d, uint vid, CGAL_Q *moved, CGAL_Q *move) {
 
-    bool blocking; //if true restart the for + unlock by edge split
+    bool blocking = false; //if true restart the for + unlock by edge split
 
-    for(uint i = 0; i < d.m.adj_v2p(vid).size(); blocking ? i = 0 : i++) {
+    for(uint i = 0; i < d.m.adj_v2p(vid).size() && !blocking; i++) {
         uint pid = d.m.adj_v2p(vid)[i];
         blocking = tet_is_blocking(d, vid, pid, moved);
         if(blocking) {
@@ -359,10 +359,11 @@ void topological_unlock(Data &d, uint vid, CGAL_Q *moved, CGAL_Q *move) {
             d.gui->push_marker(d.m.vert(vid), "og", Color::BLUE(), 2, 4);
             d.gui->push_marker(flt_moved, "new", Color::BLUE(), 2, 4);
             d.running = false;
-            return;
+            return false;
         }
     }
 
+    return !blocking;
 }
 
 bool tet_is_blocking(Data &data, const uint vid, const uint pid, CGAL_Q *target)
