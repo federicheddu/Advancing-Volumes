@@ -68,11 +68,10 @@ int main(int argc, char *argv[]) {
                                             "../data/dog.mesh"                   //48
     };
 
-    bool load = argc > 1;
-    std::string path = load ? argv[1] : data_paths[28];
     //load the data
+    Data data;
     Octree oct;
-    Data data = setup(path.c_str(), &oct, load);
+    setup(data, argc, argv, &oct);
 
     //UI
     GLcanvas gui(1080, 720);
@@ -403,64 +402,6 @@ int main(int argc, char *argv[]) {
             }
             data.m.updateGL();
             // 1800 1035 0.0157587 -0.00979251 0.223252 0.660849 0.5 -0.0462633 -0.674176 0.73712 -0.0149085 0.719672 -0.534246 -0.443457 0.0975828 0.692771 0.509969 0.509902 -0.1274 0 0 0 1 1 0 0 -0 0 1 0 -0 0 0 1 -2.6434 0 0 0 1 0.870092 0 0 -0 0 1.5132 0 -0 0 0 -0.756602 -2 0 0 0 1
-        }
-
-        ImGui::Text("===========================");
-
-        if(ImGui::Button("Batch Test")) {
-
-            std::set<ipair> intersections;
-
-            //for every model
-            for(const auto &model : data_paths) {
-
-                //name of the model
-                std::cout << std::endl << TXT_BOLDYELLOW << model << TXT_RESET << std::endl;
-                //load the model
-                Data batch_data = setup(model.c_str(), &oct);
-
-                //start the clock
-                auto start = std::chrono::high_resolution_clock::now();
-
-                //for 500 (max) iterations
-                for(int iter = 0; iter <= 1000; iter++) {
-
-                    //max iteration reached
-                    if(iter == 1000) {
-                        std::cout << TXT_BOLDRED << "Max iteration reached" << TXT_RESET << std::endl;
-                        break;
-                    }
-
-                    advancing_volume(batch_data);
-
-                    //checks for early stop (fail)
-                    export_surface(batch_data.m, batch_data.m_srf);
-                    intersections.clear();
-                    find_intersections(batch_data.m_srf, intersections);
-                    if(!intersections.empty()) {
-                        std::cout << TXT_BOLDRED << "Auto-intersection... failed at " << iter << " iteration" << TXT_RESET << std::endl;
-                        break;
-                    }
-                    //check if model converged
-                    if(batch_data.fronts_active.empty()) {
-                        std::cout << TXT_BOLDGREEN << "Model converged at iteration: " << iter << TXT_RESET << std::endl;
-                        break;
-                    }
-
-
-
-                }
-
-                //stop the clock
-                auto stop = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-                std::cout << TXT_BOLDYELLOW << "Time: " << duration.count() << "ms" << TXT_RESET << std::endl;
-
-                std::string save_path = "../results/" + model.substr(8, model.size()-8);
-                batch_data.m.save(save_path.c_str());
-
-            }
-
         }
 
     };
