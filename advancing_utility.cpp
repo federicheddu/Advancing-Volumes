@@ -287,6 +287,17 @@ bool snap_rounding(Data &d, const uint vid)
 
 
 //get the path of the target model
+bool file_check(std::string &path) {
+    bool check;
+    FILE *f = nullptr;
+
+    f = fopen(path.c_str(), "r");
+    check = f != nullptr;
+    fclose(f);
+
+    return check;
+}
+
 std::string get_target_path(std::string &base) {
     std::string path = get_file_name(base, false);
 
@@ -294,6 +305,16 @@ std::string get_target_path(std::string &base) {
     path = (pos>=path.size()) ? path : path.substr(0, pos);
 
     path = "../data/" + path + ".mesh";
+
+    return path;
+}
+
+std::string get_rationals_path(std::string &base) {
+    std::string path = base;
+
+    size_t pos = path.find_last_of('.');
+    path = (pos>=path.size()) ? path : path.substr(0, pos+1);
+    path += "txt";
 
     return path;
 }

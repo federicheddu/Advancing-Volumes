@@ -18,9 +18,16 @@ enum {
 };
 
 typedef struct data {
+
+    //loading path
+    std::string load_target;
+    std::string load_model;
+    std::string load_exact;
+
     //execution
     bool running = true;
     int step = 0;
+    int save_every = 1;
 
     //structures
     DrawableTetmesh<> vol;
@@ -56,6 +63,7 @@ typedef struct data {
     std::set<uint> stuck_in_place;
 
     //gui
+    bool render;
     GLcanvas *gui;
 
 } Data;

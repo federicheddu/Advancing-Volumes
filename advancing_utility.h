@@ -30,7 +30,9 @@ bool check_self_intersection(Data &d);
 bool snap_rounding(Data &data, const uint vid);
 
 //file utils
+bool file_check(std::string &path);
 std::string get_target_path(std::string &base);
+std::string get_rationals_path(std::string &base);
 void folder_check(std::string &path);
 
 #endif //ADVANCING_VOLUMES_ADVANCING_UTILITY_H

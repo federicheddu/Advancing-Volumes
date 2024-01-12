@@ -25,6 +25,9 @@ void advancing_volume(Data &data) {
     if(data.running) std::cout << TXT_BOLDGREEN << " DONE" << TXT_RESET << std::endl;
     else std::cout << TXT_BOLDRED << " STOPPED" << TXT_RESET << std::endl;
     std::cout << std::endl;
+
+    if(data.step != 0 && data.step % data.save_every == 0)
+        save_data(data);
 }
 
 //move the verts toward the target
@@ -168,6 +171,164 @@ std::map<uint, vec3d> get_movements(Data &d, int iter) {
 }
 
 /** ================================================================================================================ **/
+
+void parse_input(Data &d, int argc, char *argv[]) {
+
+    FILE *f = nullptr;
+    int load = 0;
+    int choice = 0;
+    bool check;
+
+    //case no input
+    switch (argc) {
+        //no input -> interactive
+        case 1: {
+
+            //menu
+            do {
+                std::cout << "[1] Load something [0] New model" << std::endl;
+                std::cout << "Insert: ";
+                std::cin >> load;
+
+                if (load != 1 && load != 0)
+                    std::cout << std::endl << "Input not valid... retry" << std::endl;
+            } while (load != 1 && load != 0);
+
+            //end line
+            std::cout << std::endl;
+
+            //new model
+            if (load == 0) {
+
+                do {
+                    std::cout << "Target path: ";
+                    std::cin >> d.load_target;
+
+                    f = fopen(d.load_model.c_str(), "r");
+                    if (f == nullptr)
+                        std::cout << std::endl << "Path not valid... retry" << std::endl;
+                } while (f == nullptr);
+                fclose(f);
+                f = nullptr;
+
+                //load model
+            } else {
+
+                //input model to load
+                do {
+                    std::cout << "Model path: ";
+                    std::cin >> d.load_model;
+
+                    check = file_check(d.load_model);
+                    if (!check) std::cout << std::endl << "Path not valid... retry" << std::endl;
+                } while (!check);
+
+                //target path tip
+                d.load_target = get_target_path(d.load_model);
+                std::cout << "Is \"" << d.load_target << "\"your target path?" << std::endl;
+                std::cout << "[1] yes [0] no" << std::endl;
+                std::cout << "Input: ";
+                std::cin >> choice;
+                check = file_check(d.load_target);
+
+                //input target model
+                if (choice == 0 || !check) {
+                    if (!check) std::cout << "The path is not valid, you have to insert it manually." << std::endl;
+                    do {
+                        std::cout << "Target path: ";
+                        std::cin >> d.load_target;
+
+                        check = file_check(d.load_target);
+                        if (!check) std::cout << std::endl << "Path not valid... retry" << std::endl;
+                    } while (!check);
+                }
+
+                //exact coords tip
+                d.load_exact = get_rationals_path(d.load_model);
+                std::cout << "Is \"" << d.load_exact << "\" your target path?";
+                std::cout << "[1] yes [0] no" << std::endl;
+                std::cout << "Input: ";
+                std::cin >> choice;
+                check = file_check(d.load_exact);
+
+                //input rational coords path
+                if (choice == 0 || !check) {
+                    if (!check) std::cout << "The path is not valid, you have to insert it manually." << std::endl;
+                    do {
+                        std::cout << "Rationals path: ";
+                        std::cin >> d.load_exact;
+
+                        check = file_check(d.load_exact);
+                        if (!check) std::cout << std::endl << "Path not valid... retry" << std::endl;
+                    } while (!check);
+                }
+            }
+            break;
+        }
+        //only target -> new model
+        case 2: {
+            d.load_target = argv[1];
+            check = file_check(d.load_target);
+            if(!check) {
+                std::cout << TXT_BOLDRED << "Target path not valid" << TXT_RESET << std::endl;
+                exit(1);
+            }
+            break;
+        }
+        //all parameters -> load model
+        case 4: {
+            //get the paths
+            d.load_target = argv[1];
+            d.load_model = argv[2];
+            d.load_exact = argv[3];
+
+            //check on all paths
+            check = file_check(d.load_target);
+            check = check && file_check(d.load_model);
+            check = check && file_check(d.load_exact);
+
+            //exit
+            if (!check) {
+                std::cout << TXT_BOLDRED << "Paths not valid" << TXT_RESET << std::endl;
+                exit(1);
+            }
+            break;
+        }
+        //invalid args
+        default: {
+            std::cout << TXT_BOLDRED << "Args not valid" << TXT_RESET << std::endl;
+            exit(1);
+            break;
+        }
+    }
+
+    //save every N steps
+    std::cout << "Save every N step: " << std::endl;
+    std::cout << "[1] 1 step [2] 10 steps [3] end [0] custom" << std::endl;
+    std::cout << "Input: ";
+    std::cin >> choice;
+    switch (choice) {
+        case 1:
+            d.save_every = 1;
+            break;
+        case 2:
+            d.save_every = 10;
+            break;
+        case 3:
+            d.save_every = 0;
+            break;
+        default:
+            std::cout << "Insert custom number:";
+            std::cin >> d.save_every;
+    }
+
+    //render or only terminal
+    std::cout << "Do you want the rendering?" << std::endl;
+    std::cout << "[1] render [0] no render" << std::endl;
+    std::cout << "Input: ";
+    std::cin >> choice;
+    d.render = choice == 1;
+}
 
 //set up the env with model, target, oct etc...
 Data setup(const char *path, Octree *oct, bool load) {
