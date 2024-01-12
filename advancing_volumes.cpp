@@ -217,7 +217,7 @@ void parse_input(Data &d, int argc, char *argv[]) {
                     std::cout << "Target path: ";
                     std::cin >> d.load_target;
 
-                    f = fopen(d.load_model.c_str(), "r");
+                    f = fopen(d.load_target.c_str(), "r");
                     if (f == nullptr)
                         std::cout << std::endl << "Path not valid... retry" << std::endl;
                 } while (f == nullptr);
