@@ -414,7 +414,7 @@ void init_data(Data &data, Octree *oct) {
     std::queue<edge_to_flip> edges_to_flip;
     data.rationals = false;
     std::cout << "Edge threshold: " << data.edge_threshold << std::endl;
-    while(data.m.edge_min_length() > data.edge_threshold / 2) {
+    while(data.m.edge_min_length() > data.edge_threshold) {
         std::cout << "Avg edge length: " << data.m.edge_min_length() << std::endl;
 
         edges_to_split.clear();

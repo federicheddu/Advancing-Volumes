@@ -44,8 +44,8 @@ typedef struct data {
     std::vector<CGAL_Q> exact_coords;
 
     //parameters
-    double sphere_rad = 0.98;
-    double mov_speed = 0.2;         // % of the distance used for the movement
+    double sphere_rad = 0.9;
+    double mov_speed = 0.5;         // % of the distance used for the movement
     double eps_percent = 0.1;       // % of the min edge length used for the inactive threshold
     double eps_inactive = 0.01;     // dist fot the inactivity (in setup is set to eps * srf max edge length)
     double edge_threshold = 0.01;   // edge length threshold for refinement (in setup is set to 2 * srf max edge length)
