@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
         if(ImGui::Button("Expand and Refine x10"))  {
             undo_data = data;
 
-            for(int i = 0; i < 10; i++) {
+            for(int i = 0; i < 10 && data.running; i++) {
                 std::cout << TXT_BOLDMAGENTA << "Iter: " << i+1 << TXT_RESET << std::endl;
                 advancing_volume(data);
             }
