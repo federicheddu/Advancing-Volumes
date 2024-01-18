@@ -15,5 +15,5 @@ add_executable(${PROJECT_NAME} main.cpp
                 sphere.h sphere.cpp
                 rationals.h rationals.cpp
                 text_format.h
-                )
+                advancing_io.cpp advancing_io.h)
 target_link_libraries(${CMAKE_PROJECT_NAME} cinolib CGAL::CGAL)
