@@ -23,7 +23,7 @@ void expand(Data &d);
 bool move(Data &d, uint vid, std::map<uint, vec3d> &movements);
 void refine(Data &d, bool internal = true);
 void final_projection(Data &d);
-std::map<uint, vec3d> get_movements(Data &d, int iter = 5);
+std::map<uint, vec3d> get_movements(Data &d, int iter = 100);
 
 //setup function
 void setup(Data &data, int argc, char *argv[], Octree *oct);

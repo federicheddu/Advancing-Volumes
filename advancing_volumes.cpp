@@ -51,6 +51,7 @@ void expand(Data &d) {
 
         move(d, vid, movements);
 
+        //d.running = false;
         if(!d.running) return;
     }
 
@@ -73,9 +74,9 @@ bool move(Data &d, uint vid, std::map<uint, vec3d> &movements) {
     //vec3d move = movements[vid] * d.m.vert_data(vid).uvw[DIST] * d.mov_speed;
 
     CGAL_Q rt_move[3] = {move.x(), move.y(), move.z()};
-    CGAL_Q rt_moved[3] = {d.exact_coords[vid * 3 + 0] + move.x(),
-                          d.exact_coords[vid * 3 + 1] + move.y(),
-                          d.exact_coords[vid * 3 + 2] + move.z()};
+    CGAL_Q rt_moved[3] = {d.exact_coords[vid * 3 + 0] + rt_move[0],
+                          d.exact_coords[vid * 3 + 1] + rt_move[1],
+                          d.exact_coords[vid * 3 + 2] + rt_move[2]};
 
     //get sure we can move the vert where we want
     topological_unlock(d, vid, rt_moved, rt_move);
@@ -153,30 +154,39 @@ void final_projection(Data &d) {
 
 std::map<uint, vec3d> get_movements(Data &d, int iter) {
 
-    std::map<uint, vec3d> normals;
+    std::map<uint, vec3d> movements;
     std::map<uint, vec3d> new_normals;
 
-    // init normals
+    // init movements
     for (uint vid: d.m.get_surface_verts()) {
-        normals[vid] = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * d.mov_speed;
+        movements[vid] = d.m.vert_data(vid).normal;
     }
 
     //* smoothing iterations
     for (int it = 0; it < iter; it++) {
 
-        // compute new normals
+        // compute new movements
         for (uint vid : d.m.get_surface_verts()) {
-            new_normals[vid] = normals[vid];
-            for (uint adj: d.m.vert_adj_srf_verts(vid))
-                new_normals[vid] += normals[adj];
+            new_normals[vid] = movements[vid];
+
+            for (uint adj: d.m.vert_adj_srf_verts(vid)) {
+                new_normals[vid] += movements[adj];
+            }
+
             new_normals[vid] = new_normals[vid] / (d.m.vert_adj_srf_verts(vid).size() + 1);
+            new_normals[vid].normalize();
         }
-        normals = new_normals;
+
+        movements = new_normals;
+    }
+
+    for(uint vid : d.m.get_surface_verts()) {
+        movements[vid] = movements[vid] * d.m.vert_data(vid).uvw[DIST];
     }
 
     /**/
 
-    return normals;
+    return movements;
 }
 
 /** ================================================================================================================ **/

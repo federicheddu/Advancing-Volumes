@@ -60,6 +60,7 @@ bool go_back_safe(Data &d, uint vid, CGAL_Q *rt_pos) {
     if(d.m.vert_is_on_srf(vid)) {
         iter_counter = 0;
         while (check_intersection(d, vid) && iter_counter < max_iter) {
+            if(d.ultra_verbose) std::cout << "Porco dio" << std::endl;
             midpoint(&d.exact_coords[vid * 3], rt_pos, tmp);
             copy(tmp, &d.exact_coords[vid * 3]);
             d.m.vert(vid) = vec3d(CGAL::to_double(d.exact_coords[vid*3+0]),
@@ -73,10 +74,12 @@ bool go_back_safe(Data &d, uint vid, CGAL_Q *rt_pos) {
             d.m.vert(vid) = vec3d(CGAL::to_double(rt_pos[0]),
                                   CGAL::to_double(rt_pos[1]),
                                   CGAL::to_double(rt_pos[2]));
-            //std::cout << TXT_BOLDRED << "The vert " << vid << " failed the line search for intersection" << TXT_RESET << std::endl;
+            if(d.ultra_verbose) std::cout << TXT_BOLDRED << "The vert " << vid << " failed the line search for intersection" << TXT_RESET << std::endl;
             check = false;
         }
     }
+
+
 
     return check;
 }

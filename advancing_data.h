@@ -45,7 +45,6 @@ typedef struct data {
 
     //parameters
     double sphere_rad = 0.9;
-    double mov_speed = 0.99;         // % of the distance used for the movement
     double eps_percent = 0.1;       // % of the min edge length used for the inactive threshold
     double eps_inactive = 0.01;     // dist fot the inactivity (in setup is set to eps * srf max edge length)
     double edge_threshold = 0.01;   // edge length threshold for refinement (in setup is set to 2 * srf max edge length)

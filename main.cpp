@@ -180,14 +180,14 @@ int main(int argc, char *argv[]) {
                     //normal displacement
                     vec3d v = data.m.vert(vid);
                     vec3d n = data.m.vert_data(vid).normal;
-                    double l = data.m.vert_data(vid).uvw[DIST] * data.mov_speed;
+                    double l = data.m.vert_data(vid).uvw[DIST];
                     vec3d d = n*l;
                     norms.push_seg(v, v+d);
 
                     //movement with avg
                     for(auto avid : data.m.vert_adj_srf_verts(vid)) {
                         n = data.m.vert_data(avid).normal;
-                        l = data.m.vert_data(avid).uvw[DIST] * data.mov_speed;
+                        l = data.m.vert_data(avid).uvw[DIST];
                         d += n*l;
                     }
                     d = d / (data.m.vert_adj_srf_verts(vid).size() + 1);
@@ -220,6 +220,10 @@ int main(int argc, char *argv[]) {
             }
 
             gui.push(&norms, false);
+        }
+
+        if(ImGui::Button("Move single vid")) {
+
         }
 
         ImGui::Text("===========================");
