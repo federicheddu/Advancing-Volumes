@@ -53,7 +53,7 @@ typedef struct data {
     bool check_intersections = true;    // check if the mesh is self intersecting
     bool enable_snap_rounding = false;   // snap the rational coords to the closest double
     bool verbose = true;                // print sub-steps
-    bool ultra_verbose = true;         // print everything (debug)
+    bool ultra_verbose = false;         // print everything (debug)
     bool debug_colors = false;           // color the mesh for debug
     int orient_sign = -1;               // sign for the orientation of the mesh (1 or -1)
 

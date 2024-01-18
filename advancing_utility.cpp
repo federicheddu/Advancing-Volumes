@@ -15,17 +15,6 @@ double dist_calc(Data &d, uint vid, bool raycast, bool flat) {
 
     //laplacian smoothing of the distance -> if flat is true, the distance is the average of the distance of the adj verts
     double adj_dist = 0, dist_sum = dist;
-    if(flat) {
-        for(uint adj_vid : d.m.vert_adj_srf_verts(vid)) {
-            if (raycast)
-                d.oct->intersects_ray(d.m.vert(adj_vid), d.m.vert_data(adj_vid).normal, adj_dist, id);
-            else
-                adj_dist = d.oct->closest_point(d.m.vert(adj_vid)).dist(d.m.vert(adj_vid));
-
-            dist_sum += adj_dist;
-        }
-        dist = dist_sum / (double)(d.m.vert_adj_srf_verts(vid).size() + 1);
-    }
 
     return dist;
 }
@@ -60,7 +49,6 @@ bool go_back_safe(Data &d, uint vid, CGAL_Q *rt_pos) {
     if(d.m.vert_is_on_srf(vid)) {
         iter_counter = 0;
         while (check_intersection(d, vid) && iter_counter < max_iter) {
-            if(d.ultra_verbose) std::cout << "Porco dio" << std::endl;
             midpoint(&d.exact_coords[vid * 3], rt_pos, tmp);
             copy(tmp, &d.exact_coords[vid * 3]);
             d.m.vert(vid) = vec3d(CGAL::to_double(d.exact_coords[vid*3+0]),

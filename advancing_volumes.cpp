@@ -21,13 +21,14 @@ void advancing_volume(Data &data) {
     //update model and UI
     data.m.update_normals();
 
+    //save the data
+    if((data.step != 0 && data.step % data.save_every == 0) || !data.running)
+        save_data(data);
+
     std::cout << TXT_BOLDMAGENTA << "Advancing volume ITERATION " << data.step << TXT_RESET;
     if(data.running) std::cout << TXT_BOLDGREEN << " DONE" << TXT_RESET << std::endl;
     else std::cout << TXT_BOLDRED << " STOPPED" << TXT_RESET << std::endl;
     std::cout << std::endl;
-
-    if(data.step != 0 && data.step % data.save_every == 0)
-        save_data(data);
 }
 
 //move the verts toward the target
@@ -51,7 +52,6 @@ void expand(Data &d) {
 
         move(d, vid, movements);
 
-        //d.running = false;
         if(!d.running) return;
     }
 
@@ -155,34 +155,35 @@ void final_projection(Data &d) {
 std::map<uint, vec3d> get_movements(Data &d, int iter) {
 
     std::map<uint, vec3d> movements;
-    std::map<uint, vec3d> new_normals;
+    std::map<uint, vec3d> bckp_norms;
 
     // init movements
-    for (uint vid: d.m.get_surface_verts()) {
+    for (uint vid: d.m.get_surface_verts())
         movements[vid] = d.m.vert_data(vid).normal;
-    }
 
-    //* smoothing iterations
+    // smoothing iterations (default 100)
     for (int it = 0; it < iter; it++) {
 
         // compute new movements
         for (uint vid : d.m.get_surface_verts()) {
-            new_normals[vid] = movements[vid];
+            //get the first
+            bckp_norms[vid] = movements[vid];
 
-            for (uint adj: d.m.vert_adj_srf_verts(vid)) {
-                new_normals[vid] += movements[adj];
-            }
+            //sum
+            for (uint adj: d.m.vert_adj_srf_verts(vid))
+                bckp_norms[vid] += movements[adj];
 
-            new_normals[vid] = new_normals[vid] / (d.m.vert_adj_srf_verts(vid).size() + 1);
-            new_normals[vid].normalize();
+            //avg & normalize
+            bckp_norms[vid] = bckp_norms[vid] / (d.m.vert_adj_srf_verts(vid).size() + 1);
+            bckp_norms[vid].normalize();
         }
 
-        movements = new_normals;
+        movements = bckp_norms;
     }
 
-    for(uint vid : d.m.get_surface_verts()) {
-        movements[vid] = movements[vid] * d.m.vert_data(vid).uvw[DIST];
-    }
+    //dist multiplication (0.9 is for not going to inter)
+    for(uint vid : d.m.get_surface_verts())
+        movements[vid] = movements[vid] * d.m.vert_data(vid).uvw[DIST] * 0.99;
 
     /**/
 

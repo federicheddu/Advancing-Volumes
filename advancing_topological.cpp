@@ -342,8 +342,9 @@ bool flip4to4(DrawableTetmesh<> &m, uint eid, uint vid0, uint vid1) {
 
 bool topological_unlock(Data &d, uint vid, CGAL_Q *moved, CGAL_Q *move) {
 
+    uint counter = 0;
     uint n_adj = d.m.adj_v2p(vid).size(); //initial size of adjs
-    uint limit = pow(n_adj, 3); //limit of new tets
+    uint limit = n_adj * n_adj * n_adj; //limit of new tets
     bool blocking = false; //if true restart the for + unlock by edge split
 
     for(uint i = 0; i < d.m.adj_v2p(vid).size(); blocking ? i = 0 : i++) {
@@ -354,7 +355,8 @@ bool topological_unlock(Data &d, uint vid, CGAL_Q *moved, CGAL_Q *move) {
                                     moved[1] + move[1] / 2,
                                     moved[2] + move[2] / 2};
             unlock_by_edge_split(d, pid, vid, unlock_pos);
-            assert(limit < d.m.adj_v2p(vid).size());
+            counter++;
+            assert(limit > counter && "Raffinato troppo");
         }
         if(!d.running) {
             assert(d.render); //if not rendering end the program
