@@ -34,8 +34,6 @@ void advancing_volume(Data &data) {
 void expand(Data &d) {
 
     uint vid;
-    std::queue<uint> try_later;
-
     if(d.verbose) std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET;
     if(d.render) d.gui->pop_all_markers();
     d.stuck_in_place.clear();
@@ -51,21 +49,9 @@ void expand(Data &d) {
         vid = d.fronts_active.at(idx);
         assert(d.m.vert_is_on_srf(vid));
 
-        if(!move(d, vid, movements)) {
-            try_later.push(vid);
-            if(d.ultra_verbose) std::cout << "Pushed " << vid << " to try_later" << std::endl;
-        }
-        if(!d.running) return;
-    }
+        move(d, vid, movements);
 
-    //do all the try-laters
-    while(!try_later.empty()) {
-        vid = try_later.front();
-        if(!move(d, vid, movements)) {
-            try_later.push(vid);
-            if(d.ultra_verbose) std::cout << "Pushed " << vid << " to try_later" << std::endl;
-        }
-        try_later.pop();
+        if(!d.running) return;
     }
 
     if(d.verbose)
@@ -92,8 +78,8 @@ bool move(Data &d, uint vid, std::map<uint, vec3d> &movements) {
                           d.exact_coords[vid * 3 + 2] + move.z()};
 
     //get sure we can move the vert where we want
-    moved = topological_unlock(d, vid, rt_moved, rt_move);
-    if (!d.running || !moved) return false;
+    topological_unlock(d, vid, rt_moved, rt_move);
+    if (!d.running) return false;
 
     //update the vert (+ rationals)
     d.m.vert(vid) = vec3d(CGAL::to_double(rt_moved[0]),
@@ -449,16 +435,26 @@ void load_data(Data &data, Octree *oct) {
     data.oct = oct;
 
     //load rationals
-    std::string &r_path = data.m.mesh_data().filename;
-    size_t pos = r_path.find_last_of('.');
-    r_path = (pos>=r_path.size()) ? r_path : r_path.substr(0, pos+1);
-    r_path += "txt";
-    load_rationals(data, r_path);
+    load_rationals(data);
 
     assert(data.exact_coords.size() / 3 == data.m.num_verts());
 
+    if(data.render) {
+        for(uint vid = 0; vid < data.m.num_verts(); vid++)
+            data.m.vert(vid) = vec3d(CGAL::to_double(data.exact_coords[3*vid+0]),
+                                     CGAL::to_double(data.exact_coords[3*vid+2]),
+                                     CGAL::to_double(data.exact_coords[3*vid+1]));
+    }
+
+    data.m.update_normals();
+
     //load fronts
     load_fronts(data);
+
+    std::string name = get_file_name(data.load_model, false);
+    size_t pos = name.find_last_of('_');
+    data.step = stoi(name.substr(pos+1));
+    data.m.mesh_data().filename = data.load_target;
 
 }
 
@@ -567,10 +563,10 @@ void save_rationals(Data &d, std::string &path) {
     fclose(file);
 }
 
-void load_rationals(Data &d, std::string &path) {
+void load_rationals(Data &d) {
 
     FILE *file = nullptr;
-    file = fopen(path.c_str(), "r");
+    file = fopen(d.load_exact.c_str(), "r");
     if (file == nullptr) exit(1);
 
     int check;

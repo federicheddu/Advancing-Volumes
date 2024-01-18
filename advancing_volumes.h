@@ -38,6 +38,6 @@ void set_param(Data &d);
 void set_exact_coords(Data &d);
 void add_last_rationals(Data &d);
 void save_rationals(Data &d, std::string &path);
-void load_rationals(Data &d, std::string &path);
+void load_rationals(Data &d);
 
 #endif //ADVANCING_VOLUMES_ADVANCING_VOLUMES_H

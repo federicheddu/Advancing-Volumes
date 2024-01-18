@@ -94,6 +94,7 @@ int main(int argc, char *argv[]) {
     bool show_only_adj = false;
     bool show_mov_diff = false;
     std::vector<DrawableArrow> dir_arrows;
+    std::map<uint, vec3d> movements;
     DrawableSegmentSoup norms;
     DrawableSegmentSoup movs;
     movs.default_color = Color::BLUE();
@@ -169,6 +170,8 @@ int main(int argc, char *argv[]) {
                 norms.default_color = Color::RED();
                 movs.use_gl_lines = true;
                 movs.default_color = Color::BLUE();
+
+                movements = get_movements(data);
 
                 for(int idx = 0; idx < data.fronts_active.size(); idx++) {
 

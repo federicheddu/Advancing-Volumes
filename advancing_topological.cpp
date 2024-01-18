@@ -344,7 +344,7 @@ bool topological_unlock(Data &d, uint vid, CGAL_Q *moved, CGAL_Q *move) {
 
     bool blocking = false; //if true restart the for + unlock by edge split
 
-    for(uint i = 0; i < d.m.adj_v2p(vid).size() && !blocking; i++) {
+    for(uint i = 0; i < d.m.adj_v2p(vid).size(); blocking ? i = 0 : i++) {
         uint pid = d.m.adj_v2p(vid)[i];
         blocking = tet_is_blocking(d, vid, pid, moved);
         if(blocking) {
