@@ -23,12 +23,12 @@ void parse_input(Data &d, int argc, char *argv[]) {
 
     //case no input
     switch (argc) {
-        //no input -> interactive
+            //no input -> interactive
         case 1: {
 
             //menu
             do {
-                std::cout << "[1] Load something [0] New model" << std::endl;
+                std::cout << "[1] Load from dataset [2] New model [0] Load" << std::endl;
                 std::cout << "Insert: ";
                 std::cin >> load;
 
@@ -39,70 +39,78 @@ void parse_input(Data &d, int argc, char *argv[]) {
             //end line
             std::cout << std::endl;
 
-            //new model
-            if (load == 0) {
-
-                do {
-                    std::cout << "Target path: ";
-                    std::cin >> d.load_target;
-
-                    f = fopen(d.load_target.c_str(), "r");
-                    if (f == nullptr)
-                        std::cout << std::endl << "Path not valid... retry" << std::endl;
-                } while (f == nullptr);
-                fclose(f);
-                f = nullptr;
-
-                //load model
-            } else {
-
-                //input model to load
-                do {
-                    std::cout << "Model path: ";
-                    std::cin >> d.load_model;
-
-                    check = file_check(d.load_model);
-                    if (!check) std::cout << std::endl << "Path not valid... retry" << std::endl;
-                } while (!check);
-
-                //target path tip
-                d.load_target = get_target_path(d.load_model);
-                std::cout << "Is \"" << d.load_target << "\"your target path?" << std::endl;
-                std::cout << "[1] yes [0] no" << std::endl;
-                std::cout << "Input: ";
-                std::cin >> choice;
-                check = file_check(d.load_target);
-
-                //input target model
-                if (choice == 0 || !check) {
-                    if (!check) std::cout << "The path is not valid, you have to insert it manually." << std::endl;
+            switch (load) {
+                case 1: {
+                    d.load_target = dataset_string();
+                    break;
+                }
+                case 2: {
                     do {
                         std::cout << "Target path: ";
                         std::cin >> d.load_target;
 
-                        check = file_check(d.load_target);
-                        if (!check) std::cout << std::endl << "Path not valid... retry" << std::endl;
-                    } while (!check);
+                        f = fopen(d.load_target.c_str(), "r");
+                        if (f == nullptr)
+                            std::cout << std::endl << "Path not valid... retry" << std::endl;
+                    } while (f == nullptr);
+                    fclose(f);
+                    f = nullptr;
                 }
+                case 0: { //load model
 
-                //exact coords tip
-                d.load_exact = get_rationals_path(d.load_model);
-                std::cout << "Is \"" << d.load_exact << "\" your target path?";
-                std::cout << "[1] yes [0] no" << std::endl;
-                std::cout << "Input: ";
-                std::cin >> choice;
-                check = file_check(d.load_exact);
-
-                //input rational coords path
-                if (choice == 0 || !check) {
-                    if (!check) std::cout << "The path is not valid, you have to insert it manually." << std::endl;
+                    //input model to load
                     do {
-                        std::cout << "Rationals path: ";
-                        std::cin >> d.load_exact;
+                        std::cout << "Model path: ";
+                        std::cin >> d.load_model;
 
-                        check = file_check(d.load_exact);
+                        check = file_check(d.load_model);
                         if (!check) std::cout << std::endl << "Path not valid... retry" << std::endl;
                     } while (!check);
+
+                    //target path tip
+                    d.load_target = get_target_path(d.load_model);
+                    std::cout << "Is \"" << d.load_target << "\"your target path?" << std::endl;
+                    std::cout << "[1] yes [0] no" << std::endl;
+                    std::cout << "Input: ";
+                    std::cin >> choice;
+                    check = file_check(d.load_target);
+
+                    //input target model
+                    if (choice == 0 || !check) {
+                        if (!check) std::cout << "The path is not valid, you have to insert it manually." << std::endl;
+                        do {
+                            std::cout << "Target path: ";
+                            std::cin >> d.load_target;
+
+                            check = file_check(d.load_target);
+                            if (!check) std::cout << std::endl << "Path not valid... retry" << std::endl;
+                        } while (!check);
+                    }
+
+                    //exact coords tip
+                    d.load_exact = get_rationals_path(d.load_model);
+                    std::cout << "Is \"" << d.load_exact << "\" your target path?" << std::endl;
+                    std::cout << "[1] yes [0] no" << std::endl;
+                    std::cout << "Input: ";
+                    std::cin >> choice;
+                    check = file_check(d.load_exact);
+
+                    //input rational coords path
+                    if (choice == 0 || !check) {
+                        if (!check) std::cout << "The path is not valid, you have to insert it manually." << std::endl;
+                        do {
+                            std::cout << "Rationals path: ";
+                            std::cin >> d.load_exact;
+
+                            check = file_check(d.load_exact);
+                            if (!check) std::cout << std::endl << "Path not valid... retry" << std::endl;
+                        } while (!check);
+                    }
+                    break;
+                }
+                default: {
+                    std::cout << TXT_BOLDRED << "Input not valid" << TXT_RESET << std::endl;
+                    exit(1);
                 }
             }
             break;
@@ -334,11 +342,83 @@ void set_param(Data &d) {
     export_surface(d.vol, d.srf);
 
     //edge length threshold
-    d.edge_threshold = d.srf.bbox().diag() * 0.02;
+    d.edge_threshold = d.srf.edge_avg_length();
 
     //inactive threshold
     d.eps_inactive = d.edge_threshold * d.eps_percent;
 
+}
+
+std::string dataset_string() {
+
+    int choice;
+    std::vector<std::string> data_paths = { "../data/airplane.mesh",             //0
+                                            "../data/angel1.mesh",               //1
+                                            "../data/angel2.mesh",               //2
+                                            "../data/angel3.mesh",               //3
+                                            "../data/ant.mesh",                  //4
+                                            "../data/armadillo.mesh",            //5
+                                            "../data/armadillo_deformed.mesh",   //6
+                                            "../data/bimba.mesh",                //7
+                                            "../data/bird.mesh",                 //8
+                                            "../data/blade.mesh",                //9
+                                            "../data/bone.mesh",                 //10
+                                            "../data/bumpy_sphere.mesh",         //11
+                                            "../data/bunny.mesh",                //12
+                                            "../data/buste.mesh",                //13
+                                            "../data/camile_hand.mesh",          //14
+                                            "../data/chamfer.mesh",              //15
+                                            "../data/chinese_dragon.mesh",       //16
+                                            "../data/cubespikes.mesh",           //17
+                                            "../data/david.mesh",                //18
+                                            "../data/devil.mesh",                //19
+                                            "../data/dilo.mesh",                 //20
+                                            "../data/dog.mesh",                  //21
+                                            "../data/duck.mesh",                 //22
+                                            "../data/fandisk.mesh",              //23
+                                            "../data/femur.mesh",                //24
+                                            "../data/foot.mesh",                 //25
+                                            "../data/frog.mesh",                 //26
+                                            "../data/gargoyle.mesh",             //27
+                                            "../data/gear.mesh",                 //28
+                                            "../data/hand.mesh",                 //29
+                                            "../data/hand_olivier.mesh",         //30
+                                            "../data/homer.mesh",                //31
+                                            "../data/horse.mesh",                //32
+                                            "../data/isidora_horse.mesh",        //33
+                                            "../data/lego.mesh",                 //34
+                                            "../data/lion.mesh",                 //35
+                                            "../data/memento.mesh",              //36
+                                            "../data/moai.mesh",                 //37
+                                            "../data/mouse.mesh",                //38
+                                            "../data/octa_flower.mesh",          //39
+                                            "../data/pig.mesh",                  //40
+                                            "../data/ramses.mesh",               //41
+                                            "../data/sphere.mesh",               //42
+                                            "../data/sphinx.mesh",               //43
+                                            "../data/spider.mesh",               //44
+                                            "../data/stag3.mesh",                //45
+                                            "../data/table4.mesh",               //46
+                                            "../data/table4_2.mesh",             //47
+                                            "../data/table8.mesh"                //48
+    };
+
+    std::cout << "Choose a model from the list:" << std::endl;
+    for(int i = 0; i < data_paths.size(); i++) {
+        printf(TXT_BOLDWHITE "[%2d] " TXT_RESET "%-24s", i, get_file_name(data_paths[i], false).c_str());
+        if(i%3 == 2 || i == data_paths.size()-1) std::cout << std::endl;
+        else std::cout << "\t";
+    }
+
+    do {
+        std::cout << "Input: ";
+        std::cin >> choice;
+
+        if(choice < 0 || choice >= data_paths.size())
+            std::cout << "Input not valid... retry" << std::endl;
+    } while(choice < 0 || choice >= data_paths.size());
+
+    return data_paths[choice];
 }
 
 /** ================================================================================================================ **/

@@ -17,57 +17,6 @@ using namespace cinolib;
 
 int main(int argc, char *argv[]) {
 
-    std::vector<std::string> data_paths = { "../data/cubespikes.mesh",           //0
-                                            "../data/armadillo.mesh",            //1
-                                            "../data/bunny.mesh",                //2
-                                            "../data/lego.mesh",                 //3
-                                            "../data/table8.mesh",               //4
-                                            "../data/spider.mesh",               //5
-                                            "../data/ant.mesh",                  //6
-                                            "../data/chinese_dragon.mesh",       //7
-                                            "../data/bimba.mesh",                //8
-                                            "../data/table4.mesh",               //9
-                                            "../data/stag3.mesh",                //10
-                                            "../data/table4_2.mesh",             //11
-                                            "../data/horse.mesh",                //12
-                                            "../data/gear.mesh",                 //13
-                                            "../data/chamfer.mesh",              //14
-                                            "../data/hand_olivier.mesh",         //15
-                                            "../data/sphere.mesh",               //16
-                                            "../data/femur.mesh",                //17
-                                            "../data/fandisk.mesh",              //18
-                                            "../data/frog.mesh",                 //19
-                                            "../data/hand.mesh",                 //20
-                                            "../data/blade.mesh",                //21
-                                            "../data/buste.mesh",                //22
-                                            "../data/memento.mesh",              //23
-                                            "../data/sphinx.mesh",               //24
-                                            "../data/bone.mesh",                 //25
-                                            "../data/foot.mesh",                 //26
-                                            "../data/bird.mesh",                 //27
-                                            "../data/moai.mesh",                 //28
-                                            "../data/airplane.mesh",             //29
-                                            "../data/mouse.mesh",                //30
-                                            "../data/pig.mesh",                  //31
-                                            "../data/isidora_horse.mesh",        //32
-                                            "../data/david.mesh",                //33
-                                            "../data/octa_flower.mesh",          //34
-                                            "../data/duck.mesh",                 //35
-                                            "../data/ramses.mesh",               //36
-                                            "../data/lion.mesh",                 //37
-                                            "../data/armadillo_deformed.mesh",   //38
-                                            "../data/homer.mesh",                //39
-                                            "../data/devil.mesh",                //40
-                                            "../data/camile_hand.mesh",          //41
-                                            "../data/bumpy_sphere.mesh",         //42
-                                            "../data/gargoyle.mesh",             //43
-                                            "../data/dilo.mesh",                 //44
-                                            "../data/angel2.mesh",               //45
-                                            "../data/angel3.mesh",               //46
-                                            "../data/angel1.mesh",               //47
-                                            "../data/dog.mesh"                   //48
-    };
-
     //load the data
     Data data;
     Octree oct;
@@ -89,12 +38,10 @@ int main(int argc, char *argv[]) {
     UI_Mode uiMode = BLANK;
     bool show_target = true;
     bool show_target_matte = false;
-    bool show_stuck_verts = false;
-    bool show_stuck_edges = false;
     bool show_only_adj = false;
     bool show_mov_diff = false;
     std::vector<DrawableArrow> dir_arrows;
-    std::map<uint, vec3d> movements;
+    std::vector<vec3d> movements;
     DrawableSegmentSoup norms;
     DrawableSegmentSoup movs;
     movs.default_color = Color::BLUE();
@@ -157,7 +104,7 @@ int main(int argc, char *argv[]) {
             data.m.updateGL();
         }
 
-        if(ImGui::Button("Old vs New movement")) {
+        if(ImGui::Button("R:Normal/B:Movement")) {
 
             show_mov_diff = !show_mov_diff;
 
@@ -197,32 +144,12 @@ int main(int argc, char *argv[]) {
                 gui.push(&norms, false);
                 gui.push(&movs, false);
 
-            } else { //dont show the displacement
+            } else { //don't show the displacement
                 gui.pop(&norms);
                 gui.pop(&movs);
                 norms.clear();
                 movs.clear();
             }
-
-        }
-
-        if(ImGui::Button("Debug panic")) {
-
-            std::map<uint, vec3d> movements = get_movements(data, 1);
-
-            if(data.step == 0)
-                get_front_dist(data);
-
-            for(uint vid : data.m.get_surface_verts()) {
-                vec3d move = movements[vid];
-                vec3d v = data.m.vert(vid);
-                norms.push_seg(v, v+move);
-            }
-
-            gui.push(&norms, false);
-        }
-
-        if(ImGui::Button("Move single vid")) {
 
         }
 
@@ -252,31 +179,6 @@ int main(int argc, char *argv[]) {
             std::cout << "Min: " << min << std::endl;
             std::cout << "Max: " << max << std::endl << std::endl;
 
-        }
-
-        if(ImGui::Button("Show stuck verts")) {
-            show_stuck_verts = !show_stuck_verts;
-
-            if(show_stuck_verts) {
-                std::cout << TXT_BOLDGREEN << "Showing stuck verts" << TXT_RESET << std::endl;
-                show_stuck_v(data.m, data.stuck_in_place, gui);
-            } else {
-                std::cout << TXT_BOLDGREEN << "Hiding stuck verts" << TXT_RESET << std::endl;
-                gui.pop_all_markers();
-            }
-            data.m.updateGL();
-        }
-
-        if(ImGui::Button("Show stuck edges")) {
-            show_stuck_edges = !show_stuck_edges;
-
-            if(show_stuck_edges)
-                show_stuck_e(data.m, data.stuck_in_place, gui);
-            else
-                data.m.show_marked_edge(false);
-
-            data.m.updateGL_marked();
-            data.m.updateGL();
         }
 
         ImGui::Text("===========================");

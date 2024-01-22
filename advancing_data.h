@@ -60,7 +60,6 @@ typedef struct data {
     //fronts_active
     std::vector<uint> fronts_active;
     std::vector<uint> fronts_bounds;
-    std::set<uint> stuck_in_place;
 
     //gui
     bool render;

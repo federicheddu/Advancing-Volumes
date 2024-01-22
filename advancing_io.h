@@ -14,6 +14,9 @@ void save_data(Data &d);
 void init_model(Data &d);
 void set_param(Data &d);
 
+//get from data
+std::string dataset_string();
+
 //rationals functions
 void set_exact_coords(Data &d);
 void add_last_rationals(Data &d);
