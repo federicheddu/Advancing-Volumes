@@ -25,7 +25,7 @@ void advancing_volume(Data &data) {
     if((data.step != 0 && data.step % data.save_every == 0) || !data.running)
         save_data(data);
 
-    std::cout << TXT_BOLDMAGENTA << "Advancing volume ITERATION " << data.step << TXT_RESET;
+    std::cout << TXT_BOLDMAGENTA << "Advancing volume ITERATION " << data.step << " - Active: " << data.fronts_active.size() << TXT_RESET;
     if(data.running) std::cout << TXT_BOLDGREEN << " DONE" << TXT_RESET << std::endl;
     else std::cout << TXT_BOLDRED << " STOPPED" << TXT_RESET << std::endl;
     std::cout << std::endl;
@@ -99,7 +99,7 @@ void move(Data &d, uint vid, std::vector<vec3d> &movements) {
     if(d.enable_snap_rounding) snap_rounding(d, vid);
 
     //update the mask (note: if the vertex remains stationary for 5 iterations it is deactivated)
-    if(d.m.vert_data(vid).uvw[MOV] == 5 || dist_calc(d, vid, true) < d.eps_inactive)
+    if(d.m.vert_data(vid).uvw[MOV] == 5 || dist_calc(d, vid, true) < d.inactivity_dist)
         d.m.vert_data(vid).label = true;
 
 }
@@ -120,9 +120,6 @@ void refine(Data &d, bool internal) {
 
     if(d.verbose)
         std::cout << TXT_GREEN << "DONE" << TXT_RESET << std::endl;
-
-    if(get_min_edge_length(d) > d.edge_threshold)
-        refine(d, internal);
 }
 
 void final_projection(Data &d) {

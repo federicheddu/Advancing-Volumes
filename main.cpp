@@ -315,9 +315,12 @@ int main(int argc, char *argv[]) {
 
     };
 
+    int under100 = 0;
     if(!data.render) {
-        while(!data.fronts_active.empty() && data.running && data.step < 50)
+        while(!data.fronts_active.empty() && data.running && data.step < 50 && under100 < 10) {
             advancing_volume(data);
+            if(data.fronts_active.size() < 100) under100++;
+        }
     }
 
     return data.render ? gui.launch() : 0;

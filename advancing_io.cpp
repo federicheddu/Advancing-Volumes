@@ -228,8 +228,8 @@ void init_data(Data &data, Octree *oct) {
     std::map<ipair, uint> v_map;
     std::queue<edge_to_flip> edges_to_flip;
     data.rationals = false;
-    std::cout << "Edge threshold: " << data.edge_threshold << std::endl;
-    while(data.m.edge_min_length() > data.edge_threshold / 2) {
+    std::cout << "Edge threshold: " << data.target_edge_length << std::endl;
+    while(data.m.edge_min_length() > data.target_edge_length / 2) {
         std::cout << "Avg edge length: " << data.m.edge_min_length() << std::endl;
 
         edges_to_split.clear();
@@ -348,10 +348,10 @@ void set_param(Data &d) {
     export_surface(d.vol, d.srf);
 
     //edge length threshold
-    d.edge_threshold = d.srf.edge_avg_length();
+    d.target_edge_length = d.srf.edge_avg_length();
 
     //inactive threshold
-    d.eps_inactive = d.edge_threshold * d.eps_percent;
+    d.inactivity_dist = d.target_edge_length * d.eps_percent;
 
 }
 

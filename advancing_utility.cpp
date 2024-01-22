@@ -66,7 +66,7 @@ double get_dist(Data &d, uint vid) {
         vid = d.fronts_active.at(idx);
         //get the distance (if the vert is near the target, use the raycast to get the distance)
         dist = dist_calc(d, vid, false);
-        if (dist < d.eps_inactive * 2)
+        if (dist < d.inactivity_dist * 2)
             dist = dist_calc(d, vid, true, true);
         else
             dist = dist_calc(d, vid, false, true);

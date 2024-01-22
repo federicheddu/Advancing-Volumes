@@ -13,7 +13,7 @@ std::set<uint> search_split(Data &d, bool selective) {
             //check the edge (surface) umbrella
             for(uint eid : d.m.vert_adj_srf_edges(vid))
                 //check if the threshold is passed
-                if(d.m.edge_length(eid) > d.edge_threshold)
+                if(d.m.edge_length(eid) > d.target_edge_length)
                     //for every adj srf poly (face then poly) get the edges
                     for(uint fid : d.m.edge_adj_srf_faces(eid))
                         edges_to_split.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(), d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
@@ -106,7 +106,7 @@ std::set<uint> search_split_int(Data &d) {
     for(uint vid : d.m.get_surface_verts())
         for(uint eid : d.m.adj_v2e(vid))
             if(!d.m.edge_is_on_srf(eid))
-                if(d.m.edge_length(eid) > d.edge_threshold)
+                if(d.m.edge_length(eid) > d.target_edge_length)
                     edges_to_split.insert(eid);
 
     return edges_to_split;

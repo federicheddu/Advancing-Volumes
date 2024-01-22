@@ -14,7 +14,7 @@ void init_fronts(Data &d) {
 void load_fronts(Data &d) {
     for (uint vid : d.m.get_surface_verts()) {
 
-        if(dist_calc(d, vid, true) < d.eps_inactive)
+        if(dist_calc(d, vid, true) < d.inactivity_dist)
             d.m.vert_data(vid).label = true;
         else {
             d.m.vert_data(vid).label = false;
@@ -107,7 +107,7 @@ void get_front_dist(Data &d, bool parallel) {
             uint vid = d.fronts_active.at(idx);
             //get the distance (if the vert is near the target, use the raycast to get the distance)
             double dist = dist_calc(d, vid, false);
-            if (dist < d.eps_inactive * 2)
+            if (dist < d.inactivity_dist * 2)
                 dist = dist_calc(d, vid, true, true);
             else
                 dist = dist_calc(d, vid, false, true);
@@ -125,7 +125,7 @@ void get_front_dist(Data &d, bool parallel) {
             vid = d.fronts_active.at(idx);
             //get the distance (if the vert is near the target, use the raycast to get the distance)
             dist = dist_calc(d, vid, false);
-            if (dist < d.eps_inactive * 2)
+            if (dist < d.inactivity_dist * 2)
                 dist = dist_calc(d, vid, true, true);
             else
                 dist = dist_calc(d, vid, false, true);
