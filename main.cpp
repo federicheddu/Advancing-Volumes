@@ -316,7 +316,7 @@ int main(int argc, char *argv[]) {
     };
 
     if(!data.render) {
-        while(!data.fronts_active.empty() && data.running)
+        while(!data.fronts_active.empty() && data.running && data.step < 50)
             advancing_volume(data);
     }
 

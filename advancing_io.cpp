@@ -348,7 +348,7 @@ void set_param(Data &d) {
     export_surface(d.vol, d.srf);
 
     //edge length threshold
-    d.edge_threshold = d.srf.edge_avg_length() * 1.5;
+    d.edge_threshold = d.srf.edge_avg_length();
 
     //inactive threshold
     d.eps_inactive = d.edge_threshold * d.eps_percent;
