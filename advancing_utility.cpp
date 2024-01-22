@@ -1,5 +1,44 @@
 #include "advancing_utility.h"
 
+//srf min edge length
+double get_min_edge_length(Data &d) {
+    double min_edge = std::numeric_limits<double>::max();
+
+    for(uint eid : d.m.get_surface_edges()) {
+        double edge = d.m.edge_length(eid);
+        if(edge < min_edge) min_edge = edge;
+    }
+
+    return min_edge;
+}
+
+//srf max edge length
+double get_max_edge_length(Data &d) {
+    double max_edge = 0;
+
+    for(uint eid : d.m.get_surface_edges()) {
+        double edge = d.m.edge_length(eid);
+        if(edge > max_edge) max_edge = edge;
+    }
+
+    return max_edge;
+}
+
+//srf avg edge length
+double get_avg_edge_length(Data &d) {
+    double avg_edge = 0;
+    double count = 0;
+
+    for(uint eid : d.m.get_surface_edges()) {
+        avg_edge += d.m.edge_length(eid);
+        count++;
+    }
+
+    return avg_edge / count;
+}
+
+
+
 //calc the distance from the target with a raycast hit
 double dist_calc(Data &d, uint vid, bool raycast, bool flat) {
 
@@ -34,42 +73,6 @@ double get_dist(Data &d, uint vid) {
     }
 
     return dist;
-}
-
-//check if the movement of the vert is safe, if not it goes back by bisection
-bool go_back_safe(Data &d, uint vid, CGAL_Q *rt_pos) {
-
-    int iter_counter = 0;
-    int max_iter = 7;
-    bool same_side = true;
-    bool check = true;
-    CGAL_Q tmp[3];
-
-    //check for intersections (only if on surface)
-    if(d.m.vert_is_on_srf(vid)) {
-        iter_counter = 0;
-        while (check_intersection(d, vid) && iter_counter < max_iter) {
-            midpoint(&d.exact_coords[vid * 3], rt_pos, tmp);
-            copy(tmp, &d.exact_coords[vid * 3]);
-            d.m.vert(vid) = vec3d(CGAL::to_double(d.exact_coords[vid*3+0]),
-                                  CGAL::to_double(d.exact_coords[vid*3+1]),
-                                  CGAL::to_double(d.exact_coords[vid*3+2]));
-            iter_counter++;
-        }
-        //if edge still outside get back the vid
-        if (iter_counter == max_iter && check_intersection(d, vid)) {
-            copy(rt_pos, &d.exact_coords[vid * 3]);
-            d.m.vert(vid) = vec3d(CGAL::to_double(rt_pos[0]),
-                                  CGAL::to_double(rt_pos[1]),
-                                  CGAL::to_double(rt_pos[2]));
-            if(d.ultra_verbose) std::cout << TXT_BOLDRED << "The vert " << vid << " failed the line search for intersection" << TXT_RESET << std::endl;
-            check = false;
-        }
-    }
-
-
-
-    return check;
 }
 
 //check if the poly is flipped (orient3D < 0)
@@ -258,6 +261,7 @@ bool snap_rounding(Data &d, const uint vid)
 
     return flips;
 }
+
 
 
 //get the path of the target model

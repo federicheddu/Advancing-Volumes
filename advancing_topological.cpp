@@ -561,13 +561,12 @@ void unlock_see1(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
 
     std::cout << TXT_BOLDRED << std::endl;
     std::cout << "you should not be here" << std::endl;
+
     std::cout << "unlock_by_edge_split: " << see_target.size() << std::endl;
-
     std::cout << "vid: " << vid << " - fid seen: " << see_target[0] << std::endl;
-
     std::cout << "pid blocking: " << pid << std::endl;
-
     std::cout << "pid adj face: " << TXT_RESET;
+
     std::cout << TXT_BOLDCYAN << d.m.adj_f2p(see_target[0])[0] << " " << TXT_RESET;
     d.m.poly_data(d.m.adj_f2p(see_target[0])[0]).color = Color::CYAN();
     std::cout << TXT_BOLDGREEN << d.m.adj_f2p(see_target[0])[1] << TXT_RESET;
@@ -599,7 +598,8 @@ void unlock_see1(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
         for(auto i : see_target)
             std::cout << "Fid:" << i << " - pid: " << d.m.adj_f2p(i)[0] << " - " << d.m.adj_f2p(i)[1] << std::endl;
     }
-    std::cout << std::endl << std::endl;
+
+    std::cout << std::endl;
 
     std::cout << "Ci sono " << pos.size() << " positivi" << std::endl;
     std::cout << "Ci sono " << neg.size() << " negativi" << std::endl;

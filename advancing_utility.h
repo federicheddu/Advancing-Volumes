@@ -6,11 +6,14 @@
 
 using namespace cinolib;
 
+//srf edge lengths
+double get_min_edge_length(Data &d);
+double get_max_edge_length(Data &d);
+double get_avg_edge_length(Data &d);
+
 //distance calc
 double dist_calc(Data &d, uint vid, bool raycast = false, bool flat = false);
 double get_dist(Data &d, uint vid);
-//line search
-bool go_back_safe(Data &d, uint vid, CGAL_Q *rt_pos);
 //check operations on pids
 bool poly_flipped(Data &d, uint pid);
 //check operations on vids
