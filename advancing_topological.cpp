@@ -395,15 +395,17 @@ void unlock_by_edge_split(Data &d, const uint pid, const uint vid, CGAL_Q *targe
     assert(d.m.poly_contains_vert(pid,vid));
 
     // get how many faces are blocking the movement
+    CGAL_Q orient;
     std::vector<uint> see_target;
     for(uint fid : d.m.adj_p2f(pid))
     {
         auto vids = d.m.face_verts_id(fid);
         if(d.m.poly_face_is_CW(pid,fid)) std::swap(vids[0],vids[1]);
-        if(orient3d(&d.exact_coords[3*vids[0]],
-                    &d.exact_coords[3*vids[1]],
-                    &d.exact_coords[3*vids[2]],
-                    target)<0) see_target.push_back(fid);
+        orient = orient3d(&d.exact_coords[3*vids[0]],
+                          &d.exact_coords[3*vids[1]],
+                          &d.exact_coords[3*vids[2]],
+                          target);
+        if(orient<0) see_target.push_back(fid);
     }
 
     if(see_target.size() == 3)
@@ -559,11 +561,17 @@ void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
 
 void unlock_see1(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<uint> &see_target) {
 
+    CGAL_Q orient = orient3d(&d.exact_coords[d.m.face_vert_id(see_target[0],0)*3],
+                             &d.exact_coords[d.m.face_vert_id(see_target[0],1)*3],
+                             &d.exact_coords[d.m.face_vert_id(see_target[0],2)*3],
+                             exact_target);
+
     std::cout << TXT_BOLDRED << std::endl;
     std::cout << "you should not be here" << std::endl;
-
     std::cout << "unlock_by_edge_split: " << see_target.size() << std::endl;
     std::cout << "vid: " << vid << " - fid seen: " << see_target[0] << std::endl;
+    std::cout << "orient: ";
+    std::cout << orient.exact().numerator() << "/" << orient.exact().denominator() << std::endl;
     std::cout << "pid blocking: " << pid << std::endl;
     std::cout << "pid adj face: " << TXT_RESET;
 

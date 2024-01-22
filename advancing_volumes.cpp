@@ -3,8 +3,8 @@
 //main function
 void advancing_volume(Data &data) {
 
-    std::cout << TXT_BOLDMAGENTA << "Advancing volume ITERATION " << data.step << TXT_RESET << std::endl;
     data.step++;
+    std::cout << TXT_BOLDMAGENTA << "Advancing volume ITERATION " << data.step << TXT_RESET << std::endl;
 
     //clear colors if debug
     if(data.debug_colors) clearColors(data.m);

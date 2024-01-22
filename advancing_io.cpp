@@ -69,7 +69,7 @@ void parse_input(Data &d, int argc, char *argv[]) {
 
                     //target path tip
                     d.load_target = get_target_path(d.load_model);
-                    std::cout << "Is \"" << d.load_target << "\"your target path?" << std::endl;
+                    std::cout << "Is \"" << d.load_target << "\" your target path?" << std::endl;
                     std::cout << "[1] yes [0] no" << std::endl;
                     std::cout << "Input: ";
                     std::cin >> choice;
@@ -89,7 +89,7 @@ void parse_input(Data &d, int argc, char *argv[]) {
 
                     //exact coords tip
                     d.load_exact = get_rationals_path(d.load_model);
-                    std::cout << "Is \"" << d.load_exact << "\" your target path?" << std::endl;
+                    std::cout << "Is \"" << d.load_exact << "\" your rationals path?" << std::endl;
                     std::cout << "[1] yes [0] no" << std::endl;
                     std::cout << "Input: ";
                     std::cin >> choice;
@@ -288,28 +288,34 @@ void load_data(Data &data, Octree *oct) {
 
 void save_data(Data &d) {
 
-    std::cout << std::endl << "SAVING..." << std::endl;
+    if(d.ultra_verbose)
+        std::cout << TXT_BOLDYELLOW << "SAVING..." << TXT_RESET << std::endl;
+
+    //get model name
     std::string name = get_file_name(d.vol.mesh_data().filename, false);
 
-    std::string folder_path = "../" + name + "/";
-    std::cout << "Folder path: " << folder_path << std::endl;
+    //get folder path
+    std::string folder_path = "../results/" + name + "/";
+    system(("mkdir -p " + folder_path).c_str());
+    if(d.ultra_verbose)
+        std::cout << "Folder path: " << folder_path << std::endl;
 
+    //get model path
     std::string mesh_path = folder_path + name + "_" + std::to_string(d.step) + ".mesh";
-    std::cout << "Tetmesh: " << mesh_path << std::endl;
+    if(d.ultra_verbose)
+        std::cout << "Tetmesh: " << mesh_path << std::endl;
 
+    //get rationals path
     std::string rat_path = folder_path + name + "_" + std::to_string(d.step) + ".txt";
-    std::cout << "Rationals: " << rat_path << std::endl;
+    if(d.ultra_verbose)
+        std::cout << "Rationals: " << rat_path << std::endl;
 
-    /*
-    std::string srf_path = folder_path + name + ".obj";
-    std::cout << "Trimesh: " << srf_path << std::endl;
-    */
-
+    //save
     d.m.save(mesh_path.c_str());
     save_rationals(d, rat_path);
-    //d.srf.save(srf_path.c_str());
 
-    std::cout << "DONE" << std::endl;
+    if(d.ultra_verbose)
+        std::cout << "DONE" << std::endl;
 }
 
 void init_model(Data &d) {
@@ -342,7 +348,7 @@ void set_param(Data &d) {
     export_surface(d.vol, d.srf);
 
     //edge length threshold
-    d.edge_threshold = d.srf.edge_avg_length();
+    d.edge_threshold = d.srf.edge_avg_length() * 1.5;
 
     //inactive threshold
     d.eps_inactive = d.edge_threshold * d.eps_percent;
