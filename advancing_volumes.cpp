@@ -98,7 +98,7 @@ void move(Data &d, uint vid) {
     d.exact_coords[vid * 3 + 2] = rt_moved[2];
 
     //put the vert in a safe place between [og_pos, actual_pos]
-    moved = line_refine(d, vid, rt_og_pos);
+    moved = line_search(d, vid, rt_og_pos);
     if(!d.running) return;
     //update how many times in a row the vert is stuck
     if(!moved) d.m.vert_data(vid).uvw[MOV]++;
