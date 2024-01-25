@@ -11,9 +11,10 @@ add_executable(${PROJECT_NAME} main.cpp
                 advancing_topological.cpp advancing_topological.h
                 advancing_front.cpp advancing_front.h
                 advancing_utility.cpp advancing_utility.h
+                advancing_io.cpp advancing_io.h
                 visualization.cpp visualization.h
                 sphere.h sphere.cpp
                 rationals.h rationals.cpp
                 text_format.h
-                advancing_io.cpp advancing_io.h)
+)
 target_link_libraries(${CMAKE_PROJECT_NAME} cinolib CGAL::CGAL)

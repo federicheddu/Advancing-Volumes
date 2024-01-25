@@ -21,10 +21,11 @@ void advancing_volume(Data &data);
 
 //vert operations
 void expand(Data &d);
-void move(Data &d, uint vid, std::vector<vec3d> &movements);
+void move(Data &d, uint vid);
 void refine(Data &d, bool internal = true);
 void final_projection(Data &d);
-std::vector<vec3d> get_movements(Data &d, int iter = 100);
+void compute_movements(Data &d, int iters = 200);
 bool line_search(Data &d, uint vid, CGAL_Q *rt_og_pos);
+bool line_refine(Data &d, uint vid, CGAL_Q *rt_og_pos);
 
 #endif //ADVANCING_VOLUMES_ADVANCING_VOLUMES_H

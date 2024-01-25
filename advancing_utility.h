@@ -30,6 +30,7 @@ bool does_movement_flip(Data &d, uint pid, uint fid, CGAL_Q *target);
 //utility for rationals
 void vert_normal(Data &d, uint vid, CGAL_Q *normal);
 bool check_self_intersection(Data &d);
+vec3d to_double(CGAL_Q *r);
 bool snap_rounding(Data &data, const uint vid);
 
 //file utils

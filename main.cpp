@@ -110,39 +110,37 @@ int main(int argc, char *argv[]) {
 
             if(show_mov_diff) {
 
-                if(data.step == 0)
-                    get_front_dist(data);
+                //vert and displacement
+                vec3d v, d;
 
+                data.m.update_normals();
+                get_front_dist(data);
+
+                //normals (RED)
                 norms.use_gl_lines = true;
                 norms.default_color = Color::RED();
+                for(auto vid : data.fronts_active) {
+                    v = data.m.vert(vid);
+                    d = data.m.vert_data(vid).normal * data.m.vert_data(vid).uvw[DIST] * 0.99;
+                    norms.push_seg(v, v+d);
+                }
+
+                //movement (BLUE)
                 movs.use_gl_lines = true;
                 movs.default_color = Color::BLUE();
-
-                movements = get_movements(data);
-
-                for(int idx = 0; idx < data.fronts_active.size(); idx++) {
-
-                    uint vid = data.fronts_active.at(idx);
-
-                    //normal displacement
-                    vec3d v = data.m.vert(vid);
-                    vec3d n = data.m.vert_data(vid).normal;
-                    double l = data.m.vert_data(vid).uvw[DIST];
-                    vec3d d = n*l;
-                    norms.push_seg(v, v+d);
-
-                    //movement with avg
-                    for(auto avid : data.m.vert_adj_srf_verts(vid)) {
-                        n = data.m.vert_data(avid).normal;
-                        l = data.m.vert_data(avid).uvw[DIST];
-                        d += n*l;
-                    }
-                    d = d / (data.m.vert_adj_srf_verts(vid).size() + 1);
+                compute_movements(data);
+                for(auto vid : data.fronts_active) {
+                    v = data.m.vert(vid);
+                    d = data.m.vert_data(vid).normal;
                     movs.push_seg(v, v+d);
                 }
 
+                //push on gui
                 gui.push(&norms, false);
                 gui.push(&movs, false);
+
+                //restore normals
+                data.m.update_normals();
 
             } else { //don't show the displacement
                 gui.pop(&norms);
@@ -207,6 +205,27 @@ int main(int argc, char *argv[]) {
             }
 
             data.m.updateGL();
+        }
+
+        if(ImGui::Button("Give me distance")) {
+            std::cout << "Vid: " << sel_vid << std::endl;
+            std::cout << "Distance: " << data.m.vert_data(sel_vid).uvw[DIST] << std::endl;
+        }
+
+        if(ImGui::Button("Is active")) {
+            std::cout << "Vid: " << sel_vid << std::endl;
+            if(CONTAINS_VEC(data.fronts_active, sel_vid))
+                std::cout << "Active" << std::endl;
+            else
+                std::cout << "Inactive" << std::endl;
+        }
+
+        if(ImGui::Button("Put marker")) {
+            gui.push_marker(data.m.vert(sel_vid), std::to_string(sel_vid), Color::RED(), 2, 4);
+        }
+
+        if(ImGui::Button("Delete markers")) {
+            gui.pop_all_markers();
         }
 
         ImGui::Text("===========================");

@@ -75,6 +75,8 @@ double get_dist(Data &d, uint vid) {
     return dist;
 }
 
+
+
 //check if the poly is flipped (orient3D < 0)
 bool poly_flipped(Data &d, uint pid) {
 
@@ -100,7 +102,8 @@ bool check_intersection(Data &d, uint vid) {
     //check the umbrella
     for (uint fid : d.m.vert_adj_srf_faces(vid)) {
         vec3d verts[] = {d.m.face_verts(fid)[0], d.m.face_verts(fid)[1], d.m.face_verts(fid)[2]};
-        flag = d.oct->intersects_triangle(verts, false, intersect_ids) || flag;
+        flag = d.oct->intersects_triangle(verts, false, intersect_ids);
+        if(flag) break; //early stop
     }
 
     return flag;
@@ -232,6 +235,11 @@ bool check_self_intersection(Data &d) {
     d.running = !intersection;
 
     return intersection;
+}
+
+
+vec3d to_double(CGAL_Q *r) {
+    return vec3d(CGAL::to_double(r[0]), CGAL::to_double(r[1]), CGAL::to_double(r[2]));
 }
 
 bool snap_rounding(Data &d, const uint vid)
