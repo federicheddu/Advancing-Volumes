@@ -356,10 +356,10 @@ bool topological_unlock(Data &d, uint vid, CGAL_Q *moved, CGAL_Q *move) {
                                     moved[2] + move[2] / 2};
             unlock_by_edge_split(d, pid, vid, unlock_pos);
             counter++;
-            assert(limit > counter && "Raffinato troppo");
+            errorcheck(d, limit > counter, "Sto cercando di ragginare troppo il vertice " + std::to_string(vid));
         }
         if(!d.running) {
-            assert(d.render); //if not rendering end the program
+            errorcheck(d, d.render, "Qualcosa è andato storto nel topological unlock"); //if not rendering end the program
             vec3d flt_moved = vec3d(CGAL::to_double(moved[0]), CGAL::to_double(moved[1]), CGAL::to_double(moved[2]));
             d.gui->push_marker(d.m.vert(vid), "og", Color::BLUE(), 2, 4);
             d.gui->push_marker(flt_moved, "new", Color::BLUE(), 2, 4);
@@ -433,7 +433,7 @@ void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
 
     //error check -- this should never happen
     if(f_hid==-1) {
-        assert(d.render); //if !d.render the program ends
+        errorcheck(d, d.render, "f_hid == -1 in unlock_see3 con vid " + std::to_string(vid)); //if !d.render the program ends
         std::cout << "f_hid: " << f_hid << std::endl;
         std::cout << "see_target: ";
         for(auto fid : see_target) std::cout << fid << " ";
@@ -478,16 +478,20 @@ void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
     }
 
     for(uint pid : d.m.adj_v2p(vid)) {
-        assert(orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
+        errorcheck(d,
+               orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
                         &d.exact_coords[d.m.poly_vert_id(pid, 1)*3],
                         &d.exact_coords[d.m.poly_vert_id(pid, 2)*3],
-                        &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) < 0);
+                        &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) < 0,
+                "L'orient del pid " + std::to_string(pid) + "è risultata sbagliata andando a sbloccare vid " + std::to_string(vid) + " in unlock_see3");
     }
     for(uint pid : d.m.adj_v2p(vfresh)) {
-        assert(orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
-                        &d.exact_coords[d.m.poly_vert_id(pid, 1)*3],
-                       &d.exact_coords[d.m.poly_vert_id(pid, 2)*3],
-                       &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) < 0);
+        errorcheck(d,
+               orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
+                            &d.exact_coords[d.m.poly_vert_id(pid, 1)*3],
+                            &d.exact_coords[d.m.poly_vert_id(pid, 2)*3],
+                            &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) < 0,
+                "L'orient del pid " + std::to_string(pid) + "è risultata sbagliata nel check di vfresh " + std::to_string(vfresh) + "andando a sbloccare il vid " + std::to_string(vid) + " in unlock_see3");
     }
 }
 
@@ -546,16 +550,20 @@ void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
     }
 
     for(uint pid : d.m.adj_v2p(vid)) {
-        assert(orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
+        errorcheck(d,
+                   orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
                         &d.exact_coords[d.m.poly_vert_id(pid, 1)*3],
                         &d.exact_coords[d.m.poly_vert_id(pid, 2)*3],
-                        &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) < 0);
+                        &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) < 0,
+                        "L'orient del pid " + std::to_string(pid) + "è risultata sbagliata andando a sbloccare vid " + std::to_string(vid) + " in unlock_see2");
     }
     for(uint pid : d.m.adj_v2p(new_vid)) {
-        assert(orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
+        errorcheck(d,
+                   orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
                         &d.exact_coords[d.m.poly_vert_id(pid, 1)*3],
                         &d.exact_coords[d.m.poly_vert_id(pid, 2)*3],
-                        &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) < 0);
+                        &d.exact_coords[d.m.poly_vert_id(pid, 3)*3]) < 0,
+                        "L'orient del pid " + std::to_string(pid) + "è risultata sbagliata nel check di new_vid " + std::to_string(new_vid) + "andando a sbloccare il vid " + std::to_string(vid) + " in unlock_see2");
     }
 }
 
@@ -623,7 +631,7 @@ void unlock_see1(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
             std::cout << TXT_BOLDRED << "Ci sono pid collassati (" << pid << ")" << std::endl;
     }
 
-    assert(d.render); //if !d.render the program ends
+    errorcheck(d, d.render, "Entrato in unlock_see1"); //if !d.render the program ends
     d.m.updateGL();
     d.running = false;
 }

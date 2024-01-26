@@ -307,3 +307,58 @@ std::string get_rationals_path(std::string &base) {
 
 void folder_check(std::string &path) {
 }
+
+
+// print the error in the log file and stop the execution with an assert
+void errorcheck(Data &d, bool check, std::string msg) {
+    if(!check) {
+        std::string name = get_file_name(d.load_target, false);
+        std::cout << TXT_BOLDRED << "ERROR " << name << ": " << TXT_RESET << TXT_RED << msg << TXT_RESET << std::endl;
+        filelog(d, msg);
+        assert(false);
+    }
+}
+
+// print the log file
+void filelog(Data &d, std::string msg) {
+
+    //params
+    std::string path = "../results/log.txt";
+    std::string name = get_file_name(d.load_target, false);
+    int step = d.step;
+    int active = d.fronts_active.size();
+    int verts = d.m.num_verts();
+    int srf_verts = d.m.get_surface_verts().size();
+    int polys = d.m.num_polys();
+    double vol = d.m.mesh_volume();
+    int target_verts = d.vol.get_surface_verts().size();
+    double target_vol = d.vol.mesh_volume();
+    double percent = d.m.mesh_volume() / d.vol.mesh_volume();
+
+    //open
+    FILE *f = fopen(path.c_str(), "a");
+    //mesh name
+    fprintf(f, "\n%s;", name.c_str());
+    //step
+    fprintf(f, "%d;", step);
+    //active fronts
+    fprintf(f, "%d;", active);
+    //num of verts
+    fprintf(f, "%d;", verts);
+    //num of srf verts
+    fprintf(f, "%d;", srf_verts);
+    //num of polys
+    fprintf(f, "%d;", polys);
+    //mesh volume
+    fprintf(f, "%f;", vol);
+    //target surface verts
+    fprintf(f, "%d;", target_verts);
+    //target volume
+    fprintf(f, "%f;", target_vol);
+    // % of the volume
+    fprintf(f, "%f;", percent);
+    //msg
+    fprintf(f, "%s;", msg.c_str());
+    //close
+    fclose(f);
+}

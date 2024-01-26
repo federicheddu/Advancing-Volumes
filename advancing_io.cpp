@@ -265,7 +265,7 @@ void load_data(Data &data, Octree *oct) {
     //load rationals
     load_rationals(data);
 
-    assert(data.exact_coords.size() / 3 == data.m.num_verts());
+    errorcheck(data, data.exact_coords.size() / 3 == data.m.num_verts(), "Non torna il numero di vertici nella load");
 
     if(data.render) {
         for(uint vid = 0; vid < data.m.num_verts(); vid++)

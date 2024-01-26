@@ -39,4 +39,7 @@ std::string get_target_path(std::string &base);
 std::string get_rationals_path(std::string &base);
 void folder_check(std::string &path);
 
+void errorcheck(Data &d, bool check, std::string msg);
+void filelog(Data &d, std::string msg);
+
 #endif //ADVANCING_VOLUMES_ADVANCING_UTILITY_H

@@ -54,7 +54,7 @@ void expand(Data &d) {
         //if(d.running % 2 == 0) vid = d.fronts_active.at(idx);
         //else vid = d.fronts_active.at(d.fronts_active.size()-idx-1);
         vid = d.fronts_active.at(idx);
-        assert(d.m.vert_is_on_srf(vid));
+        errorcheck(d, d.m.vert_is_on_srf(vid), "Vert " + std::to_string(vid) + " not on surface");
 
         //displace the vert
         move(d, vid);
@@ -305,7 +305,7 @@ bool line_refine(Data &d, uint vid, CGAL_Q *rt_og_pos) {
 
                 //check if the edge is still intersecting
                 ids.clear();
-                assert(!d.oct->intersects_segment(edge, false, ids) && "Edge still intersecting after restore");
+                errorcheck(d, !d.oct->intersects_segment(edge, false, ids), "Edge still intersecting after restore");
 
                 //rational midpoint
                 midpoint(&d.exact_coords[d.m.edge_vert_id(eid, 0)*3], &d.exact_coords[d.m.edge_vert_id(eid, 1)*3], mid);

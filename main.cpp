@@ -340,6 +340,7 @@ int main(int argc, char *argv[]) {
             advancing_volume(data);
             if(data.fronts_active.size() < 100) under100++;
         }
+        filelog(data, "DONE");
     }
 
     return data.render ? gui.launch() : 0;
