@@ -21,6 +21,8 @@ do
   mkdir -p $RES/$(basename $MESH .mesh)
   #create a log file inside the folder
   touch $RES/$(basename $MESH .mesh)/log.txt
+  #create line for log
+  touch $RES/$(basename $MESH .mesh)/line.txt
 
   #delete every .mesh file in the folder
   rm -f $RES/$(basename $MESH .mesh)/*.mesh

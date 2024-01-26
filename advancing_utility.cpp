@@ -323,8 +323,8 @@ void errorcheck(Data &d, bool check, std::string msg) {
 void filelog(Data &d, std::string msg) {
 
     //params
-    std::string path = "../results/log.txt";
     std::string name = get_file_name(d.load_target, false);
+    std::string path = "../results/" + name + "/line.txt";
     int step = d.step;
     int active = d.fronts_active.size();
     int verts = d.m.num_verts();
@@ -361,4 +361,18 @@ void filelog(Data &d, std::string msg) {
     fprintf(f, "%s;", msg.c_str());
     //close
     fclose(f);
+
+    std::cout << std::endl << std::endl;
+    std::cout << name << "; ";
+    std::cout << step << "; ";
+    std::cout << active << "; ";
+    std::cout << verts << "; ";
+    std::cout << srf_verts << "; ";
+    std::cout << polys << "; ";
+    std::cout << vol << "; ";
+    std::cout << target_verts << "; ";
+    std::cout << target_vol << "; ";
+    std::cout << percent << "; ";
+    std::cout << msg << "; ";
+
 }
