@@ -10,6 +10,10 @@ CNT=0
 #start the execution of the program with every .mesh file in the folder passed as argument, 10 programs in parallel,
 #and, when one of them finishes, start a new one until all the files are processed
 
+touch $RES/log.txt
+echo "" >> $RES/log.txt
+echo "NEW EXECUTION - $(date)" >> $RES/log.txt
+
 for MESH in `find $FLD -name "*.mesh" -type f`
 do
 
