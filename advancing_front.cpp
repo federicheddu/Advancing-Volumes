@@ -106,11 +106,11 @@ void get_front_dist(Data &d, bool parallel) {
             //get the vid
             uint vid = d.fronts_active.at(idx);
             //get the distance (if the vert is near the target, use the raycast to get the distance)
-            double dist = dist_calc(d, vid, false);
-            if (dist < d.inactivity_dist * 2)
-                dist = dist_calc(d, vid, true, true);
-            else
-                dist = dist_calc(d, vid, false, true);
+            double dist = dist_calc(d, vid, true);
+            //if (dist < d.inactivity_dist * 2)
+            //    dist = dist_calc(d, vid, true, true);
+            //else
+            //    dist = dist_calc(d, vid, false, true);
             //save the distance
             d.m.vert_data(vid).uvw[DIST] = dist;
         });
@@ -124,11 +124,11 @@ void get_front_dist(Data &d, bool parallel) {
             //get the vid
             vid = d.fronts_active.at(idx);
             //get the distance (if the vert is near the target, use the raycast to get the distance)
-            dist = dist_calc(d, vid, false);
-            if (dist < d.inactivity_dist * 2)
-                dist = dist_calc(d, vid, true, true);
-            else
-                dist = dist_calc(d, vid, false, true);
+            dist = dist_calc(d, vid, true);
+            //if (dist < d.inactivity_dist * 2)
+            //    dist = dist_calc(d, vid, true, true);
+            //else
+            //    dist = dist_calc(d, vid, false, true);
             //save the distance
             d.m.vert_data(vid).uvw[DIST] = dist;
         }

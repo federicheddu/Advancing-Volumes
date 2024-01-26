@@ -18,6 +18,9 @@ do
   #create a log file inside the folder
   touch $RES/$(basename $MESH .mesh)/log.txt
 
+  #delete every .mesh file in the folder
+  rm -f $RES/$(basename $MESH .mesh)/*.mesh
+
   #append the date to the log file with a blank line before and after
   echo "" >> $RES/$(basename $MESH .mesh)/log.txt
   echo "NEW EXECUTION" >> $RES/$(basename $MESH .mesh)/log.txt

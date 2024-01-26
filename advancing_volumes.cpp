@@ -38,10 +38,14 @@ void expand(Data &d) {
     if(d.verbose) std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET;
     if(d.render) d.gui->pop_all_markers();
 
+    compute_movements(d);
+
     //get all the distances from the target model
     get_front_dist(d, false); //default parallel - add false to get linear
 
-    compute_movements(d);
+    //movement (direction * distance)
+    for(uint vid : d.fronts_active)
+        d.m.vert_data(vid).normal = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * 0.99;
 
     //move every vert in the active front
     for(uint idx = 0; idx < d.fronts_active.size(); idx++) {
@@ -173,21 +177,21 @@ void compute_movements(Data &d, int iters) {
             move = move / (d.m.vert_adj_srf_verts(vid).size()+1);
             move.normalize();
             //check the move is ok
-            fpmoved = move * d.m.vert_data(vid).uvw[DIST] * 0.99;
-            rtmoved[0] = d.exact_coords[vid * 3 + 0] + fpmoved.x();
-            rtmoved[1] = d.exact_coords[vid * 3 + 1] + fpmoved.y();
-            rtmoved[2] = d.exact_coords[vid * 3 + 2] + fpmoved.z();
-            for(uint adj : d.m.adj_v2p(vid))
-                can_smooth = can_smooth && !tet_is_blocking(d, vid, adj, rtmoved);
-            //if smoothing doesn't cause problems
-            if(can_smooth)
+            //fpmoved = move * d.m.vert_data(vid).uvw[DIST] * 0.99;
+            //rtmoved[0] = d.exact_coords[vid * 3 + 0] + fpmoved.x();
+            //rtmoved[1] = d.exact_coords[vid * 3 + 1] + fpmoved.y();
+            //rtmoved[2] = d.exact_coords[vid * 3 + 2] + fpmoved.z();
+            //for(uint adj : d.m.adj_v2p(vid))
+            //    can_smooth = can_smooth && !tet_is_blocking(d, vid, adj, rtmoved);
+            ////if smoothing doesn't cause problems
+            //if(can_smooth)
                 d.m.vert_data(vid).normal = move;
         }
     }
 
     //movement (direction * distance)
-    for(uint vid : d.fronts_active)
-        d.m.vert_data(vid).normal = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * 0.99;
+    //for(uint vid : d.fronts_active)
+    //    d.m.vert_data(vid).normal = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * 0.99;
 
 }
 
