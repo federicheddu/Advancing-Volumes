@@ -90,8 +90,9 @@ void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map
         v_map.emplace(og_edge,new_vid);
 
         //set the activity
-        d.m.vert_data(new_vid).label = false;
+        d.m.vert_data(new_vid).label = dist_calc(d, new_vid, true) < d.inactivity_dist;
         d.m.vert_data(new_vid).uvw[MOV] = 0;
+        if(d.m.vert_data(new_vid).label) d.fronts_active.push_back(new_vid);
     }
 
 }
