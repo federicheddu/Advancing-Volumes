@@ -198,49 +198,47 @@ void compute_movements(Data &d, int iters) {
 //check if the movement of the vert is safe, if not it goes back by bisection
 bool line_search(Data &d, uint vid, CGAL_Q *rt_og_pos) {
 
-    int iter_counter = 0;
+    int bck_cnt = 0, frd_cnt = 0;
     int max_iter = 7;
     bool moved_check = true;
     CGAL_Q mid[3];
-    CGAL_Q curr[3];
+    CGAL_Q final[3];
 
     //moved_check for intersections (only if on surface)
     if(d.m.vert_is_on_srf(vid)) {
 
-        //if the vert is outside the model, push it back by bisection
-        iter_counter = 0;
-        while (check_intersection(d, vid) && iter_counter < max_iter) {
+        //backup the current position
+        copy(&d.exact_coords[vid*3], final);
 
-            //backup the current position
-            copy(&d.exact_coords[vid*3], curr);
-            //bisection
+        //if the vert is outside the model, push it back by bisection
+        bck_cnt = 0;
+        while (bck_cnt < max_iter && check_intersection(d, vid)) {
+            //bisection backward
             midpoint(&d.exact_coords[vid * 3], rt_og_pos, mid);
             copy(mid, &d.exact_coords[vid * 3]);
-            d.m.vert(vid) = vec3d(CGAL::to_double(d.exact_coords[vid*3+0]),
-                                  CGAL::to_double(d.exact_coords[vid*3+1]),
-                                  CGAL::to_double(d.exact_coords[vid*3+2]));
+            d.m.vert(vid) = to_double(mid);
             //how many times the vert is pushed back
-            iter_counter++;
+            bck_cnt++;
         }
 
         //try to push the vert forward by another half if it was pushed back
-        if(iter_counter > 0 && !check_intersection(d, vid)) {
-            midpoint(&d.exact_coords[vid * 3], curr, mid);
+        while(frd_cnt < max_iter && !check_intersection(d, vid)) {
+            //update the safe position
             copy(&d.exact_coords[vid * 3], rt_og_pos);
+            //bisection forward
+            midpoint(&d.exact_coords[vid * 3], final, mid);
             copy(mid, &d.exact_coords[vid * 3]);
-            d.m.vert(vid) = vec3d(CGAL::to_double(d.exact_coords[vid*3+0]),
-                                  CGAL::to_double(d.exact_coords[vid*3+1]),
-                                  CGAL::to_double(d.exact_coords[vid*3+2]));
+            d.m.vert(vid) = to_double(mid);
+            //how many times the vert is pushed forward
+            frd_cnt++;
         }
 
         //if vert still outside get back the vid
-        if (iter_counter > 0 && check_intersection(d, vid)) {
+        if (check_intersection(d, vid)) {
             copy(rt_og_pos, &d.exact_coords[vid * 3]);
-            d.m.vert(vid) = vec3d(CGAL::to_double(rt_og_pos[0]),
-                                  CGAL::to_double(rt_og_pos[1]),
-                                  CGAL::to_double(rt_og_pos[2]));
+            d.m.vert(vid) = to_double(rt_og_pos);
             //if the condition is true the vert has been moved from og_pos
-            moved_check = iter_counter == max_iter;
+            moved_check = frd_cnt > 0;
         }
 
     }
@@ -248,115 +246,4 @@ bool line_search(Data &d, uint vid, CGAL_Q *rt_og_pos) {
     return moved_check;
 }
 
-bool line_refine(Data &d, uint vid, CGAL_Q *rt_og_pos) {
-
-    //max iteration counter
-    int counter = 0;
-    int iters = 7;
-    bool check = true;
-    bool bisected = false;
-    //check for edges
-    uint eid, new_vid;
-    vec3d edge[2];
-    std::vector<uint> adj_eids;
-    bool need_refine = false;
-    //support
-    CGAL_Q *rt_vert = &d.exact_coords[vid*3];
-    vec3d og_pos = to_double(rt_og_pos);
-    CGAL_Q mid[3];
-    vec3d moved = to_double(&d.exact_coords[vid*3]);
-    CGAL_Q rt_moved[3];
-    copy(rt_vert, rt_moved);
-    //aux
-    std::unordered_set<uint> ids;
-
-    //check for intersections (only if on surface)
-    if(d.m.vert_is_on_srf(vid)) {
-
-        //if the vert is outside the model, refine the edges intersecting
-        while(check_intersection(d, vid) && counter < iters) {
-
-            //check if there are edges intersecting
-            adj_eids = d.m.vert_adj_srf_edges(vid);
-            for(int idx = 0; idx < adj_eids.size(); idx++) {
-                eid = adj_eids[idx];
-                edge[0] = d.m.edge_vert(eid, 0);
-                edge[1] = d.m.edge_vert(eid, 1);
-                need_refine = d.oct->intersects_segment(edge, false, ids);
-                if(need_refine) break;
-            }
-
-            //refine the edge to move
-            if(need_refine) {
-
-                //restore og pos
-                d.m.vert(vid) = og_pos;
-                copy(rt_og_pos, rt_vert);
-                edge[0] = d.m.edge_vert(eid, 0);
-                edge[1] = d.m.edge_vert(eid, 1);
-
-                //debug
-                //std::cout << std::endl << " -- Edge to refine: " << eid << std::endl;
-                //std::cout << " -- Edge verts: " << d.m.edge_vert_id(eid, 0) << " " << d.m.edge_vert_id(eid, 1) << std::endl;
-                //d.gui->push_marker(edge[0], std::to_string(d.m.edge_vert_id(eid, 0)), Color::RED(), 2, 4);
-                //d.gui->push_marker(edge[1], std::to_string(d.m.edge_vert_id(eid, 1)), Color::RED(), 2, 4);
-                //d.running = false;
-                //return false;
-
-                //check if the edge is still intersecting
-                ids.clear();
-                errorcheck(d, !d.oct->intersects_segment(edge, false, ids), "Edge still intersecting after restore");
-
-                //rational midpoint
-                midpoint(&d.exact_coords[d.m.edge_vert_id(eid, 0)*3], &d.exact_coords[d.m.edge_vert_id(eid, 1)*3], mid);
-                //refine the edge
-                new_vid = d.m.edge_split(eid);
-                //update data structure
-                d.exact_coords.emplace_back(mid[0]);
-                d.exact_coords.emplace_back(mid[1]);
-                d.exact_coords.emplace_back(mid[2]);
-                d.m.vert(new_vid) = to_double(mid);
-                d.m.vert_data(new_vid).label = false;
-                //restore moved pos
-                d.m.vert(vid) = moved;
-                copy(rt_moved, rt_vert);
-
-            } else { //normal line search
-
-                //bisection
-                midpoint(rt_vert, rt_og_pos, mid);
-                copy(mid, rt_vert);
-                d.m.vert(vid) = to_double(rt_vert);
-                bisected = true;
-            }
-
-            //how many times the vert is pushed back
-            counter++;
-        }
-
-        if(bisected && !check_intersection(d, vid)) {
-
-            //update og pos
-            copy(rt_vert, rt_og_pos);
-            og_pos = d.m.vert(vid);
-            //push forward
-            midpoint(rt_vert, rt_moved, mid);
-            copy(mid, rt_vert);
-            d.m.vert(vid) = to_double(rt_vert);
-        }
-
-        //if vert still outside get back the vid
-        if (counter > 0 && check_intersection(d, vid)) {
-
-            copy(rt_og_pos, &d.exact_coords[vid * 3]);
-            d.m.vert(vid) = vec3d(CGAL::to_double(rt_og_pos[0]),
-                                  CGAL::to_double(rt_og_pos[1]),
-                                  CGAL::to_double(rt_og_pos[2]));
-            //if the condition is true the vert has been moved from og_pos
-            check = counter != iters;
-        }
-    }
-
-    return check;
-}
 /** ================================================================================================================ **/
