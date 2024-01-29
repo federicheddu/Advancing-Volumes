@@ -63,17 +63,9 @@ void deleteArrows(std::vector<DrawableArrow> &dir_arrows, GLcanvas &gui) {
 
 void showFronts(Data &d) {
 
-    clearColors(d.m);
-    std::vector<uint> srf = d.m.get_surface_verts();
-    size_t size = d.m.get_surface_verts().size();
-
-    for(uint vid : srf) {
-        if(d.m.vert_data(vid).label == 0) {
-            d.gui->push_marker(d.m.vert(vid), "", Color::RED(), 2, 4);
-        } else {
-            d.gui->push_marker(d.m.vert(vid), "", Color::GREEN(), 2, 4);
-        }
-    }
+    d.gui->pop_all_markers();
+    for(auto vid : d.fronts_active)
+        d.gui->push_marker(d.m.vert(vid), "", Color::RED(), 2, 4);
 
 }
 
