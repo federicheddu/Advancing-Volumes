@@ -1,6 +1,6 @@
 #include "visualization.h"
 
-void UI_Manager(DrawableTetmesh<> &m , UI_Mode uiMode, Octree *oct, std::vector<DrawableArrow> &dir_arrows, std::vector<uint> &active_fronts, GLcanvas &gui) {
+void UI_Manager(Data &d, UI_Mode uiMode, std::vector<DrawableArrow> &dir_arrows) {
     static UI_Mode prev = BLANK;
 
     if(prev == BLANK && uiMode == BLANK)
@@ -8,27 +8,27 @@ void UI_Manager(DrawableTetmesh<> &m , UI_Mode uiMode, Octree *oct, std::vector<
 
     switch (uiMode) {
         case BLANK: {
-            clearColors(m);
-            deleteArrows(dir_arrows, gui);
+            clearColors(d.m);
+            deleteArrows(dir_arrows, *d.gui);
             break;
         }
         case HIGHLIGHT: {
-            highlightModel(m);
+            highlightModel(d.m);
             break;
         }
         case DIRECTION: {
             if (prev != DIRECTION)
-                showArrows(m, oct, dir_arrows, active_fronts, gui);
+                showArrows(d.m, d.oct, dir_arrows, d.fronts_active, *d.gui);
             else
-                deleteArrows(dir_arrows, gui);
+                deleteArrows(dir_arrows, *d.gui);
             break;
         }
         case FRONTS: {
-            showFronts(m);
+            showFronts(d);
             break;
         }
         case VOLUME: {
-            showVolume(m);
+            showVolume(d.m);
             break;
         }
     }
@@ -61,18 +61,19 @@ void deleteArrows(std::vector<DrawableArrow> &dir_arrows, GLcanvas &gui) {
 
 }
 
-void showFronts(DrawableTetmesh<> &m) {
+void showFronts(Data &d) {
 
-    clearColors(m);
+    clearColors(d.m);
+    std::vector<uint> srf = d.m.get_surface_verts();
+    size_t size = d.m.get_surface_verts().size();
 
-    PARALLEL_FOR(0, m.get_surface_verts().size(), 1000, [&](uint idx)
-    {
-        uint vid = m.get_surface_verts().at(idx);
-
-        if(m.vert_data(vid).label)
-            for(uint pid : m.adj_v2p(vid))
-                m.poly_data(pid).color = Color(176.f/255.f, 236.f/255.f, 255.f/255.f);
-    });
+    for(uint vid : srf) {
+        if(d.m.vert_data(vid).label == 0) {
+            d.gui->push_marker(d.m.vert(vid), "", Color::RED(), 2, 4);
+        } else {
+            d.gui->push_marker(d.m.vert(vid), "", Color::GREEN(), 2, 4);
+        }
+    }
 
 }
 

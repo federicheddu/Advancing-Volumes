@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
 
     //visualization
     UI_Mode uiMode = BLANK;
+    bool show_fronts = false;
     bool show_target = true;
     bool show_target_matte = false;
     bool show_only_adj = false;
@@ -65,7 +66,7 @@ int main(int argc, char *argv[]) {
             advancing_volume(data);
 
             //update UI
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            UI_Manager(data, uiMode, dir_arrows);
             data.m.updateGL();
         }
 
@@ -78,7 +79,7 @@ int main(int argc, char *argv[]) {
             }
 
             //update model and UI
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            UI_Manager(data, uiMode, dir_arrows);
             data.m.updateGL();
         }
 
@@ -89,7 +90,7 @@ int main(int argc, char *argv[]) {
 
             //update model and UI
             data.m.update_normals();
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            UI_Manager(data, uiMode, dir_arrows);
             data.m.updateGL();
         }
 
@@ -100,7 +101,7 @@ int main(int argc, char *argv[]) {
             while(!data.fronts_active.empty() && data.running)
                 advancing_volume(data);
 
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            UI_Manager(data, uiMode, dir_arrows);
             data.m.updateGL();
         }
 
@@ -254,7 +255,7 @@ int main(int argc, char *argv[]) {
             data.fronts_bounds = undo_data.fronts_bounds;
 
             //UI
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            UI_Manager(data, uiMode, dir_arrows);
 
             //re-push on gui
             gui.push(&data.m, false);
@@ -271,7 +272,7 @@ int main(int argc, char *argv[]) {
             data.fronts_bounds = reset_data.fronts_bounds;
 
             //UI
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            UI_Manager(data, uiMode, dir_arrows);
 
             //re-push on gui
             gui.push(&data.m, false);
@@ -286,20 +287,20 @@ int main(int argc, char *argv[]) {
 
         if(ImGui::Button("Clear UI")) {
             uiMode = BLANK;
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            UI_Manager(data, uiMode, dir_arrows);
             data.m.updateGL();
         }
 
         if(ImGui::Button("Highlight model")) {
             uiMode = HIGHLIGHT;
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            UI_Manager(data, uiMode, dir_arrows);
             data.m.updateGL();
         }
 
         if(ImGui::Button("Show Fronts")) {
-            uiMode = FRONTS;
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
-            data.m.updateGL();
+            show_fronts = !show_fronts;
+            if(show_fronts) showFronts(data);
+            else data.gui->pop_all_markers();
         }
 
         if(ImGui::Button("Show Target")) {
@@ -312,14 +313,16 @@ int main(int argc, char *argv[]) {
             else data.vol.show_mesh_points();
         }
 
+        /*
         if(ImGui::Button("Show vert direction")) {
             uiMode = DIRECTION;
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            UI_Manager(data, uiMode, dir_arrows);
         }
+        */
 
         if(ImGui::Button("Show orient3D sign")) {
             uiMode = VOLUME;
-            UI_Manager(data.m, uiMode, data.oct, dir_arrows, data.fronts_active, gui);
+            UI_Manager(data, uiMode, dir_arrows);
             data.m.updateGL();
         }
 
