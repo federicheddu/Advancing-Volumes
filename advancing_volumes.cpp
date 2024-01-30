@@ -34,28 +34,31 @@ void advancing_volume(Data &data) {
 //move the verts toward the target
 void expand(Data &d) {
 
-    uint vid;
+    //prints for status
     if(d.verbose) std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET;
     if(d.render) d.gui->pop_all_markers();
 
+    //priority queue for the front
+    auto cmp = [&](uint a, uint b) { return d.m.vert_data(a).uvw[DIST] > d.m.vert_data(b).uvw[DIST]; };
+
+    //get the directions
     compute_movements(d);
 
     //get all the distances from the target model
-    get_front_dist(d, false); //default parallel - add false to get linear
+    get_front_dist(d, false);
 
     //movement (direction * distance)
-    for(uint vvid : d.fronts_active)
-        d.m.vert_data(vvid).normal = d.m.vert_data(vvid).normal * d.m.vert_data(vvid).uvw[DIST] * 0.99;
+    for(uint vid : d.fronts_active)
+        d.m.vert_data(vid).normal = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * 0.99;
 
+    //sort the front in descending order (from the farthest to the closest)
+    std::sort(d.fronts_active.begin(), d.fronts_active.end(), cmp);
     //move every vert in the active front
-    for(uint idx = 0; idx < d.fronts_active.size(); idx++) {
-
-        vid = d.fronts_active.at(idx);
+    for(auto vid : d.fronts_active) {
+        //assert
         errorcheck(d, d.m.vert_is_on_srf(vid), "Vert " + std::to_string(vid) + " not on surface");
-
         //displace the vert
         move(d, vid);
-
         //if something went wrong stall everything
         if(!d.running) return;
     }
