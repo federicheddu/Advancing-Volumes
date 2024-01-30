@@ -13,7 +13,7 @@ void advancing_volume(Data &data) {
     if(data.running) expand(data);
     if(data.running && data.check_intersections) check_self_intersection(data);
     //refinement
-    if(data.running) refine(data);
+    if(data.running) do { refine(data); } while (get_avg_edge_length(data) > data.target_edge_length);
     add_last_rationals(data);
     //front update
     update_fronts(data);
@@ -44,15 +44,12 @@ void expand(Data &d) {
     get_front_dist(d, false); //default parallel - add false to get linear
 
     //movement (direction * distance)
-    for(uint vid : d.fronts_active)
-        d.m.vert_data(vid).normal = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * 0.99;
+    for(uint vvid : d.fronts_active)
+        d.m.vert_data(vvid).normal = d.m.vert_data(vvid).normal * d.m.vert_data(vvid).uvw[DIST] * 0.99;
 
     //move every vert in the active front
     for(uint idx = 0; idx < d.fronts_active.size(); idx++) {
 
-        //get the vid
-        //if(d.running % 2 == 0) vid = d.fronts_active.at(idx);
-        //else vid = d.fronts_active.at(d.fronts_active.size()-idx-1);
         vid = d.fronts_active.at(idx);
         errorcheck(d, d.m.vert_is_on_srf(vid), "Vert " + std::to_string(vid) + " not on surface");
 
