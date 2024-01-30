@@ -233,6 +233,7 @@ bool check_self_intersection(Data &d) {
         std::cout << TXT_BOLDGREEN << "PASSED" << TXT_RESET << std::endl;
 
     d.running = !intersection;
+    if(d.running) errorcheck(d, d.render, "Self-intersection detected");
 
     return intersection;
 }
