@@ -36,7 +36,7 @@ do
   #echo the name and the time of start of the execution of the program
   echo "[$CNT] Executing $(basename $MESH .mesh) at $(date)"
   #start the execution of the program with the mesh file passed as argument
-  timeout 1h $EXE $MESH 1 >> $RES/$(basename $MESH .mesh)/log.txt &
+  timeout 2h $EXE $MESH 1 >> $RES/$(basename $MESH .mesh)/log.txt &
   #increment the counter
   ((CNT++))
   #wait until there are more than 10 programs running
@@ -46,3 +46,5 @@ do
   done
 
 done
+
+echo "End - ($(date))" >> $RES/log.txt
