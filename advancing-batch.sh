@@ -1,9 +1,14 @@
 #!/bin/bash
 
-#set the folders
-FLD=/home/federico/Documents/GitHub/Advancing-Volumes/data/
-RES=/home/federico/Documents/GitHub/Advancing-Volumes/results
-EXE=/home/federico/Documents/GitHub/Advancing-Volumes/cmake-build-release/Advancing-Volumes
+#set the folders (linux)
+#FLD=/home/federico/Documents/GitHub/Advancing-Volumes/data/
+#RES=/home/federico/Documents/GitHub/Advancing-Volumes/results
+#EXE=/home/federico/Documents/GitHub/Advancing-Volumes/cmake-build-release/Advancing-Volumes
+#set the folders (mac)
+FLD=/Users/federicomeloni/Documents/GitHub/Advancing-Volumes/data/
+RES=/Users/federicomeloni/Documents/GitHub/Advancing-Volumes/results
+EXE=/Users/federicomeloni/Documents/GitHub/Advancing-Volumes/cmake-build-release/Advancing-Volumes
+
 #execution counter
 CNT=0
 
@@ -35,8 +40,11 @@ do
 
   #echo the name and the time of start of the execution of the program
   echo "[$CNT] Executing $(basename $MESH .mesh) at $(date)"
+
   #start the execution of the program with the mesh file passed as argument
-  timeout 2h $EXE $MESH 1 >> $RES/$(basename $MESH .mesh)/log.txt &
+  #timeout 2h $EXE $MESH 1 >> $RES/$(basename $MESH .mesh)/log.txt &
+  gtimeout 30m $EXE $MESH 1 >> $RES/$(basename $MESH .mesh)/log.txt &
+
   #increment the counter
   ((CNT++))
   #wait until there are more than 10 programs running
