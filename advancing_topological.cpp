@@ -92,7 +92,7 @@ void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map
         //set the activity
         d.m.vert_data(new_vid).label = dist_calc(d, new_vid, true) < d.inactivity_dist;
         d.m.vert_data(new_vid).uvw[MOV] = 0;
-        if(d.m.vert_data(new_vid).label) d.fronts_active.push_back(new_vid);
+        if(!d.m.vert_data(new_vid).label) d.fronts_active.push_back(new_vid);
     }
 
 }
@@ -459,10 +459,17 @@ void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
     d.exact_coords.push_back(P[0]);
     d.exact_coords.push_back(P[1]);
     d.exact_coords.push_back(P[2]);
-    if(d.render || d.m.vert_is_on_srf(vid))
-        d.m.vert(vfresh) = vec3d(CGAL::to_double(P[0]),CGAL::to_double(P[1]),CGAL::to_double(P[2]));
-    if(d.enable_snap_rounding)
-        snap_rounding(d, vfresh);
+    //update the floating point coords only if rendering or if on srf
+    if(d.render || d.m.vert_is_on_srf(vid)) d.m.vert(vfresh) = to_double(P);
+    //snap rationals to the closest floating point
+    if(d.enable_snap_rounding) snap_rounding(d, vfresh);
+
+    //set params of the vert
+    if(d.m.vert_is_on_srf(vfresh)) {
+        d.m.vert_data(vfresh).label = dist_calc(d, vfresh, true) < d.inactivity_dist;
+        d.m.vert_data(vfresh).uvw[MOV] = 0;
+        if(!d.m.vert_data(vfresh).label) d.fronts_active.push_back(vfresh);
+    }
 
     // ultra verbose -- give pid of the new polys
     if(d.ultra_verbose) {
@@ -533,23 +540,33 @@ void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
     d.exact_coords.push_back(P[0]);
     d.exact_coords.push_back(P[1]);
     d.exact_coords.push_back(P[2]);
-    if(d.render || d.m.vert_is_on_srf(new_vid))
-        d.m.vert(new_vid) = vec3d(CGAL::to_double(P[0]),CGAL::to_double(P[1]),CGAL::to_double(P[2]));
+    //update the floating point coords only if rendering or if on srf
+    if(d.render || d.m.vert_is_on_srf(new_vid)) d.m.vert(new_vid) = to_double(P);
+    //snap rationals to the closest floating point
+    if(d.enable_snap_rounding) snap_rounding(d, new_vid);
+
+    //set params of the vert
+    if(d.m.vert_is_on_srf(new_vid)) {
+        d.m.vert_data(new_vid).label = dist_calc(d, new_vid, true) < d.inactivity_dist;
+        d.m.vert_data(new_vid).uvw[MOV] = 0;
+        if(!d.m.vert_data(new_vid).label) d.fronts_active.push_back(new_vid);
+    }
 
     // ultra verbose -- give pid of the new polys
-    if(d.ultra_verbose) {
+    if (d.ultra_verbose) {
         std::cout << "new poly: ";
-        for (uint pid : d.m.adj_v2p(new_vid))
+        for (uint pid: d.m.adj_v2p(new_vid))
             if (pid >= num_polys) std::cout << pid << " ";
         std::cout << std::endl;
     }
     // debug -- color the new polys
-    if(d.debug_colors) {
-        for (uint pid : d.m.adj_v2p(new_vid))
+    if (d.debug_colors) {
+        for (uint pid: d.m.adj_v2p(new_vid))
             if (pid >= num_polys)
                 d.m.poly_data(pid).color = Color::MAGENTA();
     }
 
+    //sanity checks
     for(uint pid : d.m.adj_v2p(vid)) {
         errorcheck(d,
                    orient3d(&d.exact_coords[d.m.poly_vert_id(pid, 0)*3],
