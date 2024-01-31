@@ -98,24 +98,7 @@ void front_from_seed(Data &d, uint seed, std::unordered_set<uint> &front) {
 
 }
 
-void get_front_dist(Data &d, bool parallel) {
-
-    if (parallel) {
-
-        PARALLEL_FOR(0, d.fronts_active.size(), 1000, [&](int idx) {
-            //get the vid
-            uint vid = d.fronts_active.at(idx);
-            //get the distance (if the vert is near the target, use the raycast to get the distance)
-            double dist = dist_calc(d, vid, true);
-            if (dist < d.inactivity_dist * 2)
-                dist = dist_calc(d, vid, true, true);
-            else
-                dist = dist_calc(d, vid, false, true);
-            //save the distance
-            d.m.vert_data(vid).uvw[DIST] = dist;
-        });
-
-    } else { //not parallel - linear
+void get_front_dist(Data &d, bool only_ray) {
 
         uint vid;
         double dist;
@@ -125,14 +108,12 @@ void get_front_dist(Data &d, bool parallel) {
             vid = d.fronts_active.at(idx);
             //get the distance (if the vert is near the target, use the raycast to get the distance)
             dist = dist_calc(d, vid, true);
-            if (dist < d.inactivity_dist * 2)
-                dist = dist_calc(d, vid, true, true);
-            else
-                dist = dist_calc(d, vid, false, true);
+            if(!only_ray) {
+                if(dist < d.inactivity_dist * 2) dist = dist_calc(d, vid, true, true);
+                else dist = dist_calc(d, vid, false, true);
+            }
             //save the distance
             d.m.vert_data(vid).uvw[DIST] = dist;
         }
-
-    }
 
 }

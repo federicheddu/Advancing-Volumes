@@ -45,7 +45,7 @@ void expand(Data &d) {
     compute_movements(d);
 
     //get all the distances from the target model
-    get_front_dist(d, false);
+    get_front_dist(d, true);
 
     //movement (direction * distance)
     for(uint vid : d.fronts_active)
