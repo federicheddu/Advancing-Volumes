@@ -77,7 +77,7 @@ void plane_line_intersection(const CGAL_Q * p0,
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-void copy(const CGAL_Q * pa, CGAL_Q * pb);
+void copy(const CGAL_Q * src, CGAL_Q * dst);
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

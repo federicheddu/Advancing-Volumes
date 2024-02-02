@@ -6,3 +6,4 @@ build
 results/*/*.mesh
 results/*/*.txt
 !results/**/line.txt
+results/log.csv

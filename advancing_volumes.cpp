@@ -14,6 +14,7 @@ void advancing_volume(Data &data) {
     if(data.running && data.check_intersections) check_self_intersection(data);
     //refinement
     if(data.running) do { refine(data); } while (get_avg_edge_length(data) > data.target_edge_length);
+    if(data.running) refine(data);
     add_last_rationals(data);
     //front update
     update_fronts(data);
@@ -32,7 +33,7 @@ void advancing_volume(Data &data) {
 }
 
 //move the verts toward the target
-void expand(Data &d) {
+void expand(Data &d, bool priority) {
 
     //prints for status
     if(d.verbose) std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET;
@@ -52,7 +53,7 @@ void expand(Data &d) {
         d.m.vert_data(vid).normal = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * 0.99;
 
     //sort the front in descending order (from the farthest to the closest)
-    std::sort(d.fronts_active.begin(), d.fronts_active.end(), cmp);
+    if(priority) std::sort(d.fronts_active.begin(), d.fronts_active.end(), cmp);
     //move every vert in the active front
     for(auto vid : d.fronts_active) {
         //assert
@@ -94,12 +95,8 @@ void move(Data &d, uint vid) {
     if(!d.running) return;
 
     //update the vert (+ rationals)
-    d.m.vert(vid) = vec3d(CGAL::to_double(rt_moved[0]),
-                          CGAL::to_double(rt_moved[1]),
-                          CGAL::to_double(rt_moved[2]));
-    d.exact_coords[vid * 3 + 0] = rt_moved[0];
-    d.exact_coords[vid * 3 + 1] = rt_moved[1];
-    d.exact_coords[vid * 3 + 2] = rt_moved[2];
+    d.m.vert(vid) = to_double(rt_moved);
+    copy(rt_moved, &d.exact_coords[vid*3]);
 
     //put the vert in a safe place between [og_pos, actual_pos]
     moved = line_search(d, vid, rt_og_pos);
@@ -177,6 +174,7 @@ void compute_movements(Data &d, int iters) {
             move = move / (d.m.vert_adj_srf_verts(vid).size()+1);
             move.normalize();
             //check the move is ok
+            /*
             //fpmoved = move * d.m.vert_data(vid).uvw[DIST] * 0.99;
             //rtmoved[0] = d.exact_coords[vid * 3 + 0] + fpmoved.x();
             //rtmoved[1] = d.exact_coords[vid * 3 + 1] + fpmoved.y();
@@ -185,6 +183,7 @@ void compute_movements(Data &d, int iters) {
             //    can_smooth = can_smooth && !tet_is_blocking(d, vid, adj, rtmoved);
             ////if smoothing doesn't cause problems
             //if(can_smooth)
+             */
                 d.m.vert_data(vid).normal = move;
         }
     }
@@ -196,7 +195,7 @@ void compute_movements(Data &d, int iters) {
 }
 
 //check if the movement of the vert is safe, if not it goes back by bisection
-bool line_search(Data &d, uint vid, CGAL_Q *rt_og_pos) {
+bool line_search(Data &d, uint vid, CGAL_Q *rt_og_pos, bool forward) {
 
     int bck_cnt = 0, frd_cnt = 0;
     int max_iter = 7;
@@ -222,25 +221,26 @@ bool line_search(Data &d, uint vid, CGAL_Q *rt_og_pos) {
         }
 
         //try to push the vert forward by another half if it was pushed back
-        while(frd_cnt < max_iter && !check_intersection(d, vid)) {
-            //update the safe position
-            copy(&d.exact_coords[vid * 3], rt_og_pos);
-            //bisection forward
-            midpoint(&d.exact_coords[vid * 3], final, mid);
-            copy(mid, &d.exact_coords[vid * 3]);
-            d.m.vert(vid) = to_double(mid);
-            //how many times the vert is pushed forward
-            frd_cnt++;
+        if(forward) {
+            while (frd_cnt < max_iter && !check_intersection(d, vid)) {
+                //update the safe position
+                copy(&d.exact_coords[vid * 3], rt_og_pos);
+                //bisection forward
+                midpoint(&d.exact_coords[vid * 3], final, mid);
+                copy(mid, &d.exact_coords[vid * 3]);
+                d.m.vert(vid) = to_double(mid);
+                //how many times the vert is pushed forward
+                frd_cnt++;
+            }
         }
 
         //if vert still outside get back the vid
-        if (check_intersection(d, vid)) {
+        if(check_intersection(d, vid)) {
             copy(rt_og_pos, &d.exact_coords[vid * 3]);
             d.m.vert(vid) = to_double(rt_og_pos);
             //if the condition is true the vert has been moved from og_pos
             moved_check = frd_cnt > 0;
         }
-
     }
 
     return moved_check;

@@ -84,11 +84,11 @@ void midpoint(const CGAL_Q * pa,
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-void copy(const CGAL_Q * pa, CGAL_Q * pb)
+void copy(const CGAL_Q * src, CGAL_Q * dst)
 {
-    pb[0] = pa[0];
-    pb[1] = pa[1];
-    pb[2] = pa[2];
+    dst[0] = src[0];
+    dst[1] = src[1];
+    dst[2] = src[2];
 }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

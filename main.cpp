@@ -24,8 +24,6 @@ int main(int argc, char *argv[]) {
 
     //UI
     GLcanvas gui(1080, 720);
-    gui.side_bar_alpha = 0.8;
-    gui.depth_cull_markers = false;
     data.gui = &gui;
 
     //gui push
@@ -70,26 +68,45 @@ int main(int argc, char *argv[]) {
             data.m.updateGL();
         }
 
-        if(ImGui::Button("Expand and Refine x10"))  {
+        if(ImGui::Button("Expand"))  {
             undo_data = data;
 
-            for(int i = 0; i < 10 && data.running; i++) {
-                std::cout << TXT_BOLDMAGENTA << "Iter: " << i+1 << TXT_RESET << std::endl;
-                advancing_volume(data);
-            }
+            //clear colors if debug
+            if(data.debug_colors) clearColors(data.m);
+            //expansion
+            if(data.running) expand(data);
+            if(data.running && data.check_intersections) check_self_intersection(data);
 
             //update model and UI
             UI_Manager(data, uiMode, dir_arrows);
             data.m.updateGL();
         }
 
-        if(ImGui::Button("Projection")) {
+        if(ImGui::Button("Refine")) {
             undo_data = data;
 
-            final_projection(data);
+            //clear colors if debug
+            if(data.debug_colors) clearColors(data.m);
+            //refinement
+            if(data.running) do { refine(data); } while (get_avg_edge_length(data) > data.target_edge_length);
+            add_last_rationals(data);
 
             //update model and UI
+            UI_Manager(data, uiMode, dir_arrows);
+            data.m.updateGL();
+        }
+
+        if(ImGui::Button("Update Fronts")) {
+            undo_data = data;
+
+            //clear colors if debug
+            if(data.debug_colors) clearColors(data.m);
+            //front update
+            update_fronts(data);
+            //update normals
             data.m.update_normals();
+
+            //update model and UI
             UI_Manager(data, uiMode, dir_arrows);
             data.m.updateGL();
         }

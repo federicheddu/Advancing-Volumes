@@ -20,12 +20,11 @@ using namespace cinolib;
 void advancing_volume(Data &data);
 
 //vert operations
-void expand(Data &d);
+void expand(Data &d, bool priority = false);
 void move(Data &d, uint vid);
 void refine(Data &d, bool internal = true);
 void final_projection(Data &d);
 void compute_movements(Data &d, int iters = 200);
-bool line_search(Data &d, uint vid, CGAL_Q *rt_og_pos);
-bool line_refine(Data &d, uint vid, CGAL_Q *rt_og_pos);
+bool line_search(Data &d, uint vid, CGAL_Q *rt_og_pos, bool forward = true);
 
 #endif //ADVANCING_VOLUMES_ADVANCING_VOLUMES_H
