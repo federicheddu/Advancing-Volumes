@@ -10,11 +10,11 @@ void advancing_volume(Data &data) {
     if(data.debug_colors) clearColors(data.m);
 
     //model expansion
-    if(data.running) expand(data, false);
+    if(data.running) expand(data, true);
     if(data.running && data.check_intersections) check_self_intersection(data);
     //refinement
-    //if(data.running) do { refine(data); } while (get_avg_edge_length(data) > data.target_edge_length);
-    if(data.running) refine(data);
+    if(data.running) do { refine(data); } while (get_avg_edge_length(data) > data.target_edge_length);
+    //if(data.running) refine(data);
     add_last_rationals(data);
     //front update
     update_fronts(data);
@@ -99,7 +99,7 @@ void move(Data &d, uint vid) {
     copy(rt_moved, &d.exact_coords[vid*3]);
 
     //put the vert in a safe place between [og_pos, actual_pos]
-    moved = line_search(d, vid, rt_og_pos, false);
+    moved = line_search(d, vid, rt_og_pos, true);
     if(!d.running) return;
     //update how many times in a row the vert is stuck
     if(!moved) d.m.vert_data(vid).uvw[MOV]++;
