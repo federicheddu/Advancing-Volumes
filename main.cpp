@@ -57,250 +57,280 @@ int main(int argc, char *argv[]) {
     //GUI button callbacks
     if(data.render) gui.callback_app_controls = [&]() {
 
-        if(ImGui::Button("Expand and Refine")) {
-            //undo backup
-            undo_data = data;
+        //parameters checkbox for execution
+        if(ImGui::TreeNode("Params")) {
 
-            advancing_volume(data);
+            ImGui::Text("Line Search");
+            ImGui::Checkbox("Line Search", &data.line_search);
+            ImGui::Checkbox("Forward LS", &data.forward_line_search);
 
-            //update UI
-            UI_Manager(data, uiMode, dir_arrows);
-            data.m.updateGL();
+            ImGui::Text("Movement");
+            ImGui::Checkbox("Only Raycast", &data.only_raycast);
+            ImGui::Checkbox("Priority Queue", &data.priority_queue);
+            ImGui::Checkbox("Check Intersection", &data.check_intersections);
+
+            ImGui::Text("Refinement");
+            ImGui::Checkbox("Internal Refinement", &data.internal_refinement);
+            ImGui::Checkbox("Multiple Refinement", &data.multiple_refinement);
+
+            ImGui::Text("Optimization");
+            ImGui::Checkbox("Smoothing", &data.smoothing);
+            ImGui::InputInt("Iters", &data.smooth_iters);
+
+            ImGui::Text("Text and debug options");
+            ImGui::Checkbox("Verbose", &data.verbose);
+            ImGui::Checkbox("Ultra Verbose", &data.ultra_verbose);
+            ImGui::Checkbox("Debug Colors", &data.debug_colors);
+
+            ImGui::Text("Other");
+            ImGui::Checkbox("Snap Rounding", &data.enable_snap_rounding);
         }
 
-        if(ImGui::Button("Expand"))  {
-            undo_data = data;
+        if(ImGui::TreeNode("Advancing Volume")) {
 
-            //clear colors if debug
-            if(data.debug_colors) clearColors(data.m);
-            //expansion
-            if(data.running) expand(data);
-            if(data.running && data.check_intersections) check_self_intersection(data);
-
-            //update model and UI
-            UI_Manager(data, uiMode, dir_arrows);
-            data.m.updateGL();
-        }
-
-        if(ImGui::Button("Refine")) {
-            undo_data = data;
-
-            //clear colors if debug
-            if(data.debug_colors) clearColors(data.m);
-            //refinement
-            if(data.running) do { refine(data); } while (get_avg_edge_length(data) > data.target_edge_length);
-            add_last_rationals(data);
-
-            //update model and UI
-            UI_Manager(data, uiMode, dir_arrows);
-            data.m.updateGL();
-        }
-
-        if(ImGui::Button("Update Fronts")) {
-            undo_data = data;
-
-            //clear colors if debug
-            if(data.debug_colors) clearColors(data.m);
-            //front update
-            update_fronts(data);
-            //update normals
-            data.m.update_normals();
-
-            //update model and UI
-            UI_Manager(data, uiMode, dir_arrows);
-            data.m.updateGL();
-        }
-
-        if(ImGui::Button("Go until convergence")) {
-
-            data.ultra_verbose = false;
-
-            while(!data.fronts_active.empty() && data.running)
+            //my algorithm
+            if (ImGui::Button("Advancing Volume")) {
+                //undo backup
+                undo_data = data;
+                //1-step algorithm
                 advancing_volume(data);
+                //update UI
+                UI_Manager(data, uiMode, dir_arrows);
+                data.m.updateGL();
+            }
 
-            UI_Manager(data, uiMode, dir_arrows);
-            data.m.updateGL();
-        }
+            //only expansion
+            if (ImGui::Button("1:Expand")) {
+                undo_data = data;
 
-        if(ImGui::Button("R:Normal/B:Movement")) {
+                //clear colors if debug
+                if (data.debug_colors) clearColors(data.m);
+                //expansion
+                if (data.running) expand(data);
+                if (data.running && data.check_intersections) check_self_intersection(data);
 
-            show_mov_diff = !show_mov_diff;
+                //update model and UI
+                UI_Manager(data, uiMode, dir_arrows);
+                data.m.updateGL();
+            }
 
-            if(show_mov_diff) {
+            //only refinement
+            if (ImGui::Button("2:Refine")) {
+                undo_data = data;
 
-                //vert and displacement
-                vec3d v, d;
+                //clear colors if debug
+                if (data.debug_colors) clearColors(data.m);
+                //refinement
+                if (data.running) do { refine(data); } while (get_avg_edge_length(data) > data.target_edge_length);
+                add_last_rationals(data);
 
+                //update model and UI
+                UI_Manager(data, uiMode, dir_arrows);
+                data.m.updateGL();
+            }
+
+            //only front updating
+            if (ImGui::Button("3:Update Fronts")) {
+                undo_data = data;
+
+                //clear colors if debug
+                if (data.debug_colors) clearColors(data.m);
+                //front update
+                update_fronts(data);
+                //update normals
                 data.m.update_normals();
-                get_front_dist(data);
 
-                //normals (RED)
-                norms.use_gl_lines = true;
-                norms.default_color = Color::RED();
-                for(auto vid : data.fronts_active) {
-                    v = data.m.vert(vid);
-                    d = data.m.vert_data(vid).normal * data.m.vert_data(vid).uvw[DIST] * 0.99;
-                    norms.push_seg(v, v+d);
+                //update model and UI
+                UI_Manager(data, uiMode, dir_arrows);
+                data.m.updateGL();
+            }
+
+            //check where every vert will go
+            if (ImGui::Button("R:Normal/B:Movement")) {
+
+                show_mov_diff = !show_mov_diff;
+
+                if (show_mov_diff) {
+
+                    //vert and displacement
+                    vec3d v, d;
+
+                    data.m.update_normals();
+                    get_front_dist(data);
+
+                    //normals (RED)
+                    norms.use_gl_lines = true;
+                    norms.default_color = Color::RED();
+                    for (auto vid: data.fronts_active) {
+                        v = data.m.vert(vid);
+                        d = data.m.vert_data(vid).normal * data.m.vert_data(vid).uvw[DIST] * 0.99;
+                        norms.push_seg(v, v + d);
+                    }
+
+                    //movement (BLUE)
+                    movs.use_gl_lines = true;
+                    movs.default_color = Color::BLUE();
+                    compute_movements(data);
+                    for (auto vid: data.fronts_active) {
+                        v = data.m.vert(vid);
+                        d = data.m.vert_data(vid).normal;
+                        movs.push_seg(v, v + d);
+                    }
+
+                    //push on gui
+                    gui.push(&norms, false);
+                    gui.push(&movs, false);
+
+                    //restore normals
+                    data.m.update_normals();
+
+                } else { //don't show the displacement
+                    gui.pop(&norms);
+                    gui.pop(&movs);
+                    norms.clear();
+                    movs.clear();
                 }
 
-                //movement (BLUE)
-                movs.use_gl_lines = true;
-                movs.default_color = Color::BLUE();
-                compute_movements(data);
-                for(auto vid : data.fronts_active) {
-                    v = data.m.vert(vid);
-                    d = data.m.vert_data(vid).normal;
-                    movs.push_seg(v, v+d);
+            }
+
+        }
+
+        if(ImGui::TreeNode("Info")) {
+
+            if (ImGui::Button("Jacobian info")) {
+
+                double jc, sum, avg, min, max;
+                jc = tet_scaled_jacobian(data.m.poly_vert(0, 0),
+                                         data.m.poly_vert(0, 1),
+                                         data.m.poly_vert(0, 2),
+                                         data.m.poly_vert(0, 3));
+                sum = min = max = jc;
+                for (uint pid = 1; pid < data.m.num_polys(); pid++) {
+                    jc = tet_scaled_jacobian(data.m.poly_vert(pid, 0),
+                                             data.m.poly_vert(pid, 1),
+                                             data.m.poly_vert(pid, 2),
+                                             data.m.poly_vert(pid, 3));
+                    sum += jc;
+                    if (jc < min) min = jc;
+                    if (jc > max) max = jc;
+                }
+                avg = sum / (double) data.m.num_polys();
+
+                std::cout << TXT_BOLDYELLOW << "Jacobian INFO" << TXT_RESET << std::endl;
+                std::cout << "Avg SJ: " << avg << std::endl;
+                std::cout << "Min: " << min << std::endl;
+                std::cout << "Max: " << max << std::endl << std::endl;
+
+            }
+
+            ImGui::Text("===========================");
+
+            if (ImGui::InputInt("vid", &sel_vid), 0) {}
+
+            if (ImGui::Button("Adj SJ")) {
+                std::cout << TXT_BOLDGREEN << "Selected vert: " << sel_vid;
+                std::cout << " - num adj: " << data.m.adj_v2p(sel_vid).size() << TXT_RESET << std::endl;
+
+                for (auto pid: data.m.adj_v2p(sel_vid))
+                    std::cout << "pid: " << pid << " SJ: "
+                              << tet_scaled_jacobian(data.m.poly_vert(pid, 0), data.m.poly_vert(pid, 1),
+                                                     data.m.poly_vert(pid, 2), data.m.poly_vert(pid, 3)) << std::endl;
+            }
+
+            if (ImGui::Button("Show only adj")) {
+                show_only_adj = !show_only_adj;
+
+                if (show_only_adj) {
+                    for (int pid = 0; pid < data.m.num_polys(); pid++)
+                        data.m.poly_data(pid).flags[HIDDEN] = true;
+                    for (uint pid: data.m.adj_v2p(sel_vid))
+                        data.m.poly_data(pid).flags[HIDDEN] = false;
+                } else {
+                    for (int pid = 0; pid < data.m.num_polys(); pid++)
+                        data.m.poly_data(pid).flags[HIDDEN] = false;
                 }
 
-                //push on gui
-                gui.push(&norms, false);
-                gui.push(&movs, false);
+                data.m.updateGL();
+            }
 
-                //restore normals
-                data.m.update_normals();
+            if (ImGui::Button("Give me distance")) {
+                std::cout << "Vid: " << sel_vid << std::endl;
+                std::cout << "Distance: " << data.m.vert_data(sel_vid).uvw[DIST] << std::endl;
+            }
 
-            } else { //don't show the displacement
-                gui.pop(&norms);
-                gui.pop(&movs);
-                norms.clear();
-                movs.clear();
+            if (ImGui::Button("Is active")) {
+                std::cout << "Vid: " << sel_vid << std::endl;
+                if (CONTAINS_VEC(data.fronts_active, sel_vid))
+                    std::cout << "Active" << std::endl;
+                else
+                    std::cout << "Inactive" << std::endl;
+            }
+
+            if (ImGui::Button("Put marker")) {
+                gui.push_marker(data.m.vert(sel_vid), std::to_string(sel_vid), Color::RED(), 2, 4);
+            }
+
+            if (ImGui::Button("Delete markers")) {
+                gui.pop_all_markers();
+            }
+
+            ImGui::Text("===========================");
+
+            if (ImGui::InputInt("pid", &sel_pid), 0) {}
+
+            if (ImGui::Button("HL in red")) {
+                data.m.poly_data(sel_pid).color = Color::PASTEL_MAGENTA();
+                data.m.updateGL();
             }
 
         }
 
-        ImGui::Text("===========================");
+        if(ImGui::TreeNode("Actions")) {
+            if (ImGui::Button("Undo")) {
 
-        if(ImGui::Button("Jacobian info")) {
+                //counter back
+                data.step--;
+                std::cout << TXT_BOLDYELLOW << "UNDO to ITERATION " << data.step << TXT_RESET << std::endl << std::endl;
 
-            double jc, sum, avg, min, max;
-            jc = tet_scaled_jacobian(data.m.poly_vert(0, 0),
-                                     data.m.poly_vert(0, 1),
-                                     data.m.poly_vert(0, 2),
-                                     data.m.poly_vert(0, 3));
-            sum = min = max = jc;
-            for(uint pid = 1; pid < data.m.num_polys(); pid++) {
-                jc = tet_scaled_jacobian(data.m.poly_vert(pid, 0),
-                                         data.m.poly_vert(pid, 1),
-                                         data.m.poly_vert(pid, 2),
-                                         data.m.poly_vert(pid, 3));
-                sum += jc;
-                if(jc < min) min = jc;
-                if(jc > max) max = jc;
-            }
-            avg = sum / (double)data.m.num_polys();
+                //pop of all
+                gui.pop(&data.m);
 
-            std::cout << TXT_BOLDYELLOW << "Jacobian INFO" << TXT_RESET << std::endl;
-            std::cout << "Avg SJ: " << avg << std::endl;
-            std::cout << "Min: " << min << std::endl;
-            std::cout << "Max: " << max << std::endl << std::endl;
+                //data recover
+                data.m = undo_data.m;
+                data.fronts_active = undo_data.fronts_active;
+                data.fronts_bounds = undo_data.fronts_bounds;
 
-        }
+                //UI
+                UI_Manager(data, uiMode, dir_arrows);
 
-        ImGui::Text("===========================");
-
-        if(ImGui::InputInt("vid", &sel_vid), 0) {}
-
-        if(ImGui::Button("Adj SJ")) {
-            std::cout << TXT_BOLDGREEN << "Selected vert: " << sel_vid;
-            std::cout << " - num adj: " << data.m.adj_v2p(sel_vid).size() << TXT_RESET << std::endl;
-
-            for(auto pid : data.m.adj_v2p(sel_vid))
-                std::cout << "pid: " << pid << " SJ: " << tet_scaled_jacobian(data.m.poly_vert(pid, 0), data.m.poly_vert(pid, 1), data.m.poly_vert(pid, 2), data.m.poly_vert(pid, 3)) << std::endl;
-        }
-
-        if(ImGui::Button("Show only adj")) {
-            show_only_adj = !show_only_adj;
-
-            if(show_only_adj) {
-                for(int pid = 0; pid < data.m.num_polys(); pid++)
-                    data.m.poly_data(pid).flags[HIDDEN] = true;
-                for(uint pid : data.m.adj_v2p(sel_vid))
-                    data.m.poly_data(pid).flags[HIDDEN] = false;
-            } else {
-                for(int pid = 0; pid < data.m.num_polys(); pid++)
-                    data.m.poly_data(pid).flags[HIDDEN] = false;
+                //re-push on gui
+                gui.push(&data.m, false);
+                data.m.updateGL();
             }
 
-            data.m.updateGL();
+            if (ImGui::Button("Reset")) {
+                //pop of all
+                gui.pop(&data.m);
+
+                //data recover
+                data.m = reset_data.m;
+                data.fronts_active = reset_data.fronts_active;
+                data.fronts_bounds = reset_data.fronts_bounds;
+
+                //UI
+                UI_Manager(data, uiMode, dir_arrows);
+
+                //re-push on gui
+                gui.push(&data.m, false);
+                data.m.updateGL();
+            }
+
+            if (ImGui::Button("Save")) {
+                save_data(data);
+            }
         }
 
-        if(ImGui::Button("Give me distance")) {
-            std::cout << "Vid: " << sel_vid << std::endl;
-            std::cout << "Distance: " << data.m.vert_data(sel_vid).uvw[DIST] << std::endl;
-        }
-
-        if(ImGui::Button("Is active")) {
-            std::cout << "Vid: " << sel_vid << std::endl;
-            if(CONTAINS_VEC(data.fronts_active, sel_vid))
-                std::cout << "Active" << std::endl;
-            else
-                std::cout << "Inactive" << std::endl;
-        }
-
-        if(ImGui::Button("Put marker")) {
-            gui.push_marker(data.m.vert(sel_vid), std::to_string(sel_vid), Color::RED(), 2, 4);
-        }
-
-        if(ImGui::Button("Delete markers")) {
-            gui.pop_all_markers();
-        }
-
-        ImGui::Text("===========================");
-
-        if(ImGui::InputInt("pid", &sel_pid), 0) {}
-
-        if(ImGui::Button("HL in red")) {
-            data.m.poly_data(sel_pid).color = Color::PASTEL_MAGENTA();
-            data.m.updateGL();
-        }
-
-        ImGui::Text("===========================");
-
-        if(ImGui::Button("Undo")) {
-
-            //counter back
-            data.step--;
-            std::cout << TXT_BOLDYELLOW << "UNDO to ITERATION " << data.step << TXT_RESET << std::endl << std::endl;
-
-            //pop of all
-            gui.pop(&data.m);
-
-            //data recover
-            data.m = undo_data.m;
-            data.fronts_active = undo_data.fronts_active;
-            data.fronts_bounds = undo_data.fronts_bounds;
-
-            //UI
-            UI_Manager(data, uiMode, dir_arrows);
-
-            //re-push on gui
-            gui.push(&data.m, false);
-            data.m.updateGL();
-        }
-
-        if(ImGui::Button("Reset")) {
-            //pop of all
-            gui.pop(&data.m);
-
-            //data recover
-            data.m = reset_data.m;
-            data.fronts_active = reset_data.fronts_active;
-            data.fronts_bounds = reset_data.fronts_bounds;
-
-            //UI
-            UI_Manager(data, uiMode, dir_arrows);
-
-            //re-push on gui
-            gui.push(&data.m, false);
-            data.m.updateGL();
-        }
-
-        if(ImGui::Button("Save")) {
-            save_data(data);
-        }
-
-        ImGui::Text("===========================");
+        if(ImGui::TreeNode("Visual")) {
 
         if(ImGui::Button("Clear UI")) {
             uiMode = BLANK;
@@ -350,6 +380,8 @@ int main(int argc, char *argv[]) {
             }
             data.m.updateGL();
             // 1800 1035 0.0157587 -0.00979251 0.223252 0.660849 0.5 -0.0462633 -0.674176 0.73712 -0.0149085 0.719672 -0.534246 -0.443457 0.0975828 0.692771 0.509969 0.509902 -0.1274 0 0 0 1 1 0 0 -0 0 1 0 -0 0 0 1 -2.6434 0 0 0 1 0.870092 0 0 -0 0 1.5132 0 -0 0 0 -0.756602 -2 0 0 0 1
+        }
+
         }
 
     };

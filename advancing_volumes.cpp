@@ -10,12 +10,13 @@ void advancing_volume(Data &data) {
     if(data.debug_colors) clearColors(data.m);
 
     //model expansion
-    if(data.running) expand(data, true);
+    if(data.running) expand(data);
     if(data.running && data.check_intersections) check_self_intersection(data);
     //refinement
-    if(data.running) do { refine(data); } while (get_avg_edge_length(data) > data.target_edge_length);
-    //if(data.running) refine(data);
+    if(data.running) do { refine(data); } while (data.multiple_refinement && get_avg_edge_length(data) > data.target_edge_length);
     add_last_rationals(data);
+    //smoothing
+    if(data.running && data.smoothing) smooth(data);
     //front update
     update_fronts(data);
 
@@ -33,7 +34,7 @@ void advancing_volume(Data &data) {
 }
 
 //move the verts toward the target
-void expand(Data &d, bool priority) {
+void expand(Data &d) {
 
     //prints for status
     if(d.verbose) std::cout << TXT_BOLDCYAN << "Expanding model..." << TXT_RESET;
@@ -53,7 +54,7 @@ void expand(Data &d, bool priority) {
         d.m.vert_data(vid).normal = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * 0.99;
 
     //sort the front in descending order (from the farthest to the closest)
-    if(priority) std::sort(d.fronts_active.begin(), d.fronts_active.end(), cmp);
+    if(d.priority_queue) std::sort(d.fronts_active.begin(), d.fronts_active.end(), cmp);
     //move every vert in the active front
     for(auto vid : d.fronts_active) {
         //assert
@@ -72,6 +73,7 @@ void expand(Data &d, bool priority) {
 
 }
 
+//move the vid in the altered normal position
 void move(Data &d, uint vid) {
 
     bool moved = true;
@@ -114,6 +116,7 @@ void move(Data &d, uint vid) {
 
 }
 
+//refines the mesh to meet the target edge length
 void refine(Data &d, bool internal) {
 
     if(d.verbose)
@@ -132,6 +135,7 @@ void refine(Data &d, bool internal) {
         std::cout << TXT_GREEN << "DONE" << TXT_RESET << std::endl;
 }
 
+//project onto the target mesh
 void final_projection(Data &d) {
 
     vec3d og_pos;
@@ -152,6 +156,7 @@ void final_projection(Data &d) {
 
 }
 
+//compute the verts displacement
 void compute_movements(Data &d, int iters) {
 
     bool can_smooth;
@@ -244,6 +249,49 @@ bool line_search(Data &d, uint vid, CGAL_Q *rt_og_pos, bool forward) {
     }
 
     return moved_check;
+}
+
+//smooth the mesh
+void smooth(Data &d) {
+
+    //start
+    if(d.verbose) std::cout << TXT_CYAN << "Smoothing the model..." << TXT_RESET << std::endl;
+
+    //for the number of iterations selected
+    for(int iter = 0; iter < d.smooth_iters; iter++) {
+        //for all verts get the midpoint
+        for(uint vid = 0; vid < d.m.num_verts(); vid++) {
+
+            //if the vert is already inactive skipppp
+            if((d.m.vert_is_on_srf(vid) && d.m.vert_data(vid).label) || d.m.adj_v2p(vid).empty())
+                continue;
+
+            //parameters
+            vec3d og_pos = d.m.vert(vid);
+            vec3d og_norm = d.m.vert_data(vid).normal;
+            vec3d bary = og_pos;
+
+            //og pos in rationals coords
+            CGAL_Q rt_og_pos[3];
+            copy(&d.exact_coords[3*vid], rt_og_pos);
+
+            if(d.m.vert_is_on_srf(vid)) {
+                for(uint adj : d.m.vert_adj_srf_verts(vid)) bary += d.m.vert(adj);
+                bary = bary / (d.m.vert_adj_srf_verts(vid).size()+1);
+                d.m.vert(vid) = bary;
+            } else {
+                for(uint adj : d.m.adj_v2v(vid)) bary += d.m.vert(adj);
+                bary = bary / (d.m.adj_v2v(vid).size()+1);
+                d.m.vert(vid) = bary;
+            }
+
+            bool moved = line_search(d, vid, rt_og_pos, d.forward_line_search);
+
+        }
+    }
+
+    //finish
+    if(d.verbose) std::cout << TXT_GREEN << "DONE" << TXT_RESET << std::endl;
 }
 
 /** ================================================================================================================ **/

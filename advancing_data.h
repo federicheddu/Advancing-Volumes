@@ -19,6 +19,27 @@ enum {
 
 typedef struct data {
 
+    /** params **/
+    //line search
+    bool line_search = true;
+    bool forward_line_search = true;
+    //movement
+    bool only_raycast = false;
+    bool priority_queue = true;
+    bool check_intersections = true;    // check if the mesh is self intersecting
+    //refinement
+    bool multiple_refinement = true;
+    bool internal_refinement = true;
+    //smoothing
+    bool smoothing = true;
+    int smooth_iters = 5;
+    //text and debug
+    bool verbose = true;                // print sub-steps
+    bool ultra_verbose = false;         // print everything (debug)
+    bool debug_colors = false;           // color the mesh for debug
+    //other
+    bool enable_snap_rounding = false;   // snap the rational coords to the closest double
+
     //loading path
     std::string load_target;
     std::string load_model;
@@ -50,11 +71,6 @@ typedef struct data {
     double target_edge_length = 0.01;   // edge length threshold for refinement (in setup is set to 2 * srf max edge length)
 
     //utility
-    bool check_intersections = true;    // check if the mesh is self intersecting
-    bool enable_snap_rounding = false;   // snap the rational coords to the closest double
-    bool verbose = true;                // print sub-steps
-    bool ultra_verbose = false;         // print everything (debug)
-    bool debug_colors = false;           // color the mesh for debug
     int orient_sign = -1;               // sign for the orientation of the mesh (1 or -1)
 
     //fronts_active
