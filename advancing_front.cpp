@@ -97,23 +97,3 @@ void front_from_seed(Data &d, uint seed, std::unordered_set<uint> &front) {
     }
 
 }
-
-void get_front_dist(Data &d, bool only_ray) {
-
-        uint vid;
-        double dist;
-
-        for(int idx = 0; idx < d.fronts_active.size(); idx++) {
-            //get the vid
-            vid = d.fronts_active.at(idx);
-            //get the distance (if the vert is near the target, use the raycast to get the distance)
-            dist = dist_calc(d, vid, true);
-            if(!only_ray) {
-                if(dist < d.inactivity_dist * 2) dist = dist_calc(d, vid, true, true);
-                else dist = dist_calc(d, vid, false, true);
-            }
-            //save the distance
-            d.m.vert_data(vid).uvw[DIST] = dist;
-        }
-
-}

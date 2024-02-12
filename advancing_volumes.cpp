@@ -12,11 +12,14 @@ void advancing_volume(Data &data) {
     //model expansion
     if(data.running) expand(data);
     if(data.running && data.check_intersections) check_self_intersection(data);
+
     //refinement
-    if(data.running) do { refine(data); } while (data.multiple_refinement && get_avg_edge_length(data) > data.target_edge_length);
+    if(data.running) do { refine(data); } while (data.multiple_refinement && get_max_edge_length(data, true) > data.target_edge_length);
     add_last_rationals(data);
+
     //smoothing
     if(data.running && data.smoothing) smooth(data);
+
     //front update
     update_fronts(data);
 
@@ -44,14 +47,13 @@ void expand(Data &d) {
     auto cmp = [&](uint a, uint b) { return d.m.vert_data(a).uvw[DIST] > d.m.vert_data(b).uvw[DIST]; };
 
     //get the directions
-    compute_movements(d);
+    compute_directions(d);
 
     //get all the distances from the target model
-    get_front_dist(d, true);
+    compute_distances(d);
 
     //movement (direction * distance)
-    for(uint vid : d.fronts_active)
-        d.m.vert_data(vid).normal = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * 0.99;
+    compute_displacements(d);
 
     //sort the front in descending order (from the farthest to the closest)
     if(d.priority_queue) std::sort(d.fronts_active.begin(), d.fronts_active.end(), cmp);
@@ -60,7 +62,7 @@ void expand(Data &d) {
         //assert
         errorcheck(d, d.m.vert_is_on_srf(vid), "Vert " + std::to_string(vid) + " not on surface");
         //displace the vert
-        move(d, vid);
+        move(d, vid, d.m.vert_data(vid).normal);
         //if something went wrong stall everything
         if(!d.running) return;
     }
@@ -74,8 +76,12 @@ void expand(Data &d) {
 }
 
 //move the vid in the altered normal position
-void move(Data &d, uint vid) {
+void move(Data &d, uint vid, vec3d disp) {
+    CGAL_Q rt_move[3] = {disp.x(), disp.y(), disp.z()};
+    move(d, vid, rt_move);
+}
 
+void move(Data &d, uint vid, CGAL_Q *rt_disp) {
     bool moved = true;
 
     //backup positions
@@ -83,17 +89,16 @@ void move(Data &d, uint vid) {
     CGAL_Q rt_og_pos[3];
     copy(&d.exact_coords[vid*3], rt_og_pos);
 
-    //displacement of the vert
-    vec3d move = d.m.vert_data(vid).normal;
-    CGAL_Q rt_move[3] = {move.x(), move.y(), move.z()};
+    //displacement of the vert (rational)
+    vec3d disp = to_double(rt_disp);
 
     //new position of the vert
-    CGAL_Q rt_moved[3] = {d.exact_coords[vid * 3 + 0] + rt_move[0],
-                          d.exact_coords[vid * 3 + 1] + rt_move[1],
-                          d.exact_coords[vid * 3 + 2] + rt_move[2]};
+    CGAL_Q rt_moved[3] = {d.exact_coords[vid * 3 + 0] + rt_disp[0],
+                          d.exact_coords[vid * 3 + 1] + rt_disp[1],
+                          d.exact_coords[vid * 3 + 2] + rt_disp[2]};
 
-    //get sure we can move the vert where we want
-    topological_unlock(d, vid, rt_moved, rt_move);
+    //get sure we can disp the vert where we want
+    topological_unlock(d, vid, rt_moved, rt_disp);
     if(!d.running) return;
 
     //update the vert (+ rationals)
@@ -113,7 +118,6 @@ void move(Data &d, uint vid) {
     //update the mask (note: if the vertex remains stationary for 5 iterations it is deactivated)
     if(d.m.vert_data(vid).uvw[MOV] == 5 || dist_calc(d, vid, true) < d.inactivity_dist)
         d.m.vert_data(vid).label = true;
-
 }
 
 //refines the mesh to meet the target edge length
@@ -156,8 +160,8 @@ void final_projection(Data &d) {
 
 }
 
-//compute the verts displacement
-void compute_movements(Data &d, int iters) {
+//compute the verts direction of movement (stored in the normal data)
+void compute_directions(Data &d, int iters) {
 
     bool can_smooth;
     vec3d move;
@@ -178,25 +182,46 @@ void compute_movements(Data &d, int iters) {
             //avg and normalize
             move = move / (d.m.vert_adj_srf_verts(vid).size()+1);
             move.normalize();
-            //check the move is ok
             /*
-            //fpmoved = move * d.m.vert_data(vid).uvw[DIST] * 0.99;
-            //rtmoved[0] = d.exact_coords[vid * 3 + 0] + fpmoved.x();
-            //rtmoved[1] = d.exact_coords[vid * 3 + 1] + fpmoved.y();
-            //rtmoved[2] = d.exact_coords[vid * 3 + 2] + fpmoved.z();
-            //for(uint adj : d.m.adj_v2p(vid))
-            //    can_smooth = can_smooth && !tet_is_blocking(d, vid, adj, rtmoved);
-            ////if smoothing doesn't cause problems
-            //if(can_smooth)
-             */
+            //check the move is ok
+            fpmoved = move * d.m.vert_data(vid).uvw[DIST] * 0.99;
+            rtmoved[0] = d.exact_coords[vid * 3 + 0] + fpmoved.x();
+            rtmoved[1] = d.exact_coords[vid * 3 + 1] + fpmoved.y();
+            rtmoved[2] = d.exact_coords[vid * 3 + 2] + fpmoved.z();
+            for(uint adj : d.m.adj_v2p(vid))
+                can_smooth = can_smooth && !tet_is_blocking(d, vid, adj, rtmoved);
+            //if smoothing doesn't cause problems
+            if(can_smooth)
+            */
                 d.m.vert_data(vid).normal = move;
         }
     }
 
-    //movement (direction * distance)
-    //for(uint vid : d.fronts_active)
-    //    d.m.vert_data(vid).normal = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * 0.99;
+}
 
+//compute the distance from the vert to the target (movement direction or closest point)
+void compute_distances(Data &d) {
+
+    uint vid;
+    double dist;
+
+    for(int idx = 0; idx < d.fronts_active.size(); idx++) {
+        //get the vid
+        vid = d.fronts_active.at(idx);
+        //get the distance (if the vert is near the target, use the raycast to get the distance)
+        dist = dist_calc(d, vid, d.only_raycast);
+        if(!d.only_raycast && dist < d.inactivity_dist * 2)
+            dist = dist_calc(d, vid, true);
+        //save the distance
+        d.m.vert_data(vid).uvw[DIST] = dist;
+    }
+
+}
+
+//get the displacement (movement * distance)
+void compute_displacements(Data &d) {
+    for(uint vid : d.fronts_active)
+        d.m.vert_data(vid).normal = d.m.vert_data(vid).normal * d.m.vert_data(vid).uvw[DIST] * 0.99;
 }
 
 //check if the movement of the vert is safe, if not it goes back by bisection
@@ -257,8 +282,24 @@ void smooth(Data &d) {
     //start
     if(d.verbose) std::cout << TXT_CYAN << "Smoothing the model..." << TXT_RESET << std::endl;
 
+    //parameters
+    uint fid;
+    int adj_size;
+    bool can_smooth;
+    vec3d bary, cp;
+    CGAL_Q rt_bary[3];
+    Octree srf_oct;
+
     //for the number of iterations selected
     for(int iter = 0; iter < d.smooth_iters; iter++) {
+
+        //if i need the surface
+        if(d.smooth_project) {
+            export_surface(d.m, d.m_srf);
+            if(d.smooth_smooth) mesh_smoother(d.m_srf, d.m_srf);
+            srf_oct.build_from_mesh_polys(d.m_srf);
+        }
+
         //for all verts get the midpoint
         for(uint vid = 0; vid < d.m.num_verts(); vid++) {
 
@@ -266,27 +307,62 @@ void smooth(Data &d) {
             if((d.m.vert_is_on_srf(vid) && d.m.vert_data(vid).label) || d.m.adj_v2p(vid).empty())
                 continue;
 
-            //parameters
-            vec3d og_pos = d.m.vert(vid);
-            vec3d og_norm = d.m.vert_data(vid).normal;
-            vec3d bary = og_pos;
+            //get current pos
+            copy(&d.exact_coords[3*vid], rt_bary);
 
-            //og pos in rationals coords
-            CGAL_Q rt_og_pos[3];
-            copy(&d.exact_coords[3*vid], rt_og_pos);
+            if(d.m.vert_is_on_srf(vid)) { //surface vert
+                //sum
+                for(uint adj : d.m.vert_adj_srf_verts(vid)) {
+                    rt_bary[0] = rt_bary[0] + d.exact_coords[3*vid+0];
+                    rt_bary[1] = rt_bary[1] + d.exact_coords[3*vid+1];
+                    rt_bary[2] = rt_bary[2] + d.exact_coords[3*vid+2];
+                }
+                //avg
+                adj_size = d.m.vert_adj_srf_verts(vid).size()+1;
+                rt_bary[0] = rt_bary[0] / adj_size;
+                rt_bary[1] = rt_bary[1] / adj_size;
+                rt_bary[2] = rt_bary[2] / adj_size;
+                bary = to_double(rt_bary);
+                //project onto the surface to prevent shrinking
+                if(d.smooth_project) {
+                    cp = srf_oct.closest_point(bary);
+                    rt_bary[0] = cp.x();
+                    rt_bary[1] = cp.y();
+                    rt_bary[2] = cp.z();
+                }
+                //move the vert
+                move(d, vid, rt_bary);
+                if(!d.running) return;
 
-            if(d.m.vert_is_on_srf(vid)) {
-                for(uint adj : d.m.vert_adj_srf_verts(vid)) bary += d.m.vert(adj);
-                bary = bary / (d.m.vert_adj_srf_verts(vid).size()+1);
-                d.m.vert(vid) = bary;
-            } else {
-                for(uint adj : d.m.adj_v2v(vid)) bary += d.m.vert(adj);
-                bary = bary / (d.m.adj_v2v(vid).size()+1);
-                d.m.vert(vid) = bary;
+            } else { //internal vert
+
+                //skip check
+                if(!d.smooth_internal) continue;
+
+                //sum
+                for(uint adj : d.m.adj_v2v(vid)) {
+                    rt_bary[0] = rt_bary[0] + d.exact_coords[3*vid+0];
+                    rt_bary[1] = rt_bary[1] + d.exact_coords[3*vid+1];
+                    rt_bary[2] = rt_bary[2] + d.exact_coords[3*vid+2];
+                }
+                //avg
+                adj_size = d.m.adj_v2v(vid).size()+1;
+                rt_bary[0] = rt_bary[0] / adj_size;
+                rt_bary[1] = rt_bary[1] / adj_size;
+                rt_bary[2] = rt_bary[2] / adj_size;
+                //check if I can move
+                can_smooth = true;
+                for(uint adj : d.m.adj_v2p(vid)) {
+                    fid = d.m.poly_face_opposite_to(adj, vid);
+                    can_smooth = !does_movement_flip(d, adj, fid, rt_bary);
+                    if(!can_smooth) break;
+                }
+                //moving
+                if(can_smooth) {
+                    copy(rt_bary, &d.exact_coords[3*vid]);
+                    if(d.render) d.m.vert(vid) = to_double(rt_bary);
+                }
             }
-
-            bool moved = line_search(d, vid, rt_og_pos, d.forward_line_search);
-
         }
     }
 

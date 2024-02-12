@@ -39,6 +39,7 @@ int main(int argc, char *argv[]) {
     bool show_target_matte = false;
     bool show_only_adj = false;
     bool show_mov_diff = false;
+    bool show_srf_smooth = false;
     std::vector<DrawableArrow> dir_arrows;
     std::vector<vec3d> movements;
     DrawableSegmentSoup norms;
@@ -76,6 +77,9 @@ int main(int argc, char *argv[]) {
             ImGui::Text("Optimization");
             ImGui::Checkbox("Smoothing", &data.smoothing);
             ImGui::InputInt("Iters", &data.smooth_iters);
+            ImGui::Checkbox("Smooth Internal", &data.smooth_internal);
+            ImGui::Checkbox("Smooth Projection", &data.smooth_project);
+            ImGui::Checkbox("Srf mesh smoother", &data.smooth_smooth);
 
             ImGui::Text("Text and debug options");
             ImGui::Checkbox("Verbose", &data.verbose);
@@ -121,7 +125,7 @@ int main(int argc, char *argv[]) {
                 //clear colors if debug
                 if (data.debug_colors) clearColors(data.m);
                 //refinement
-                if (data.running) do { refine(data); } while (get_avg_edge_length(data) > data.target_edge_length);
+                if (data.running) do { refine(data); } while (get_max_edge_length(data, true) > data.target_edge_length);
                 add_last_rationals(data);
 
                 //update model and UI
@@ -154,23 +158,25 @@ int main(int argc, char *argv[]) {
 
                     //vert and displacement
                     vec3d v, d;
-
                     data.m.update_normals();
-                    get_front_dist(data);
 
                     //normals (RED)
                     norms.use_gl_lines = true;
                     norms.default_color = Color::RED();
+                    compute_distances(data);
+                    compute_displacements(data);
                     for (auto vid: data.fronts_active) {
                         v = data.m.vert(vid);
-                        d = data.m.vert_data(vid).normal * data.m.vert_data(vid).uvw[DIST] * 0.99;
+                        d = data.m.vert_data(vid).normal;
                         norms.push_seg(v, v + d);
                     }
 
                     //movement (BLUE)
                     movs.use_gl_lines = true;
                     movs.default_color = Color::BLUE();
-                    compute_movements(data);
+                    compute_directions(data);
+                    compute_distances(data);
+                    compute_displacements(data);
                     for (auto vid: data.fronts_active) {
                         v = data.m.vert(vid);
                         d = data.m.vert_data(vid).normal;
@@ -286,6 +292,7 @@ int main(int argc, char *argv[]) {
         }
 
         if(ImGui::TreeNode("Actions")) {
+
             if (ImGui::Button("Undo")) {
 
                 //counter back
@@ -332,55 +339,68 @@ int main(int argc, char *argv[]) {
 
         if(ImGui::TreeNode("Visual")) {
 
-        if(ImGui::Button("Clear UI")) {
-            uiMode = BLANK;
-            UI_Manager(data, uiMode, dir_arrows);
-            data.m.updateGL();
-        }
-
-        if(ImGui::Button("Highlight model")) {
-            uiMode = HIGHLIGHT;
-            UI_Manager(data, uiMode, dir_arrows);
-            data.m.updateGL();
-        }
-
-        if(ImGui::Button("Show Fronts")) {
-            show_fronts = !show_fronts;
-            if(show_fronts) showFronts(data);
-            else data.gui->pop_all_markers();
-        }
-
-        if(ImGui::Button("Show Target")) {
-            data.vol.show_mesh(show_target = !show_target);
-        }
-
-        if(ImGui::Button("Matte target")) {
-            show_target_matte = !show_target_matte;
-            if(show_target_matte) data.vol.show_mesh_flat();
-            else data.vol.show_mesh_points();
-        }
-
-        /*
-        if(ImGui::Button("Show vert direction")) {
-            uiMode = DIRECTION;
-            UI_Manager(data, uiMode, dir_arrows);
-        }
-        */
-
-        if(ImGui::Button("Show orient3D sign")) {
-            uiMode = VOLUME;
-            UI_Manager(data, uiMode, dir_arrows);
-            data.m.updateGL();
-        }
-
-        if(ImGui::Button("Screen colors")) {
-            for (uint &f : data.m.get_surface_faces()) {
-                uint poly = data.m.adj_f2p(f)[0];
-                data.m.poly_data(poly).color = Color(255.f/255.f, 198.f/255.f, 70.f/255.f);
+            if (ImGui::Button("Clear UI")) {
+                uiMode = BLANK;
+                UI_Manager(data, uiMode, dir_arrows);
+                data.m.updateGL();
             }
-            data.m.updateGL();
-            // 1800 1035 0.0157587 -0.00979251 0.223252 0.660849 0.5 -0.0462633 -0.674176 0.73712 -0.0149085 0.719672 -0.534246 -0.443457 0.0975828 0.692771 0.509969 0.509902 -0.1274 0 0 0 1 1 0 0 -0 0 1 0 -0 0 0 1 -2.6434 0 0 0 1 0.870092 0 0 -0 0 1.5132 0 -0 0 0 -0.756602 -2 0 0 0 1
-        }
+
+            if (ImGui::Button("Highlight model")) {
+                uiMode = HIGHLIGHT;
+                UI_Manager(data, uiMode, dir_arrows);
+                data.m.updateGL();
+            }
+
+            if (ImGui::Button("Show Fronts")) {
+                show_fronts = !show_fronts;
+                if (show_fronts) showFronts(data);
+                else data.gui->pop_all_markers();
+            }
+
+            if (ImGui::Button("Show Target")) {
+                data.vol.show_mesh(show_target = !show_target);
+            }
+
+            if (ImGui::Button("Matte target")) {
+                show_target_matte = !show_target_matte;
+                if (show_target_matte) data.vol.show_mesh_flat();
+                else data.vol.show_mesh_points();
+            }
+
+            /*
+            if(ImGui::Button("Show vert direction")) {
+                uiMode = DIRECTION;
+                UI_Manager(data, uiMode, dir_arrows);
+            }
+            */
+
+            if (ImGui::Button("Show orient3D sign")) {
+                uiMode = VOLUME;
+                UI_Manager(data, uiMode, dir_arrows);
+                data.m.updateGL();
+            }
+
+            if (ImGui::Button("Screen colors")) {
+                for (uint &f: data.m.get_surface_faces()) {
+                    uint poly = data.m.adj_f2p(f)[0];
+                    data.m.poly_data(poly).color = Color(255.f / 255.f, 198.f / 255.f, 70.f / 255.f);
+                }
+                data.m.updateGL();
+                // 1800 1035 0.0157587 -0.00979251 0.223252 0.660849 0.5 -0.0462633 -0.674176 0.73712 -0.0149085 0.719672 -0.534246 -0.443457 0.0975828 0.692771 0.509969 0.509902 -0.1274 0 0 0 1 1 0 0 -0 0 1 0 -0 0 0 1 -2.6434 0 0 0 1 0.870092 0 0 -0 0 1.5132 0 -0 0 0 -0.756602 -2 0 0 0 1
+            }
+
+            if(ImGui::Button("Show srf smoothed")) {
+                show_srf_smooth = !show_srf_smooth;
+
+                if(show_srf_smooth) {
+                    export_surface(data.m, data.m_srf);
+                    mesh_smoother(data.m_srf, data.m_srf);
+                    data.m_srf.updateGL();
+                    gui.push(&data.m_srf);
+                } else {
+                    gui.pop(&data.m_srf);
+                }
+            }
 
         }
 

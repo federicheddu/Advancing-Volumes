@@ -7,13 +7,12 @@
 using namespace cinolib;
 
 //srf edge lengths
-double get_min_edge_length(Data &d);
-double get_max_edge_length(Data &d);
-double get_avg_edge_length(Data &d);
+double get_min_edge_length(Data &d, bool only_active);
+double get_max_edge_length(Data &d, bool only_active);
+double get_avg_edge_length(Data &d, bool only_active);
 
 //distance calc
-double dist_calc(Data &d, uint vid, bool raycast = false, bool flat = false);
-double get_dist(Data &d, uint vid);
+double dist_calc(Data &d, uint vid, bool raycast);
 //check operations on pids
 bool poly_flipped(Data &d, uint pid);
 //check operations on vids
@@ -31,7 +30,7 @@ bool does_movement_flip(Data &d, uint pid, uint fid, CGAL_Q *target);
 void vert_normal(Data &d, uint vid, CGAL_Q *normal);
 bool check_self_intersection(Data &d);
 vec3d to_double(CGAL_Q *r);
-bool snap_rounding(Data &data, const uint vid);
+bool snap_rounding(Data &data, uint vid);
 
 //file utils
 bool file_check(std::string &path);

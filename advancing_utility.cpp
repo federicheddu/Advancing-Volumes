@@ -1,81 +1,84 @@
 #include "advancing_utility.h"
 
 //srf min edge length
-double get_min_edge_length(Data &d) {
+double get_min_edge_length(Data &d, bool only_active) {
     double min_edge = std::numeric_limits<double>::max();
 
-    for(uint eid : d.m.get_surface_edges()) {
-        double edge = d.m.edge_length(eid);
-        if(edge < min_edge) min_edge = edge;
+    if(only_active) {
+        for(uint vid : d.fronts_active) {
+            for(uint eid : d.m.vert_adj_srf_edges(vid)) {
+                double edge = d.m.edge_length(eid);
+                if(edge < min_edge) min_edge = edge;
+            }
+        }
+    } else {
+        for(uint eid : d.m.get_surface_edges()) {
+            double edge = d.m.edge_length(eid);
+            if(edge < min_edge) min_edge = edge;
+        }
     }
 
     return min_edge;
 }
 
 //srf max edge length
-double get_max_edge_length(Data &d) {
+double get_max_edge_length(Data &d, bool only_active) {
     double max_edge = 0;
 
-    for(uint eid : d.m.get_surface_edges()) {
-        double edge = d.m.edge_length(eid);
-        if(edge > max_edge) max_edge = edge;
+    if(only_active) {
+        for(uint vid : d.fronts_active) {
+            for(uint eid : d.m.vert_adj_srf_edges(vid)) {
+                double edge = d.m.edge_length(eid);
+                if(edge > max_edge) max_edge = edge;
+            }
+        }
+    } else {
+        for(uint eid : d.m.get_surface_edges()) {
+            double edge = d.m.edge_length(eid);
+            if(edge > max_edge) max_edge = edge;
+        }
     }
 
     return max_edge;
 }
 
 //srf avg edge length
-double get_avg_edge_length(Data &d) {
+double get_avg_edge_length(Data &d, bool only_active) {
     double avg_edge = 0;
     double count = 0;
 
-    for(uint eid : d.m.get_surface_edges()) {
-        avg_edge += d.m.edge_length(eid);
-        count++;
+    if(only_active) {
+        for(uint vid : d.fronts_active) {
+            for(uint eid : d.m.vert_adj_srf_edges(vid)) {
+                avg_edge += d.m.edge_length(eid);
+                count++;
+            }
+        }
+    } else {
+        for (uint eid: d.m.get_surface_edges()) {
+            avg_edge += d.m.edge_length(eid);
+            count++;
+        }
     }
-
     return avg_edge / count;
 }
 
 
 
 //calc the distance from the target with a raycast hit
-double dist_calc(Data &d, uint vid, bool raycast, bool flat) {
+double dist_calc(Data &d, uint vid, bool raycast) {
 
     //param
     uint id; //useless
     double dist;
 
     //raycast hit (normal direction)
-    if(raycast)
-        d.oct->intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, id);
-    else
-        dist = d.oct->closest_point(d.m.vert(vid)).dist(d.m.vert(vid));
-
-    //laplacian smoothing of the distance -> if flat is true, the distance is the average of the distance of the adj verts
-    double adj_dist = 0, dist_sum = dist;
+    if(raycast) d.oct->intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, id);
+    //closest point
+    else dist = d.oct->closest_point(d.m.vert(vid)).dist(d.m.vert(vid));
 
     return dist;
 }
-
-double get_dist(Data &d, uint vid) {
-    double dist;
-
-    for(int idx = 0; idx < d.fronts_active.size(); idx++) {
-        //get the vid
-        vid = d.fronts_active.at(idx);
-        //get the distance (if the vert is near the target, use the raycast to get the distance)
-        dist = dist_calc(d, vid, false);
-        if (dist < d.inactivity_dist * 2)
-            dist = dist_calc(d, vid, true, true);
-        else
-            dist = dist_calc(d, vid, false, true);
-    }
-
-    return dist;
-}
-
-
 
 //check if the poly is flipped (orient3D < 0)
 bool poly_flipped(Data &d, uint pid) {
@@ -242,7 +245,7 @@ vec3d to_double(CGAL_Q *r) {
     return vec3d(CGAL::to_double(r[0]), CGAL::to_double(r[1]), CGAL::to_double(r[2]));
 }
 
-bool snap_rounding(Data &d, const uint vid)
+bool snap_rounding(Data &d, uint vid)
 {
     if(!d.enable_snap_rounding) return true;
 

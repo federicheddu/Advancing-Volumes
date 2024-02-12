@@ -21,10 +21,13 @@ void advancing_volume(Data &data);
 
 //vert operations
 void expand(Data &d);
-void move(Data &d, uint vid);
+void move(Data &d, uint vid, vec3d disp);
+void move(Data &d, uint vid, CGAL_Q *rt_disp);
 void refine(Data &d, bool internal = true);
 void final_projection(Data &d);
-void compute_movements(Data &d, int iters = 200);
+void compute_directions(Data &d, int iters = 200);
+void compute_distances(Data &d);
+void compute_displacements(Data &d);
 bool line_search(Data &d, uint vid, CGAL_Q *rt_og_pos, bool forward = true);
 void smooth(Data &d);
 

@@ -33,6 +33,9 @@ typedef struct data {
     //smoothing
     bool smoothing = true;
     int smooth_iters = 5;
+    bool smooth_internal = true;
+    bool smooth_project = false;
+    bool smooth_smooth = false;
     //text and debug
     bool verbose = true;                // print sub-steps
     bool ultra_verbose = false;         // print everything (debug)
