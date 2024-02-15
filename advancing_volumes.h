@@ -1,34 +1,20 @@
 #ifndef ADVANCING_VOLUMES_ADVANCING_VOLUMES_H
 #define ADVANCING_VOLUMES_ADVANCING_VOLUMES_H
 
-#include <cinolib/find_intersections.h>
-#include <cinolib/smoother.h>
-#include <cinolib/quality_tet.h>
+#include "advancing_io.h"
 
-#include "advancing_data.h"
-#include "advancing_front.h"
-#include "advancing_utility.h"
-#include "advancing_topological.h"
-#include "visualization.h"
-#include "text_format.h"
+void advancing_volume(Data &d);
 
-using namespace cinolib;
-
-//main function
-void advancing_volume(Data &data);
-
-//vert operations
+//main steps
 void expand(Data &d);
-void refine(Data &d, bool internal = true);
-void smooth(Data &d, int n_iter = 10);
-void smooth_jacobian(Data &d, int n_iter = 10);
-void final_projection(Data &d);
+void refine(Data &d);
+void smooth(Data &d);
 
-//setup function
-Data setup(const char *path, bool load = false);
-Data init_data(const char *model);
-Data load_data(const char *model, const char *target = nullptr);
-void init_model(Data &d);
-void set_param(Data &d);
+//expand funcitons
+void compute_direction(Data &d);
+void compute_distances(Data &d);
+void compute_displacement(Data &d);
+void line_search(Data &d, uint vid, CGAL_Q *rt_og_pos);
+void check_self_intersection();
 
 #endif //ADVANCING_VOLUMES_ADVANCING_VOLUMES_H

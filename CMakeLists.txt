@@ -1,8 +1,22 @@
 cmake_minimum_required(VERSION 3.10)
+
 project(Advancing-Volumes)
+
+set(CMAKE_BUILD_TYPE "Release")
 set(cinolib_DIR "/Users/federicomeloni/Documents/GitHub/cinolib")
 set(CINOLIB_USES_OPENGL_GLFW_IMGUI ON)
 set(CINOLIB_USES_SHEWCHUK_PREDICATES ON)
+
 find_package(cinolib REQUIRED)
-add_executable(${PROJECT_NAME} main.cpp sphere.h sphere.cpp text_format.h visualization.cpp visualization.h advancing_volumes.cpp advancing_volumes.h advancing_data.h advancing_utility.cpp advancing_utility.h advancing_topological.cpp advancing_topological.h advancing_front.cpp advancing_front.h)
-target_link_libraries(${CMAKE_PROJECT_NAME} cinolib)
+find_package(CGAL REQUIRED)
+
+add_executable(
+        ${PROJECT_NAME} main.cpp
+        advancing_io.h advancing_io.cpp
+        advancing_data.h advancing_data.cpp
+        advancing_volumes.h advancing_volumes.cpp
+        advancing_rationals.cpp advancing_rationals.h
+        ANSI_color_codes.h
+)
+
+target_link_libraries(${CMAKE_PROJECT_NAME} cinolib CGAL::CGAL)
