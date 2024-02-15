@@ -29,7 +29,8 @@ enum {
 typedef struct data {
 
     //movement
-    int smooth_dir = 200;               //iters of direction smoothing
+    int smooth_dir_iters = 200;         //iters of direction smoothing
+    int line_search_max = 10;           //max iters of line search
     bool only_raycast = false;          //move only with raycast (no closest point)
     //refinement
     bool multiple_refinement = true;
@@ -89,7 +90,7 @@ void init_model(Data &d);
 //utility
 double dist_calc(Data &d, uint vid, bool raycast);
 //data conversion
-void to_double(CGAL_Q *src, vec3d &v);
-void to_rational(vec3d &v, CGAL_Q *src);
+vec3d to_double(CGAL_Q *src);
+void to_rational(vec3d &src, CGAL_Q *dest);
 
 #endif //ADVANCING_VOLUMES_ADVANCING_DATA_H

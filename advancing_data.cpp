@@ -375,10 +375,8 @@ double dist_calc(Data &d, uint vid, bool raycast) {
 }
 
 //rational to double
-void to_double(CGAL_Q *src, vec3d &dst) {
-    dst.x() = dst[0];
-    dst.y() = dst[1];
-    dst.z() = dst[2];
+vec3d to_double(CGAL_Q *src) {
+    return vec3d(CGAL::to_double(src[0]), CGAL::to_double(src[1]), CGAL::to_double(src[2]));
 }
 
 //double to rational
