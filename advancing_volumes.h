@@ -24,6 +24,7 @@ void expand(Data &d);
 void move(Data &d, uint vid, vec3d disp);
 void move(Data &d, uint vid, CGAL_Q *rt_disp);
 void refine(Data &d, bool internal = true);
+bool have_to_rerefine(Data &d);
 void final_projection(Data &d);
 void compute_directions(Data &d, int iters = 200);
 void compute_distances(Data &d);

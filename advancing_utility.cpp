@@ -47,15 +47,9 @@ double get_avg_edge_length(Data &d, bool only_active) {
     double avg_edge = 0;
     double count = 0;
 
-    if(only_active) {
-        for(uint vid : d.fronts_active) {
-            for(uint eid : d.m.vert_adj_srf_edges(vid)) {
-                avg_edge += d.m.edge_length(eid);
-                count++;
-            }
-        }
-    } else {
-        for (uint eid: d.m.get_surface_edges()) {
+    for (uint eid: d.m.get_surface_edges()) {
+        //if((not only active) || (one of the vids is active))
+        if(!only_active || !d.m.vert_data(d.m.edge_vert_id(eid, 0)).label || !d.m.vert_data(d.m.edge_vert_id(eid, 1)).label) {
             avg_edge += d.m.edge_length(eid);
             count++;
         }

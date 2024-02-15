@@ -40,6 +40,8 @@ int main(int argc, char *argv[]) {
     bool show_only_adj = false;
     bool show_mov_diff = false;
     bool show_srf_smooth = false;
+    bool show_vert_origin = false;
+    bool show_edges_to_refine = false;
     std::vector<DrawableArrow> dir_arrows;
     std::vector<vec3d> movements;
     DrawableSegmentSoup norms;
@@ -59,6 +61,7 @@ int main(int argc, char *argv[]) {
     if(data.render) gui.callback_app_controls = [&]() {
 
         //parameters checkbox for execution
+        ImGui::SetNextItemOpen(false,ImGuiCond_Once);
         if(ImGui::TreeNode("Params")) {
 
             ImGui::Text("Line Search");
@@ -88,12 +91,15 @@ int main(int argc, char *argv[]) {
 
             ImGui::Text("Other");
             ImGui::Checkbox("Snap Rounding", &data.enable_snap_rounding);
+
+            ImGui::TreePop();
         }
 
+        ImGui::SetNextItemOpen(false,ImGuiCond_Once);
         if(ImGui::TreeNode("Advancing Volume")) {
 
             //my algorithm
-            if (ImGui::Button("Advancing Volume")) {
+            if(ImGui::Button("Advancing Volume")) {
                 //undo backup
                 undo_data = data;
                 //1-step algorithm
@@ -103,48 +109,25 @@ int main(int argc, char *argv[]) {
                 data.m.updateGL();
             }
 
-            //only expansion
-            if (ImGui::Button("1:Expand")) {
-                undo_data = data;
+            if(ImGui::Button("ON/OFF S.b.S.")) {
 
-                //clear colors if debug
-                if (data.debug_colors) clearColors(data.m);
-                //expansion
-                if (data.running) expand(data);
-                if (data.running && data.check_intersections) check_self_intersection(data);
+                //need to turn off
+                if(data.step_by_step && data.step % NUM_STEPS != 0) {
+                    //undo backup
+                    undo_data = data;
+                    //end of "macro" iteration
+                    while(data.step % NUM_STEPS != 0)
+                        advancing_volume(data);
+                }
+                data.step_by_step = !data.step_by_step;
 
-                //update model and UI
-                UI_Manager(data, uiMode, dir_arrows);
-                data.m.updateGL();
-            }
+                std::cout << std::endl;
+                std::cout << TXT_BOLDYELLOW << "STEP BY STEP MODE: ";
+                std::cout << (data.step_by_step ? TXT_BOLDGREEN : TXT_BOLDRED);
+                std::cout << (data.step_by_step ? "ON" : "OFF");
+                std::cout << TXT_RESET << std::endl << std::endl;
 
-            //only refinement
-            if (ImGui::Button("2:Refine")) {
-                undo_data = data;
-
-                //clear colors if debug
-                if (data.debug_colors) clearColors(data.m);
-                //refinement
-                if (data.running) do { refine(data); } while (get_max_edge_length(data, true) > data.target_edge_length);
-                add_last_rationals(data);
-
-                //update model and UI
-                UI_Manager(data, uiMode, dir_arrows);
-                data.m.updateGL();
-            }
-
-            //only front updating
-            if (ImGui::Button("3:Update Fronts")) {
-                undo_data = data;
-
-                //clear colors if debug
-                if (data.debug_colors) clearColors(data.m);
-                //front update
-                update_fronts(data);
-                //update normals
-                data.m.update_normals();
-
-                //update model and UI
+                //update UI
                 UI_Manager(data, uiMode, dir_arrows);
                 data.m.updateGL();
             }
@@ -199,11 +182,13 @@ int main(int argc, char *argv[]) {
 
             }
 
+            ImGui::TreePop();
         }
 
+        ImGui::SetNextItemOpen(false,ImGuiCond_Once);
         if(ImGui::TreeNode("Info")) {
 
-            if (ImGui::Button("Jacobian info")) {
+            if(ImGui::Button("Jacobian info")) {
 
                 double jc, sum, avg, min, max;
                 jc = tet_scaled_jacobian(data.m.poly_vert(0, 0),
@@ -227,6 +212,36 @@ int main(int argc, char *argv[]) {
                 std::cout << "Min: " << min << std::endl;
                 std::cout << "Max: " << max << std::endl << std::endl;
 
+            }
+
+            if(ImGui::Button("Edge Lenghts")) {
+                std::cout << "TEL: " << data.target_edge_length << std::endl;
+                std::cout << "Max active edge: " << get_max_edge_length(data, true) << std::endl;
+                std::cout << "Min active edge: " << get_min_edge_length(data, true) << std::endl;
+                std::cout << "Avg active edge: " << get_avg_edge_length(data, true) << std::endl;
+
+            }
+
+            if(ImGui::Button("Show edges to refine")) {
+                show_edges_to_refine = !show_edges_to_refine;
+
+                if(show_edges_to_refine) {
+                    for(uint eid : data.m.get_surface_edges())
+                        data.m.edge_data(eid).flags[MARKED] = false;
+
+                    for(uint eid : data.m.get_surface_edges())
+                        //if(one of the vids is active)
+                        if(!data.m.vert_data(data.m.edge_vert_id(eid, 0)).label || !data.m.vert_data(data.m.edge_vert_id(eid, 1)).label)
+                            if(data.target_edge_length < data.m.edge_length(eid))
+                                data.m.edge_data(eid).flags[MARKED] = true;
+                    data.m.show_marked_edge(true);
+                    data.m.updateGL();
+                } else {
+                    for(uint eid : data.m.get_surface_edges())
+                        data.m.edge_data(eid).flags[MARKED] = false;
+                    data.m.show_marked_edge(false);
+                    data.m.updateGL();
+                }
             }
 
             ImGui::Text("===========================");
@@ -262,14 +277,17 @@ int main(int argc, char *argv[]) {
             if (ImGui::Button("Give me distance")) {
                 std::cout << "Vid: " << sel_vid << std::endl;
                 std::cout << "Distance: " << data.m.vert_data(sel_vid).uvw[DIST] << std::endl;
+                std::cout << "Inactivity at: " << data.inactivity_dist << std::endl;
             }
 
             if (ImGui::Button("Is active")) {
+                bool is_active;
+
                 std::cout << "Vid: " << sel_vid << std::endl;
-                if (CONTAINS_VEC(data.fronts_active, sel_vid))
-                    std::cout << "Active" << std::endl;
-                else
-                    std::cout << "Inactive" << std::endl;
+                is_active = CONTAINS_VEC(data.fronts_active, sel_vid);
+                std::cout << "Active list: " << (is_active ? "Active" : "Inactive") << std::endl;
+                is_active = !data.m.vert_data(sel_vid).label;
+                std::cout << "Active label: " << (is_active ? "Active" : "Inactive") << std::endl;
             }
 
             if (ImGui::Button("Put marker")) {
@@ -289,23 +307,20 @@ int main(int argc, char *argv[]) {
                 data.m.updateGL();
             }
 
+            ImGui::TreePop();
         }
 
+        ImGui::SetNextItemOpen(false,ImGuiCond_Once);
         if(ImGui::TreeNode("Actions")) {
 
             if (ImGui::Button("Undo")) {
-
-                //counter back
-                data.step--;
-                std::cout << TXT_BOLDYELLOW << "UNDO to ITERATION " << data.step << TXT_RESET << std::endl << std::endl;
 
                 //pop of all
                 gui.pop(&data.m);
 
                 //data recover
-                data.m = undo_data.m;
-                data.fronts_active = undo_data.fronts_active;
-                data.fronts_bounds = undo_data.fronts_bounds;
+                data = undo_data;
+                std::cout << TXT_BOLDYELLOW << "UNDO to ITERATION " << data.step << TXT_RESET << std::endl << std::endl;
 
                 //UI
                 UI_Manager(data, uiMode, dir_arrows);
@@ -335,8 +350,11 @@ int main(int argc, char *argv[]) {
             if (ImGui::Button("Save")) {
                 save_data(data);
             }
+
+            ImGui::TreePop();
         }
 
+        ImGui::SetNextItemOpen(false,ImGuiCond_Once);
         if(ImGui::TreeNode("Visual")) {
 
             if (ImGui::Button("Clear UI")) {
@@ -393,8 +411,6 @@ int main(int argc, char *argv[]) {
                 show_srf_smooth = !show_srf_smooth;
 
                 if(show_srf_smooth) {
-                    export_surface(data.m, data.m_srf);
-                    mesh_smoother(data.m_srf, data.m_srf);
                     data.m_srf.updateGL();
                     gui.push(&data.m_srf);
                 } else {
@@ -402,8 +418,43 @@ int main(int argc, char *argv[]) {
                 }
             }
 
+            if(ImGui::Button("Show vert origin")) {
+                show_vert_origin = !show_vert_origin;
+
+                if(show_vert_origin) {
+
+                    for(uint vid : data.m.get_surface_verts()) {
+                        if(data.m.vert_data(vid).flags[SPLIT]) {
+                            gui.push_marker(data.m.vert(vid), "", Color::GREEN(), 2, 4);
+                        } else if(data.m.vert_data(vid).flags[TOPOLOGICAL]) {
+                            gui.push_marker(data.m.vert(vid), "", Color::RED(), 2, 4);
+                        }
+                    }
+
+                } else {
+                    gui.pop_all_markers();
+                }
+
+            }
+
+            ImGui::TreePop();
         }
 
+    };
+
+    gui.callback_mouse_left_click = [&](int modifiers) -> bool
+    {
+        if(modifiers & GLFW_MOD_SHIFT)
+        {
+            vec3d p;
+            vec2d click = gui.cursor_pos();
+            if(gui.unproject(click, p)) // transform click in a 3d point
+            {
+                uint vid = data.m.pick_edge(p);
+                std::cout << "ID " << vid << " - l: " << data.m.edge_length(vid) << std::endl;
+            }
+        }
+        return false;
     };
 
     int under100 = 0;

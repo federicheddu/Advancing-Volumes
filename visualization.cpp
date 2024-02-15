@@ -96,21 +96,3 @@ void highlightModel(DrawableTetmesh<> &m) {
     });
 
 }
-
-void show_stuck_v(DrawableTetmesh<> &m, std::set<uint> &stuck, GLcanvas &gui) {
-    //push markers
-    for(uint vid : stuck)
-        gui.push_marker(m.vert(vid), std::to_string(vid));
-}
-
-void show_stuck_e(DrawableTetmesh<> &m, std::set<uint> &stuck, GLcanvas &gui) {
-
-    for(uint eid = 0; eid < m.num_edges(); eid++)
-        if(stuck.find(m.edge_vert_id(eid, 0)) != stuck.end() || stuck.find(m.edge_vert_id(eid, 1)) != stuck.end())
-            m.edge_data(eid).flags[MARKED] = true;
-        else
-            m.edge_data(eid).flags[MARKED] = false;
-
-    m.show_marked_edge(true);
-
-}

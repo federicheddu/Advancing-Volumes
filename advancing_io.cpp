@@ -10,6 +10,10 @@ void setup(Data &data, int argc, char *argv[], Octree *oct) {
     else
         load_data(data, oct);
 
+    for(uint vid : data.m.get_surface_verts()) {
+        data.m.vert_data(vid).flags[SPLIT] = false;
+        data.m.vert_data(vid).flags[TOPOLOGICAL] = false;
+    }
 }
 
 void parse_input(Data &d, int argc, char *argv[]) {
@@ -138,7 +142,6 @@ void parse_input(Data &d, int argc, char *argv[]) {
 
             //default settings
             d.render = false;
-            d.batch = true;
             d.ultra_verbose = false;
 
             //exit
@@ -286,6 +289,17 @@ void load_data(Data &data, Octree *oct) {
 
 }
 
+bool have_to_save(Data &d) {
+    bool hts;
+    int real_step = d.step_by_step ? d.step / NUM_STEPS : d.step;
+
+    hts = d.save_every != 0;
+    hts = hts && real_step % d.save_every == 0;
+    hts = hts || !d.running;
+
+    return hts;
+}
+
 void save_data(Data &d) {
 
     if(d.ultra_verbose)
@@ -348,7 +362,7 @@ void set_param(Data &d) {
     export_surface(d.vol, d.srf);
 
     //edge length threshold
-    d.target_edge_length = d.srf.edge_avg_length();
+    d.target_edge_length = d.srf.edge_avg_length() * 1.5;
 
     //inactive threshold
     d.inactivity_dist = d.target_edge_length * d.eps_percent;

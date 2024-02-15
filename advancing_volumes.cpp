@@ -9,25 +9,33 @@ void advancing_volume(Data &data) {
     //clear colors if debug
     if(data.debug_colors) clearColors(data.m);
 
-    //model expansion
-    if(data.running) expand(data);
-    if(data.running && data.check_intersections) check_self_intersection(data);
-
-    //refinement
-    if(data.running) do { refine(data); } while (data.multiple_refinement && get_max_edge_length(data, true) > data.target_edge_length);
-    add_last_rationals(data);
-
-    //smoothing
-    if(data.running && data.smoothing) smooth(data);
-
-    //front update
-    update_fronts(data);
-
-    //update model and UI
-    data.m.update_normals();
+    int step = data.step_by_step ? data.step % NUM_STEPS : 1;
+    switch(step) {
+        case 1: //model expansion
+            if(data.running) expand(data);
+            if(data.running && data.check_intersections) check_self_intersection(data);
+            if(data.step_by_step) break;
+        case 2: //refinement
+            if(data.running) do { refine(data); } while (!data.step_by_step && have_to_rerefine(data));
+            if(data.step_by_step && have_to_rerefine(data)) data.step--; //do only one refinement in step by step mode
+            add_last_rationals(data);
+            if(data.step_by_step) break;
+        case 3://smoothing
+            if(data.running && data.smoothing) smooth(data);
+            if(data.step_by_step) break;
+        case 0: //last things
+            //front update
+            update_fronts(data);
+            //update model and UI
+            data.m.update_normals();
+            break;
+        default:
+            std::cout << TXT_BOLDRED << "You should not be in the default case" << TXT_RESET << std::endl;
+            exit(99);
+    }
 
     //save the data
-    if((data.step != 0 && data.step % data.save_every == 0) || !data.running)
+    if(have_to_save(data))
         save_data(data);
 
     std::cout << TXT_BOLDMAGENTA << "Advancing volume ITERATION " << data.step << " - Active: " << data.fronts_active.size() << TXT_RESET;
@@ -58,6 +66,7 @@ void expand(Data &d) {
     //sort the front in descending order (from the farthest to the closest)
     if(d.priority_queue) std::sort(d.fronts_active.begin(), d.fronts_active.end(), cmp);
     //move every vert in the active front
+    int counter = 0;
     for(auto vid : d.fronts_active) {
         //assert
         errorcheck(d, d.m.vert_is_on_srf(vid), "Vert " + std::to_string(vid) + " not on surface");
@@ -137,6 +146,11 @@ void refine(Data &d, bool internal) {
 
     if(d.verbose)
         std::cout << TXT_GREEN << "DONE" << TXT_RESET << std::endl;
+}
+
+//tells me if i have to refine again
+bool have_to_rerefine(Data &d) {
+    return d.multiple_refinement && get_max_edge_length(d, true) > d.target_edge_length;
 }
 
 //project onto the target mesh
@@ -330,6 +344,10 @@ void smooth(Data &d) {
                     rt_bary[1] = cp.y();
                     rt_bary[2] = cp.z();
                 }
+                //get the displacement (instead of bary)
+                rt_bary[0] = d.exact_coords[3*vid+0] - rt_bary[0];
+                rt_bary[1] = d.exact_coords[3*vid+1] - rt_bary[1];
+                rt_bary[2] = d.exact_coords[3*vid+2] - rt_bary[2];
                 //move the vert
                 move(d, vid, rt_bary);
                 if(!d.running) return;

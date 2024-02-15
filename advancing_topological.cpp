@@ -86,6 +86,10 @@ void split(Data &d, std::set<uint> &edges_to_split, std::map<ipair, uint> &v_map
             new_vid = d.m.edge_split(eid);
         }
 
+        //mark how the vert is created
+        d.m.vert_data(new_vid).flags[SPLIT] = d.step > 0;
+        d.m.vert_data(new_vid).flags[TOPOLOGICAL] = false;
+
         //update the map
         v_map.emplace(og_edge,new_vid);
 
@@ -471,6 +475,10 @@ void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
         if(!d.m.vert_data(vfresh).label) d.fronts_active.push_back(vfresh);
     }
 
+    //mark how vert was created
+    d.m.vert_data(vfresh).flags[SPLIT] = false;
+    d.m.vert_data(vfresh).flags[TOPOLOGICAL] = true;
+
     // ultra verbose -- give pid of the new polys
     if(d.ultra_verbose) {
         std::cout << "new poly: ";
@@ -551,6 +559,10 @@ void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *exact_target, std::vector<
         d.m.vert_data(new_vid).uvw[MOV] = 0;
         if(!d.m.vert_data(new_vid).label) d.fronts_active.push_back(new_vid);
     }
+
+    //mark how vert was created
+    d.m.vert_data(new_vid).flags[SPLIT] = false;
+    d.m.vert_data(new_vid).flags[TOPOLOGICAL] = true;
 
     // ultra verbose -- give pid of the new polys
     if (d.ultra_verbose) {

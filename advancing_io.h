@@ -10,6 +10,7 @@ void setup(Data &data, int argc, char *argv[], Octree *oct);
 void parse_input(Data &d, int argc, char *argv[]);
 void init_data(Data &data, Octree *oct);
 void load_data(Data &data, Octree *oct);
+bool have_to_save(Data &d);
 void save_data(Data &d);
 void init_model(Data &d);
 void set_param(Data &d);

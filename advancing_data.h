@@ -9,12 +9,22 @@
 #include "rationals.h"
 #include "sphere.h"
 
+//macro utils
+#define NUM_STEPS 4
+
 using namespace cinolib;
 
+//double uvw overwrite
 enum {
     DIST,
     MOV,
     UNUSED_AV
+};
+
+//bool flags overwrite
+enum {
+    SPLIT = UNUSED_0,
+    TOPOLOGICAL = UNUSED_1
 };
 
 typedef struct data {
@@ -36,7 +46,7 @@ typedef struct data {
     bool smooth_internal = true;
     bool smooth_project = false;
     bool smooth_smooth = false;
-    //text and debug
+    //text and debug1
     bool verbose = true;                // print sub-steps
     bool ultra_verbose = false;         // print everything (debug)
     bool debug_colors = false;           // color the mesh for debug
@@ -50,7 +60,7 @@ typedef struct data {
 
     //execution
     bool running = true;
-    bool batch = false;
+    bool step_by_step = false;
     int step = 0;
     int save_every = 1;
 
