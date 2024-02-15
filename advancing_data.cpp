@@ -360,6 +360,20 @@ void init_model(Data &d) {
     d.m.update_bbox();
 }
 
+//distance from the target
+double dist_calc(Data &d, uint vid, bool raycast) {
+
+    uint id; //warning killer
+    double dist;
+
+    //raycast hit (direction)
+    if(raycast) d.oct->intersects_ray(d.m.vert(vid), d.m.vert_data(vid).normal, dist, id);
+    //closest point
+    else dist = d.oct->closest_point(d.m.vert(vid)).dist(d.m.vert(vid));
+
+    return dist;
+}
+
 //rational to double
 void to_double(CGAL_Q *src, vec3d &dst) {
     dst.x() = dst[0];

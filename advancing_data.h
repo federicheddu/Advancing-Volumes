@@ -70,8 +70,9 @@ typedef struct data {
 
     //parameters
     double sphere_rad = 0.9;
-    double target_edge_length = 1.5;   // multiplied in setup with the avg length of srf edges of the target
-    double inactivity_dist = 0.1;      // multiplied in setup with the avg length of srf edges of the target
+    double target_edge_length = 1.5;        // multiplied in setup with the avg length of srf edges of the target
+    double switch_raycast_threshold = 1;    // multiplied in setup with the avg length of srf edges of the target
+    double inactivity_dist = 0.1;           // multiplied in setup with the avg length of srf edges of the target
 
     //utility
     int orient_sign = -1;               // sign for the orientation of the mesh (1 or -1)
@@ -85,6 +86,8 @@ typedef struct data {
 //initial model
 DrawableTetmesh<> hardcode_model();
 void init_model(Data &d);
+//utility
+double dist_calc(Data &d, uint vid, bool raycast);
 //data conversion
 void to_double(CGAL_Q *src, vec3d &v);
 void to_rational(vec3d &v, CGAL_Q *src);
