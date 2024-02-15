@@ -14,7 +14,8 @@ void smooth(Data &d);
 void compute_direction(Data &d);
 void compute_distances(Data &d);
 void compute_displacement(Data &d);
-void line_search(Data &d, uint vid, CGAL_Q *rt_og_pos);
-void check_self_intersection();
+void line_search(Data &d, uint vid, CGAL_Q *safe_pos);
+bool check_intersection(Data &d, uint vid);
+bool check_self_intersection(Data &d);
 
 #endif //ADVANCING_VOLUMES_ADVANCING_VOLUMES_H
