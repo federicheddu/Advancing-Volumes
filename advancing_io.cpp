@@ -17,8 +17,9 @@ void setup(Data &d, Octree *oct) {
     oct->build_from_mesh_polys(d.ts);
     d.oct = oct;
     //params
-    d.target_edge_length *= d.ts.edge_avg_length();
-    d.inactivity_dist *= d.ts.edge_avg_length();
+    d.target_edge_length        *= d.ts.edge_avg_length();
+    d.switch_raycast_threshold  *= d.ts.edge_avg_length();
+    d.inactivity_dist           *= d.ts.edge_avg_length();
 
     //model
     init_model(d);
