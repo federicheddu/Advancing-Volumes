@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.10)
 
 project(Advancing-Volumes)
 
-set(CMAKE_BUILD_TYPE "Release")
 set(cinolib_DIR "/Users/federicomeloni/Documents/GitHub/cinolib")
 set(CINOLIB_USES_OPENGL_GLFW_IMGUI ON)
 set(CINOLIB_USES_SHEWCHUK_PREDICATES ON)
