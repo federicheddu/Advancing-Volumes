@@ -2,14 +2,14 @@
 #define ADVANCING_VOLUMES_ANSI_H
 
 //Regular text
-#define BLK "\e[0;30m"
-#define RED "\e[0;31m"
-#define GRN "\e[0;32m"
-#define YEL "\e[0;33m"
-#define BLU "\e[0;34m"
-#define MAG "\e[0;35m"
-#define CYN "\e[0;36m"
-#define WHT "\e[0;37m"
+#define TBLK "\e[0;30m"
+#define TRED "\e[0;31m"
+#define TGRN "\e[0;32m"
+#define TYEL "\e[0;33m"
+#define TBLU "\e[0;34m"
+#define TMAG "\e[0;35m"
+#define TCYN "\e[0;36m"
+#define TWHT "\e[0;37m"
 
 //Regular bold text
 #define BBLK "\e[1;30m"
