@@ -29,7 +29,7 @@ enum {
 typedef struct data {
 
     //movement
-    int smooth_dir_iters = 200;         //iters of direction smoothing
+    int smooth_dir_iters = 10;         //iters of direction smoothing
     int line_search_max = 10;           //max iters of line search
     bool only_raycast = false;          //move only with raycast (no closest point)
     //refinement

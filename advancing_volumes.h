@@ -21,4 +21,7 @@ void line_search(Data &d, uint vid, CGAL_Q *safe_pos);
 bool check_intersection(Data &d, uint vid);
 void check_self_intersection(Data &d);
 
+//front functions
+void update_front(Data &d);
+
 #endif //ADVANCING_VOLUMES_ADVANCING_VOLUMES_H

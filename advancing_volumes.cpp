@@ -8,8 +8,9 @@ void advancing_volume(Data &d) {
     if(d.running) expand(d);
     //if(d.running) refine(d);
     //if(d.running) smooth(d);
+    update_front(d);
 
-    cout << BMAG << "Advancing Volume ITERATION " << BGRN << "DONE" << RESET << endl;
+    cout << BMAG << "Advancing Volume ITERATION - Actives: " << d.front.size() << "/" << d.m.num_srf_verts() << RESET << endl;
 
 }
 
@@ -19,7 +20,7 @@ void expand(Data &d) {
     if(d.render) d.gui->pop_all_markers();
 
     //compute DDD: direction, distance and displacement -> saved into .vert_data(vid).normal
-    //compute_directions(d);
+    compute_directions(d);
     compute_distances(d);
     compute_displacements(d);
 
@@ -35,7 +36,6 @@ void expand(Data &d) {
 
     //restore normals, update fronts, check for self intersections
     d.m.update_normals();
-    /* TODO: update fronts here */
     check_self_intersection(d);
     if(!d.running) return;
 
@@ -89,7 +89,7 @@ void compute_directions(Data &d) {
             //avg
             for(uint adj : d.m.vert_adj_srf_verts(vid))
                 direction += d.m.vert_data(adj).normal;
-            direction /= (d.m.vert_adj_srf_verts(vid).size() + 1);
+            direction = direction / (d.m.vert_adj_srf_verts(vid).size() + 1);
             direction.normalize();
             //update after smoothing
             d.m.vert_data(vid).normal = direction;
@@ -190,5 +190,12 @@ void check_self_intersection(Data &d) {
 
     //feedback
     if(!d.running) cout << BRED << "FOUND" << RESET << endl;
+
+}
+
+void update_front(Data &d) {
+
+    //remove inactive verts from the front
+    d.front.erase(std::remove_if(d.front.begin(), d.front.end(), [&](uint vid) { return !d.m.vert_data(vid).flags[ACTIVE]; }), d.front.end());
 
 }

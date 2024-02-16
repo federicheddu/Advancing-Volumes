@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
                 //movement (BLUE)
                 movs.use_gl_lines = true;
                 movs.default_color = Color::BLUE();
-                //compute_directions(d);
+                compute_directions(d);
                 compute_distances(d);
                 compute_displacements(d);
                 for (auto vid: d.front) {
