@@ -1,4 +1,5 @@
 #include "advancing_volumes.h"
+#undef NDEBUG
 
 using namespace cinolib;
 

@@ -26,6 +26,12 @@ enum {
     TOPOLOGICAL = UNUSED_2      //vert origined from topological unlock
 };
 
+//struct to query the edges to flip after the split
+typedef struct edge_to_flip {
+    uint opp_vid = 0;
+    ipair og_edge = {0, 0};
+} edge_to_flip;
+
 typedef struct data {
 
     //movement
@@ -35,12 +41,6 @@ typedef struct data {
     //refinement
     bool multiple_refinement = true;
     bool internal_refinement = true;
-    //smoothing
-    int smooth_mesh = 5;
-    bool smoothing = true;
-    bool smooth_internal = true;
-    bool smooth_project = false;
-    bool smooth_smooth = false;
     //text and debug1
     bool verbose = true;                // print sub-steps
     //other
@@ -69,9 +69,14 @@ typedef struct data {
     std::vector<uint> front;
     std::vector<CGAL_Q> rationals;
 
+    //refinement
+    std::set<uint> ets;             //edges that need to be split
+    std::map<ipair, uint> v_map;    //maps the og edge (ipair) to the new vert
+    std::queue<edge_to_flip> etf;   //edges that need to be flipped
+
     //parameters
     double sphere_rad = 0.9;
-    double target_edge_length = 1.5;        // multiplied in setup with the avg length of srf edges of the target
+    double target_edge_length = 2.0;        // multiplied in setup with the avg length of srf edges of the target
     double switch_raycast_threshold = 1;    // multiplied in setup with the avg length of srf edges of the target
     double inactivity_dist = 0.1;           // multiplied in setup with the avg length of srf edges of the target
 

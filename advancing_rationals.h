@@ -1,8 +1,6 @@
 #ifndef ADVANCING_VOLUMES_ADVANCING_RATIONALS_H
 #define ADVANCING_VOLUMES_ADVANCING_RATIONALS_H
 
-#undef NDEBUG
-
 #include <CGAL/Lazy_exact_nt.h>
 #include <CGAL/Gmpq.h>
 
