@@ -35,6 +35,8 @@ int main(int argc, char *argv[]) {
 
     //render
     GLcanvas gui(1080, 720);
+    d.render = true;
+    //push on gui
     gui.push(&d.m, false);
     gui.push(&d.ts, true);
     gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&d.m, &gui));
@@ -101,6 +103,22 @@ int main(int argc, char *argv[]) {
                 gui.pop(&movs);
                 norms.clear();
                 movs.clear();
+                break;
+
+            case GLFW_KEY_B:
+
+                for(auto eid : d.m.get_surface_edges()) {
+                    d.m.edge_data(eid).flags[MARKED] = false;
+                    if (d.m.edge_length(eid) > d.target_edge_length)
+                        d.m.edge_data(eid).flags[MARKED] = true;
+                }
+                d.m.updateGL();
+                break;
+
+            case GLFW_KEY_V:
+                for(auto eid : d.m.get_surface_edges())
+                    d.m.edge_data(eid).flags[MARKED] = false;
+                d.m.updateGL();
                 break;
             default:
                 handled = false;

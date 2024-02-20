@@ -6,6 +6,7 @@
 #include <cinolib/gl/surface_mesh_controls.h>
 #include <cinolib/gl/volume_mesh_controls.h>
 #include <cinolib/octree.h>
+#include <cinolib/smoother.h>
 
 #include "advancing_rationals.h"
 #include "ANSI_color_codes.h"
@@ -35,13 +36,15 @@ typedef struct edge_to_flip {
 typedef struct data {
 
     //movement
-    int smooth_dir_iters = 10;         //iters of direction smoothing
+    int smooth_dir_iters = 200;         //iters of direction smoothing
     int line_search_max = 10;           //max iters of line search
     bool only_raycast = false;          //move only with raycast (no closest point)
     //refinement
     bool multiple_refinement = true;
     bool internal_refinement = true;
-    //text and debug1
+    //smoothing
+    int smooth_mesh_iters = 5;
+    //text and debug
     bool verbose = true;                // print sub-steps
     //other
     bool enable_snap_rounding = false;  // snap the rational coords to the closest double
@@ -94,6 +97,8 @@ DrawableTetmesh<> hardcode_model();
 void init_model(Data &d);
 //utility
 double dist_calc(Data &d, uint vid, bool raycast);
+bool will_poly_flip(Data &d, const uint vid, const uint pid, CGAL_Q *target);
+bool will_face_flip(Data &d, const uint pid, const uint fid, CGAL_Q *target);
 //data conversion
 vec3d to_double(CGAL_Q *src);
 void to_rational(vec3d &src, CGAL_Q *dest);

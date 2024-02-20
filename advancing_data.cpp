@@ -374,6 +374,34 @@ double dist_calc(Data &d, uint vid, bool raycast) {
     return dist;
 }
 
+//check if the future position will flip the tet
+bool will_poly_flip(Data &d, const uint vid, const uint pid, CGAL_Q *target) {
+    assert(data.m.poly_contains_vert(pid,vid));
+
+    uint f_opp = d.m.poly_face_opposite_to(pid,vid);
+    uint v0 = d.m.face_vert_id(f_opp,0);
+    uint v1 = d.m.face_vert_id(f_opp,1);
+    uint v2 = d.m.face_vert_id(f_opp,2);
+    if(d.m.poly_face_is_CCW(pid,f_opp)) std::swap(v0,v1);
+
+    // it the positive half space of the edge opposite to front_vert
+    // does not contain the new_pos, the triangle is blocking
+    return orient3d(&d.rationals[3*v0],&d.rationals[3*v1],&d.rationals[3*v2],target) * d.orient_sign <=0;
+}
+
+bool will_face_flip(Data &d, const uint pid, const uint fid, CGAL_Q *target) {
+    bool flipped;
+
+    uint verts_id[] = {d.m.face_verts_id(fid)[0], d.m.face_verts_id(fid)[1], d.m.face_verts_id(fid)[2]};
+    if(d.m.poly_face_is_CW(pid, fid)) std::swap(verts_id[0], verts_id[1]);
+    CGAL_Q verts[3][3] = {{d.rationals[verts_id[0]*3+0], d.rationals[verts_id[0]*3+1], d.rationals[verts_id[0]*3+2]},
+                          {d.rationals[verts_id[1]*3+0], d.rationals[verts_id[1]*3+1], d.rationals[verts_id[1]*3+2]},
+                          {d.rationals[verts_id[2]*3+0], d.rationals[verts_id[2]*3+1], d.rationals[verts_id[2]*3+2]}};
+    flipped = orient3d(verts[0], verts[1], verts[2], target) * d.orient_sign <= 0; //if the signs are discordant we have a flip
+
+    return flipped;
+}
+
 //rational to double
 vec3d to_double(CGAL_Q *src) {
     return vec3d(CGAL::to_double(src[0]), CGAL::to_double(src[1]), CGAL::to_double(src[2]));

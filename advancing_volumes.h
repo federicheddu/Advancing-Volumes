@@ -21,6 +21,13 @@ void line_search(Data &d, uint vid, CGAL_Q *safe_pos);
 bool check_intersection(Data &d, uint vid);
 void check_self_intersection(Data &d);
 
+//topological unlock
+void topological_unlock(Data &d, uint vid, CGAL_Q *rt_moved, CGAL_Q *rt_disp);
+void unlock(Data &d, uint vid, uint pid, CGAL_Q *target);
+void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> &see_target);
+void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> &see_target);
+void unlock_see1(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> &see_target);
+
 //refine functions
 void split(Data &d);
 void edges_to_split(Data &d);

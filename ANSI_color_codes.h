@@ -72,7 +72,7 @@
 #define BHWHT "\e[1;97m"
 
 //Reset
-#define RESET "\e[0m"
+#define RST "\e[0m"
 #define DIM "\e[22m"
 #define BLINK "\e[5m"
 #define HIDDEN "\e[8m"
@@ -84,5 +84,6 @@
 //shortcut
 #define cout std::cout
 #define endl std::endl
+#define rendl RST << endl
 
 #endif //ADVANCING_VOLUMES_ANSI_H
