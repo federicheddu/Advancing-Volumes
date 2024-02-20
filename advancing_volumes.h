@@ -1,6 +1,6 @@
 #ifndef ADVANCING_VOLUMES_ADVANCING_VOLUMES_H
 #define ADVANCING_VOLUMES_ADVANCING_VOLUMES_H
-
+#undef NDEBUG
 #include "advancing_io.h"
 #include <cinolib/find_intersections.h>
 

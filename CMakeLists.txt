@@ -16,6 +16,8 @@ add_executable(
         advancing_volumes.h advancing_volumes.cpp
         advancing_rationals.cpp advancing_rationals.h
         ANSI_color_codes.h
+        advancing_commands.cpp
+        advancing_commands.h
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME} cinolib CGAL::CGAL)

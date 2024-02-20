@@ -1,6 +1,8 @@
 #ifndef ADVANCING_VOLUMES_ADVANCING_DATA_H
 #define ADVANCING_VOLUMES_ADVANCING_DATA_H
 
+#undef NDEBUG
+
 #include <cinolib/meshes/meshes.h>
 #include <cinolib/gl/glcanvas.h>
 #include <cinolib/gl/surface_mesh_controls.h>
@@ -89,6 +91,10 @@ typedef struct data {
     //gui
     bool render = false;
     GLcanvas *gui = nullptr;
+
+    //counters
+    int unlock2_count = 0;
+    int unlock3_count = 0;
 
 } Data;
 

@@ -1,4 +1,6 @@
 #include "advancing_volumes.h"
+#include "advancing_commands.h"
+
 #undef NDEBUG
 
 using namespace cinolib;
@@ -24,12 +26,15 @@ int main(int argc, char *argv[]) {
     //input parameters -> no render
     if(argc > 1) {
 
+        while(!d.front.empty())
+            advancing_volume(d);
+
         return 0;
     }
 
     //models to load
     d.str_model = "";
-    d.str_target = "../data/bunny.mesh";
+    d.str_target = "../data/cubespikes.mesh";
     d.str_rationals = "";
     setup(d, &oct);
 
@@ -43,90 +48,10 @@ int main(int argc, char *argv[]) {
     gui.push(new SurfaceMeshControls<DrawableTrimesh<>>(&d.ts, &gui));
     d.gui = &gui;
 
-    std::vector<vec3d> movements;
-    DrawableSegmentSoup norms;
-    DrawableSegmentSoup movs;
-
-    gui.callback_key_pressed = [&](int key, int modifier) {\
-
-        bool handled = true;
-
-        switch (key) {
-            case GLFW_KEY_SPACE:
-                advancing_volume(d);
-                d.m.updateGL();
-                d.m.update_bbox();
-                d.m.update_quality();
-                break;
-            case GLFW_KEY_M: {
-
-                //vert and displacement
-                vec3d vert, disp;
-                d.m.update_normals();
-
-                //normals (RED)
-                norms.use_gl_lines = true;
-                norms.default_color = Color::RED();
-                compute_distances(d);
-                compute_displacements(d);
-                for (auto vid: d.front) {
-                    vert = d.m.vert(vid);
-                    disp = d.m.vert_data(vid).normal;
-                    norms.push_seg(vert, vert + disp);
-                }
-
-                //restore normals
-                d.m.update_normals();
-
-                //movement (BLUE)
-                movs.use_gl_lines = true;
-                movs.default_color = Color::BLUE();
-                compute_directions(d);
-                compute_distances(d);
-                compute_displacements(d);
-                for (auto vid: d.front) {
-                    vert = d.m.vert(vid);
-                    disp = d.m.vert_data(vid).normal;
-                    movs.push_seg(vert, vert + disp);
-                }
-
-                //push on gui
-                gui.push(&norms, false);
-                gui.push(&movs, false);
-
-                //restore normals
-                d.m.update_normals();
-                break;
-            }
-            case GLFW_KEY_N:
-                gui.pop(&norms);
-                gui.pop(&movs);
-                norms.clear();
-                movs.clear();
-                break;
-
-            case GLFW_KEY_B:
-
-                for(auto eid : d.m.get_surface_edges()) {
-                    d.m.edge_data(eid).flags[MARKED] = false;
-                    if (d.m.edge_length(eid) > d.target_edge_length)
-                        d.m.edge_data(eid).flags[MARKED] = true;
-                }
-                d.m.updateGL();
-                break;
-
-            case GLFW_KEY_V:
-                for(auto eid : d.m.get_surface_edges())
-                    d.m.edge_data(eid).flags[MARKED] = false;
-                d.m.updateGL();
-                break;
-            default:
-                handled = false;
-                break;
-        }
-
-        return handled;
-    };
+    //app commands -> SPACE for one iteration
+    gui.callback_app_controls = [&]() {gui_commands(d);};
+    gui.callback_key_pressed = [&](int key, int modifier) { return key_commands(d, key, modifier);};
+    gui.callback_mouse_left_click = [&](int modifier) -> bool {return click_commands(d, modifier);};
 
     return gui.launch();
 }

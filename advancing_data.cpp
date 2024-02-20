@@ -376,7 +376,7 @@ double dist_calc(Data &d, uint vid, bool raycast) {
 
 //check if the future position will flip the tet
 bool will_poly_flip(Data &d, const uint vid, const uint pid, CGAL_Q *target) {
-    assert(data.m.poly_contains_vert(pid,vid));
+    assert(d.m.poly_contains_vert(pid,vid));
 
     uint f_opp = d.m.poly_face_opposite_to(pid,vid);
     uint v0 = d.m.face_vert_id(f_opp,0);
