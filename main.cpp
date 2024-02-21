@@ -25,16 +25,14 @@ int main(int argc, char *argv[]) {
 
     //input parameters -> no render
     if(argc > 1) {
-
         while(!d.front.empty())
             advancing_volume(d);
-
         return 0;
     }
 
     //models to load
     d.str_model = "";
-    d.str_target = "../data/cubespikes.mesh";
+    d.str_target = "../data/ant.mesh";
     d.str_rationals = "";
     setup(d, &oct);
 

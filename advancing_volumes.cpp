@@ -119,7 +119,8 @@ void compute_distances(Data &d) {
     for(uint vid : d.front) {
         dist = dist_calc(d, vid, d.only_raycast);
         if(!d.only_raycast && dist < d.switch_raycast_threshold)
-            dist = dist_calc(d, vid, true);
+            //dist = dist_calc(d, vid, true);
+            dist = d.target_edge_length;
         d.m.vert_data(vid).uvw[DIST] = dist;
     }
 
@@ -288,10 +289,14 @@ void unlock(Data &d, const uint vid, const uint pid, CGAL_Q *target) {
 
 void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> &see_target) {
 
+    //stats
     d.unlock3_count++;
 
+    //sanity checks
     if (see_target.size() != 3) cout << "see_target.size(): " << see_target.size() << endl;
     assert(see_target.size()==3);
+    std::vector<uint> p_vids = d.m.poly_verts_id(pid);
+    assert(orient3d(&d.rationals[p_vids[0]*3], &d.rationals[p_vids[1]*3], &d.rationals[p_vids[2]*3], &d.rationals[p_vids[3]*3]) * d.orient_sign > 0);
 
     int f_hid = -1;
     for(uint fid : d.m.adj_p2f(pid)) {
@@ -314,6 +319,7 @@ void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> 
         return;
     }
 
+    //get the intersection point
     CGAL_Q P[3];
     std::vector<uint> f_vids = d.m.face_verts_id(f_hid);
     plane_line_intersection(&d.rationals[3*f_vids[0]],&d.rationals[3*f_vids[1]],&d.rationals[3*f_vids[2]],&d.rationals[3*d.m.poly_vert_opposite_to(pid,f_hid)],target, P);
@@ -335,28 +341,29 @@ void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> 
     d.m.vert_data(new_vid).flags[SPLIT] = false;
     d.m.vert_data(new_vid).flags[TOPOLOGICAL] = true;
 
-    for(uint pid : d.m.adj_v2p(vid)) {
-        std::vector<uint> vids = d.m.poly_verts_id(pid);
+    for(uint ppid : d.m.adj_v2p(vid)) {
+        std::vector<uint> vids = d.m.poly_verts_id(ppid);
         assert(orient3d(&d.rationals[vids[0]*3], &d.rationals[vids[1]*3], &d.rationals[vids[2]*3], &d.rationals[vids[3]*3]) * d.orient_sign > 0);
     }
-    for(uint pid : d.m.adj_v2p(new_vid)) {
-        std::vector<uint> vids = d.m.poly_verts_id(pid);
+    for(uint ppid : d.m.adj_v2p(new_vid)) {
+        std::vector<uint> vids = d.m.poly_verts_id(ppid);
         assert(orient3d(&d.rationals[vids[0]*3], &d.rationals[vids[1]*3], &d.rationals[vids[2]*3], &d.rationals[vids[3]*3]) * d.orient_sign > 0);
     }
 }
 
 void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> &see_target) {
 
+    //stats
     d.unlock2_count++;
-
+    //sanity checks
+    std::vector<uint> p_vids = d.m.poly_verts_id(pid);
+    assert(orient3d(&d.rationals[p_vids[0]*3], &d.rationals[p_vids[1]*3], &d.rationals[p_vids[2]*3], &d.rationals[p_vids[3]*3]) * d.orient_sign > 0);
     uint f0 = see_target[0];
     uint f1 = see_target[1];
     assert(f0!=f1);
     assert(d.m.poly_contains_face(pid,f0));
     assert(d.m.poly_contains_face(pid,f1));
-    // I think this is the only configuration possible
-    assert(d.m.face_contains_vert(f0,vid) ||
-           d.m.face_contains_vert(f1,vid));
+    assert(d.m.face_contains_vert(f0,vid) || d.m.face_contains_vert(f1,vid));
 
     uint eid = d.m.face_shared_edge(f0,f1);
     uint opp = d.m.poly_edge_opposite_to(pid,eid);
@@ -372,7 +379,6 @@ void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> 
            orient3d(&d.rationals[3*v0],&d.rationals[3*v1],P,&d.rationals[3*v3])<0);
 
     uint new_vid = d.m.edge_split(opp);
-    assert(new_vid==d.rationals.size()/3);
     d.rationals.push_back(P[0]);
     d.rationals.push_back(P[1]);
     d.rationals.push_back(P[2]);
@@ -389,12 +395,12 @@ void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> 
     d.m.vert_data(new_vid).flags[TOPOLOGICAL] = true;
 
     //sanity checks
-    for(uint pid : d.m.adj_v2p(vid)) {
-        std::vector<uint> vids = d.m.poly_verts_id(pid);
+    for(uint ppid : d.m.adj_v2p(vid)) {
+        std::vector<uint> vids = d.m.poly_verts_id(ppid);
         assert(orient3d(&d.rationals[vids[0]*3], &d.rationals[vids[1]*3], &d.rationals[vids[2]*3], &d.rationals[vids[3]*3]) * d.orient_sign > 0);
     }
-    for(uint pid : d.m.adj_v2p(new_vid)) {
-        std::vector<uint> vids = d.m.poly_verts_id(pid);
+    for(uint ppid : d.m.adj_v2p(new_vid)) {
+        std::vector<uint> vids = d.m.poly_verts_id(ppid);
         assert(orient3d(&d.rationals[vids[0]*3], &d.rationals[vids[1]*3], &d.rationals[vids[2]*3], &d.rationals[vids[3]*3]) * d.orient_sign > 0);
     }
 }
