@@ -11,7 +11,7 @@ void advancing_volume(Data &d) {
 
     if(d.running) expand(d);
     if(d.running) refine(d);
-    //if(d.running) smooth(d);
+    if(d.running) smooth(d);
     update_front(d);
 
     cout << BMAG << "Advancing Volume ITERATION - Actives: " << d.front.size() << "/" << d.m.num_srf_verts() << RST << endl;
@@ -236,11 +236,11 @@ void topological_unlock(Data &d, uint vid, CGAL_Q *rt_moved, CGAL_Q *rt_disp) {
         blocking = will_poly_flip(d, vid, pid, rt_moved);
 
         if(blocking) {
-            //push forward the unlock_pos to unlock
+            //push forward the unlock_pos to unlock_vert
             unlock_pos[0] = rt_moved[0] + rt_disp[0] / 2;
             unlock_pos[1] = rt_moved[1] + rt_disp[1] / 2;
             unlock_pos[2] = rt_moved[2] + rt_disp[2] / 2;
-            unlock(d, vid, pid, unlock_pos);
+            unlock_vert(d, vid, pid, unlock_pos);
             //restart the for
             i = 0;
             adj = d.m.adj_v2p(vid);
@@ -261,7 +261,7 @@ void topological_unlock(Data &d, uint vid, CGAL_Q *rt_moved, CGAL_Q *rt_disp) {
 
 }
 
-void unlock(Data &d, const uint vid, const uint pid, CGAL_Q *target) {
+void unlock_vert(Data &d, const uint vid, const uint pid, CGAL_Q *target) {
 
     CGAL_Q orient;
     std::vector<uint> vids, see_target;
@@ -438,6 +438,7 @@ void refine(Data &d) {
 
     if(d.verbose) cout << BCYN << "Adjusting the topology..." << RST;
     flip(d);
+    try_flips(d);
 
     if(d.verbose && d.running) cout << BGRN << "DONE" << RST << endl;
 
@@ -449,12 +450,19 @@ void refine(Data &d) {
 
 void edges_to_split(Data &d) {
 
-    for(uint vid : d.front)
-        for(uint eid : d.m.vert_adj_srf_edges(vid))
-            if(d.m.edge_length(eid) > d.target_edge_length)
-                for(uint fid : d.m.edge_adj_srf_faces(eid))
-                    d.ets.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(), d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
-
+    for(uint vid : d.front) {
+        for (uint eid: d.m.adj_v2e(vid)) {
+            if (d.m.edge_length(eid) > d.target_edge_length) {
+                if(d.m.edge_is_on_srf(eid)) {
+                    for (uint fid : d.m.edge_adj_srf_faces(eid)) {
+                        d.ets.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(), d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
+                    }
+                } else {
+                    d.ets.insert(eid);
+                }
+            }
+        }
+    }
 }
 
 void split(Data &d) {
@@ -572,6 +580,35 @@ void flip(Data &d) {
 
 }
 
+void try_flips(Data &d) {
+
+    uint vid0, vid1, new_eid;
+    std::vector<uint> adj_f;
+    double lenght, lenght_opp;
+    bool result;
+
+    for(uint eid : d.m.get_surface_edges()) {
+
+        adj_f = d.m.edge_adj_srf_faces(eid);
+        assert(adj_f.size() == 2);
+
+        vid0 = d.m.face_vert_opposite_to(adj_f[0], eid);
+        vid1 = d.m.face_vert_opposite_to(adj_f[1], eid);
+
+        lenght = d.m.edge_length(eid);
+        lenght_opp = d.m.vert(vid0).dist(d.m.vert(vid1));
+
+        if(lenght_opp < lenght && d.m.adj_e2p(eid).size() == 2) {
+            result = flip2to2(d.m, eid);
+            if(result) {
+                new_eid = d.m.edge_id(vid0, vid1);
+                d.m.edge_data(new_eid).flags[MARKED] = true;
+            }
+        }
+
+    }
+}
+
 bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1) {
 
     std::vector<uint> cluster = m.adj_e2p(eid);
@@ -683,12 +720,13 @@ void smooth(Data &d) {
     if(d.verbose) cout << BCYN << "Smoothing the model..." << rendl;
 
     //parameters
+    bool can_smooth;
     CGAL_Q rt_bary[3];
     std::vector<uint> adjs;
     size_t adjs_size;
-    //surface
 
     //for the number of iteration selected
+    /*
     for(int iter = 0; iter < d.smooth_mesh_iters; iter++) {
 
         Octree oct_srf;
@@ -713,6 +751,40 @@ void smooth(Data &d) {
 
         }
 
+    }
+    */
+
+    //internal smoothing
+    for(int iter = 0; iter < d.smooth_mesh_iters; iter++) {
+        //for every vert
+        for(uint vid = 0; vid < d.m.num_verts(); vid++) {
+            //skip surface
+            if(d.m.vert_is_on_srf(vid)) continue;
+            //get the rationals coord
+            copy(&d.rationals[3*vid], rt_bary);
+            //sum
+            adjs = d.m.adj_v2v(vid);
+            adjs_size = adjs.size() + 1;
+            for(uint adj : adjs) {
+                rt_bary[0] += d.rationals[3*adj+0];
+                rt_bary[1] += d.rationals[3*adj+1];
+                rt_bary[2] += d.rationals[3*adj+2];
+            }
+            //avg
+            rt_bary[0] = rt_bary[0] / int(adjs_size);
+            rt_bary[1] = rt_bary[1] / int(adjs_size);
+            rt_bary[2] = rt_bary[2] / int(adjs_size);
+            //check if legal move
+            for(uint pid : d.m.adj_v2p(vid)) {
+                can_smooth = !will_poly_flip(d, vid, pid, rt_bary);
+                if(!can_smooth) break;
+            }
+            //move
+            if(can_smooth) {
+                copy(rt_bary, &d.rationals[3*vid]);
+                d.m.vert(vid) = to_double(rt_bary);
+            }
+        }
     }
 
     if(d.verbose) cout << BGRN << "DONE" << rendl;

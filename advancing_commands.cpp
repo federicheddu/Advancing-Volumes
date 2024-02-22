@@ -184,34 +184,3 @@ void unmark_edges(Data &d) {
 }
 
 /* ================================================================================================================== */
-
-void try_flips(Data &d) {
-
-    uint vid0, vid1, new_eid;
-    std::vector<uint> adj_f;
-    double lenght, lenght_opp;
-    bool result;
-
-    for(uint eid : d.m.get_surface_edges()) {
-
-        adj_f = d.m.edge_adj_srf_faces(eid);
-        assert(adj_f.size() == 2);
-
-        vid0 = d.m.face_vert_opposite_to(adj_f[0], eid);
-        vid1 = d.m.face_vert_opposite_to(adj_f[1], eid);
-
-        lenght = d.m.edge_length(eid);
-        lenght_opp = d.m.vert(vid0).dist(d.m.vert(vid1));
-
-        if(lenght_opp < lenght && d.m.adj_e2p(eid).size() == 2) {
-            result = flip2to2(d.m, eid);
-            if(result) {
-                new_eid = d.m.edge_id(vid0, vid1);
-                d.m.edge_data(new_eid).flags[MARKED] = true;
-            }
-        }
-
-    }
-    d.m.update_normals();
-    d.m.updateGL();
-}

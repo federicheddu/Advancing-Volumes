@@ -26,7 +26,7 @@ enum {
 enum {
     ACTIVE = UNUSED_0,          //vert is active or not
     SPLIT = UNUSED_1,           //vert origined from refinement
-    TOPOLOGICAL = UNUSED_2      //vert origined from topological unlock
+    TOPOLOGICAL = UNUSED_2      //vert origined from topological unlock_vert
 };
 
 //struct to query the edges to flip after the split
