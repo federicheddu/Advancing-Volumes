@@ -66,21 +66,6 @@ bool key_commands(Data &d, int key, int modifier) {
             unmark_edges(d);
             break;
         }
-        //check orient
-        case GLFW_KEY_PERIOD: {
-            int count = 0;
-            int num = d.m.num_polys();
-            std::vector<uint> vids;
-            for(uint pid = 0; pid < num; pid++) {
-                vids = d.m.poly_verts_id(pid);
-                if(orient3d(&d.rationals[3*vids[0]], &d.rationals[3*vids[1]], &d.rationals[3*vids[2]], &d.rationals[3*vids[3]]) * d.orient_sign < 0) {
-                    cout << "Porco dio " << pid << rendl;
-                    count++;
-                }
-            }
-            if(count > 0) cout << TRED << "Porco dio " << count << " volte" << num << rendl;
-            else cout << TBLU << "Tutto ok" << rendl;
-        }
         default: {
             handled = false;
             break;

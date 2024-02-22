@@ -13,20 +13,12 @@ void smooth(Data &d);
 
 //expand functions
 void move(Data &d, uint vid, vec3d &disp);
-void move(Data &d, uint vid, CGAL_Q *rt_disp);
 void compute_directions(Data &d);
 void compute_distances(Data &d);
 void compute_displacements(Data &d);
-void line_search(Data &d, uint vid, CGAL_Q *safe_pos);
+void line_search(Data &d, uint vid, vec3d &safe_pos);
 bool check_intersection(Data &d, uint vid);
 void check_self_intersection(Data &d);
-
-//topological unlock_vert
-void topological_unlock(Data &d, uint vid, CGAL_Q *rt_moved, CGAL_Q *rt_disp);
-void unlock_vert(Data &d, const uint vid, const uint pid, CGAL_Q *target);
-void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> &see_target);
-void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> &see_target);
-void unlock_see1(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> &see_target);
 
 //refine functions
 void split(Data &d);
