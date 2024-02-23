@@ -388,3 +388,14 @@ bool does_movement_flip(Data &d, uint vid, uint pid, vec3d &target) {
     // does not contain the new_pos, the triangle is blocking
     return orient3d(d.m.vert(v0), d.m.vert(v1), d.m.vert(v2),target) * d.orient_sign <=0;
 }
+
+//check if the current position flipped some poly adj
+bool is_vert_flipped(Data &d, uint vid) {
+
+    vec3d v = d.m.vert(vid);
+
+    for(uint pid : d.m.adj_v2p(vid))
+        if(does_movement_flip(d,vid,pid,v)) return true;
+
+    return false;
+}

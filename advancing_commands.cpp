@@ -81,6 +81,30 @@ void gui_commands(Data &d) {
 
 bool click_commands(Data &d, int modifiers) {
 
+    //get info
+    if(modifiers & GLFW_MOD_CONTROL) {
+        vec3d p;
+        vec2d click = d.gui->cursor_pos();
+        if(d.gui->unproject(click, p)) {
+            uint vid = d.m.pick_vert(p);
+
+            
+        }
+    }
+
+    //split the edge
+    if(modifiers & GLFW_MOD_ALT) {
+        vec3d p;
+        vec2d click = d.gui->cursor_pos();
+        if(d.gui->unproject(click, p)) {
+            uint eid = d.m.pick_edge(p);
+            uint vid = d.m.edge_split(eid);
+            d.m.vert_data(vid).flags[ACTIVE] = dist_calc(d, vid, true) > d.inactivity_dist;
+            if(d.m.vert_data(vid).flags[ACTIVE]) d.front.emplace_back(vid);
+            d.m.updateGL();
+        }
+    }
+
     return false;
 }
 

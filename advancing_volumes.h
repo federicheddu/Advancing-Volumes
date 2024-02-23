@@ -8,7 +8,7 @@ void advancing_volume(Data &d);
 
 //main steps
 void expand(Data &d);
-void refine(Data &d);
+void refine(Data &d, bool all = false);
 void smooth(Data &d);
 
 //expand functions
@@ -21,8 +21,9 @@ bool check_intersection(Data &d, uint vid);
 void check_self_intersection(Data &d);
 
 //refine functions
-void split(Data &d);
-void edges_to_split(Data &d);
+bool refine_again(Data &d);
+void split(Data &d, bool all = false);
+void edges_to_split(Data &d, bool all = false);
 void flip(Data &d);
 void try_flips(Data &d);
 bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1);

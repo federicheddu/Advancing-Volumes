@@ -41,8 +41,8 @@ typedef struct data {
     int line_search_max = 10;           //max iters of line search
     bool only_raycast = false;          //move only with raycast (no closest point)
     //refinement
+    bool start_refinement = true;
     bool multiple_refinement = true;
-    bool internal_refinement = true;
     //smoothing
     int smooth_mesh_iters = 5;
     //text and debug
@@ -97,5 +97,6 @@ void init_model(Data &d);
 //utility
 double dist_calc(Data &d, uint vid, bool raycast);
 bool does_movement_flip(Data &d, uint vid, uint pid, vec3d &target);
+bool is_vert_flipped(Data &d, uint vid);
 
 #endif //ADVANCING_VOLUMES_ADVANCING_DATA_H

@@ -8,7 +8,7 @@ void advancing_volume(Data &d) {
     cout << BMAG << "Advancing Volume ITERATION " << d.step << RST << endl;
 
     if(d.running) expand(d);
-    if(d.running) refine(d);
+    if(d.running) do { refine(d); } while(d.multiple_refinement && refine_again(d));
     if(d.running) smooth(d);
     update_front(d);
 
@@ -64,7 +64,7 @@ void move(Data &d, uint vid, vec3d &disp) {
     if(!d.running) return;
 
     //update the active flag
-    if(dist_calc(d, vid, true) < d.inactivity_dist) d.m.vert_data(vid).flags[ACTIVE] = false;
+    d.m.vert_data(vid).flags[ACTIVE] = dist_calc(d, vid, true) > d.inactivity_dist;
 
 }
 
@@ -97,8 +97,7 @@ void compute_distances(Data &d) {
     for(uint vid : d.front) {
         dist = dist_calc(d, vid, d.only_raycast);
         if(!d.only_raycast && dist < d.switch_raycast_threshold)
-            //dist = dist_calc(d, vid, true);
-            dist = d.target_edge_length;
+            dist = std::min(dist_calc(d, vid, true), d.target_edge_length);
         d.m.vert_data(vid).uvw[DIST] = dist;
     }
 
@@ -130,7 +129,7 @@ void line_search(Data &d, uint vid, vec3d &safe_pos) {
     final = d.m.vert(vid);
 
     //backward bisection
-    while(bck_cnt < d.line_search_max && check_intersection(d, vid)) {
+    while(bck_cnt < d.line_search_max && (check_intersection(d, vid) || is_vert_flipped(d, vid))) {
         //backward
         d.m.vert(vid) = (d.m.vert(vid) + safe_pos) / 2;
         //counter
@@ -138,7 +137,7 @@ void line_search(Data &d, uint vid, vec3d &safe_pos) {
     }
 
     //forward bisection
-    while(frd_cnt < d.line_search_max && !check_intersection(d, vid)) {
+    while(frd_cnt < d.line_search_max && !check_intersection(d, vid) && !is_vert_flipped(d, vid)) {
         //update safe position
         safe_pos = d.m.vert(vid);
         //forward
@@ -150,6 +149,10 @@ void line_search(Data &d, uint vid, vec3d &safe_pos) {
     //go to the last safe position
     if(check_intersection(d, vid))
         d.m.vert(vid) = safe_pos;
+
+}
+
+void line_search_refined(Data &d, uint vid, vec3d &safe_pos) {
 
 }
 
@@ -178,12 +181,25 @@ void check_self_intersection(Data &d) {
 
     if(d.verbose) cout << BCYN << "Checking self intersection..." << RST;
     std::set<ipair> intersections;
+    std::unordered_map<uint, uint> m2srf, srf2m;
 
-    export_surface(d.m, d.ms);
+    export_surface(d.m, d.ms, m2srf, srf2m);
     find_intersections(d.ms, intersections);
     d.running = intersections.empty();
 
+    uint face;
+    std::vector<uint> sf(2), sv;
     for(auto inter : intersections) {
+        sf[0] = inter.first;
+        sf[1] = inter.second;
+
+        for(uint fid : sf) {
+            sv = d.ms.poly_verts_id(sf[0]);
+            face = d.m.face_id({srf2m[sv[0]], srf2m[sv[1]], srf2m[sv[2]]});
+            for (uint pid: d.m.adj_f2p(face))
+                d.m.poly_data(pid).color = Color::RED();
+        }
+
     }
 
     //feedback
@@ -196,14 +212,14 @@ void check_self_intersection(Data &d) {
 
 /* ================================================================================================================== */
 
-void refine(Data &d) {
+void refine(Data &d, bool all) {
 
     if(d.verbose) cout << BCYN << "Refining model..." << RST;
-    split(d);
+    split(d, all);
 
     if(d.verbose) cout << BCYN << "Adjusting the topology..." << RST;
     flip(d);
-    try_flips(d);
+    //try_flips(d);
 
     if(d.verbose && d.running) cout << BGRN << "DONE" << RST << endl;
 
@@ -213,28 +229,45 @@ void refine(Data &d) {
     assert(d.etf.empty());
 }
 
-void edges_to_split(Data &d) {
+bool refine_again(Data &d) {
 
-    for(uint vid : d.front) {
-        for (uint eid: d.m.adj_v2e(vid)) {
-            if (d.m.edge_length(eid) > d.target_edge_length) {
-                if(d.m.edge_is_on_srf(eid)) {
-                    for (uint fid : d.m.edge_adj_srf_faces(eid)) {
-                        d.ets.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(), d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
+    std::vector<uint> srf_edges = d.m.get_surface_edges();
+    double lenght = 0;
+    for(uint eid : srf_edges)
+        lenght += d.m.edge_length(eid);
+    lenght /= double(srf_edges.size());
+
+    return lenght > d.target_edge_length;
+
+}
+
+void edges_to_split(Data &d, bool all) {
+
+    if(all) { //if you need to split everything
+        for(uint eid = 0; eid < d.m.num_edges(); eid++) {
+            d.ets.insert(eid);
+        }
+    } else { //if you need to split only the too long
+        for (uint vid: d.front) { //for every vid in the front
+            for (uint eid: d.m.adj_v2e(vid)) { //get the edges adj
+                if (d.m.edge_length(eid) > d.target_edge_length) {
+                    if (d.m.edge_is_on_srf(eid)) { //if the vid is on srf get every edge adj
+                        for (uint fid: d.m.edge_adj_srf_faces(eid)) {
+                            d.ets.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(),d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
+                        }
+                    } else { //if its internal get only that edge
+                        d.ets.insert(eid);
                     }
-                } else {
-                    d.ets.insert(eid);
                 }
             }
         }
     }
 }
 
-void split(Data &d) {
+void split(Data &d, bool all) {
 
     //search for edges to split
-    d.ets.clear();
-    edges_to_split(d);
+    edges_to_split(d, all);
 
     //initial number of verts
     uint nv = d.m.num_verts();
@@ -352,11 +385,14 @@ void try_flips(Data &d) {
         lenght_opp = d.m.vert(vid0).dist(d.m.vert(vid1));
 
         if(lenght_opp < lenght && d.m.adj_e2p(eid).size() == 2) {
+            flip2to2(d.m, eid);
+            /*
             result = flip2to2(d.m, eid);
             if(result) {
                 new_eid = d.m.edge_id(vid0, vid1);
                 d.m.edge_data(new_eid).flags[MARKED] = true;
             }
+            */
         }
 
     }

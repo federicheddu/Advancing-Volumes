@@ -34,6 +34,8 @@ int main(int argc, char *argv[]) {
     d.str_model = "";
     d.str_target = "../data/duck.mesh";
     setup(d, &oct);
+    while(d.start_refinement && refine_again(d)) refine(d, true);
+    d.m.updateGL();
 
     //render
     GLcanvas gui(1080, 720);

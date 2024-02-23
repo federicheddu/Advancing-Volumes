@@ -30,6 +30,4 @@ void setup(Data &d, Octree *oct) {
         d.m.vert_data(vid).flags[ACTIVE] = true;
     }
 
-    /* TODO: initial refinement */
-
 }
