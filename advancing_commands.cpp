@@ -87,8 +87,7 @@ bool click_commands(Data &d, int modifiers) {
         vec2d click = d.gui->cursor_pos();
         if(d.gui->unproject(click, p)) {
             uint vid = d.m.pick_vert(p);
-
-            
+            cout << vid << "is " << (d.m.vert_data(vid).flags[ACTIVE] ? "ACTIVE" : "INACTIVE") << endl;
         }
     }
 
