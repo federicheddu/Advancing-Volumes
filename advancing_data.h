@@ -10,7 +10,6 @@
 #include <cinolib/octree.h>
 #include <cinolib/smoother.h>
 
-#include "advancing_rationals.h"
 #include "ANSI_color_codes.h"
 
 using namespace cinolib;
@@ -42,8 +41,8 @@ typedef struct data {
     int line_search_max = 10;           //max iters of line search
     bool only_raycast = false;          //move only with raycast (no closest point)
     //refinement
+    bool start_refinement = true;
     bool multiple_refinement = true;
-    bool internal_refinement = true;
     //smoothing
     int smooth_mesh_iters = 5;
     //text and debug
@@ -55,7 +54,6 @@ typedef struct data {
     std::string name;
     std::string str_model;
     std::string str_target;
-    std::string str_rationals;
 
     //execution
     int step = 0;
@@ -72,7 +70,6 @@ typedef struct data {
 
     //verts info
     std::vector<uint> front;
-    std::vector<CGAL_Q> rationals;
 
     //refinement
     std::set<uint> ets;             //edges that need to be split
@@ -92,10 +89,6 @@ typedef struct data {
     bool render = false;
     GLcanvas *gui = nullptr;
 
-    //counters
-    int unlock2_count = 0;
-    int unlock3_count = 0;
-
 } Data;
 
 //initial model
@@ -103,10 +96,7 @@ DrawableTetmesh<> hardcode_model();
 void init_model(Data &d);
 //utility
 double dist_calc(Data &d, uint vid, bool raycast);
-bool will_poly_flip(Data &d, const uint vid, const uint pid, CGAL_Q *target);
-bool will_face_flip(Data &d, const uint pid, const uint fid, CGAL_Q *target);
-//data conversion
-vec3d to_double(CGAL_Q *src);
-void to_rational(vec3d &src, CGAL_Q *dest);
+bool does_movement_flip(Data &d, uint vid, uint pid, vec3d &target);
+bool is_vert_flipped(Data &d, uint vid);
 
 #endif //ADVANCING_VOLUMES_ADVANCING_DATA_H

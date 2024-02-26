@@ -66,21 +66,6 @@ bool key_commands(Data &d, int key, int modifier) {
             unmark_edges(d);
             break;
         }
-        //check orient
-        case GLFW_KEY_PERIOD: {
-            int count = 0;
-            int num = d.m.num_polys();
-            std::vector<uint> vids;
-            for(uint pid = 0; pid < num; pid++) {
-                vids = d.m.poly_verts_id(pid);
-                if(orient3d(&d.rationals[3*vids[0]], &d.rationals[3*vids[1]], &d.rationals[3*vids[2]], &d.rationals[3*vids[3]]) * d.orient_sign < 0) {
-                    cout << "Porco dio " << pid << rendl;
-                    count++;
-                }
-            }
-            if(count > 0) cout << TRED << "Porco dio " << count << " volte" << num << rendl;
-            else cout << TBLU << "Tutto ok" << rendl;
-        }
         default: {
             handled = false;
             break;
@@ -95,6 +80,29 @@ void gui_commands(Data &d) {
 }
 
 bool click_commands(Data &d, int modifiers) {
+
+    //get info
+    if(modifiers & GLFW_MOD_CONTROL) {
+        vec3d p;
+        vec2d click = d.gui->cursor_pos();
+        if(d.gui->unproject(click, p)) {
+            uint vid = d.m.pick_vert(p);
+            cout << vid << "is " << (d.m.vert_data(vid).flags[ACTIVE] ? "ACTIVE" : "INACTIVE") << endl;
+        }
+    }
+
+    //split the edge
+    if(modifiers & GLFW_MOD_ALT) {
+        vec3d p;
+        vec2d click = d.gui->cursor_pos();
+        if(d.gui->unproject(click, p)) {
+            uint eid = d.m.pick_edge(p);
+            uint vid = d.m.edge_split(eid);
+            d.m.vert_data(vid).flags[ACTIVE] = dist_calc(d, vid, true) > d.inactivity_dist;
+            if(d.m.vert_data(vid).flags[ACTIVE]) d.front.emplace_back(vid);
+            d.m.updateGL();
+        }
+    }
 
     return false;
 }

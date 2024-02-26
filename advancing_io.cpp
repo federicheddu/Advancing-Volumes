@@ -30,13 +30,4 @@ void setup(Data &d, Octree *oct) {
         d.m.vert_data(vid).flags[ACTIVE] = true;
     }
 
-    /* TODO: initial refinement */
-
-    //rationals
-    if(d.str_rationals.empty()) { //no rationals to load - brand new model
-        d.rationals.resize(d.m.num_verts() * 3);
-        for (uint vid = 0; vid < d.m.num_verts(); vid++)
-            to_rational(d.m.vert(vid), &d.rationals[3 * vid]);
-    } else { /*rationals to load - checkpoint to load*/ }
-
 }

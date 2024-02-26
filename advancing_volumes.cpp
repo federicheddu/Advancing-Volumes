@@ -5,18 +5,14 @@
 void advancing_volume(Data &d) {
 
     d.step++;
-    d.unlock2_count = 0;
-    d.unlock3_count = 0;
     cout << BMAG << "Advancing Volume ITERATION " << d.step << RST << endl;
 
     if(d.running) expand(d);
-    if(d.running) refine(d);
+    if(d.running) do { refine(d); } while(d.multiple_refinement && refine_again(d));
     if(d.running) smooth(d);
     update_front(d);
 
-    cout << BMAG << "Advancing Volume ITERATION - Actives: " << d.front.size() << "/" << d.m.num_srf_verts() << RST << endl;
-    cout << BMAG << "Advancing Volume ITERATION - Unlock2: " << d.unlock2_count << RST << endl;
-    cout << BMAG << "Advancing Volume ITERATION - Unlock3: " << d.unlock3_count << RST << endl;
+    cout << BMAG << "Advancing Volume ITERATION - Actives: " << d.front.size() << "/" << d.m.num_srf_verts() << RST << endl << endl;
 
 }
 
@@ -53,40 +49,22 @@ void expand(Data &d) {
 
 //move the vert in the direction of the displacement
 void move(Data &d, uint vid, vec3d &disp) {
-    CGAL_Q rt_disp[3];
-    to_rational(disp, rt_disp);
-    move(d, vid, rt_disp);
-}
-
-//move the vert in the direction of the displacement
-void move(Data &d, uint vid, CGAL_Q *rt_disp) {
 
     bool moved = true;
 
     //backup
-    CGAL_Q rt_safe_pos[3];
-    copy(&d.rationals[3*vid], rt_safe_pos);
+    vec3d safe_pos = d.m.vert(vid);
 
-    //new position of the vert
-    CGAL_Q rt_moved[3] = {d.rationals[3*vid+0] + rt_disp[0],
-                          d.rationals[3*vid+1] + rt_disp[1],
-                          d.rationals[3*vid+2] + rt_disp[2]};
+    /* TODO: topological unlock */
 
-    //refine (if needed) to move where I want
-    topological_unlock(d, vid, rt_moved, rt_disp);
+    //update the vert position
+    d.m.vert(vid) += disp;
+
+    line_search(d, vid, safe_pos);
     if(!d.running) return;
-
-    //update the vert
-    d.m.vert(vid) = to_double(rt_moved);
-    copy(rt_moved, &d.rationals[3*vid]);
-
-    line_search(d, vid, rt_safe_pos);
-    if(!d.running) return;
-
-    /* TODO: snap rounding */
 
     //update the active flag
-    if(dist_calc(d, vid, true) < d.inactivity_dist) d.m.vert_data(vid).flags[ACTIVE] = false;
+    d.m.vert_data(vid).flags[ACTIVE] = dist_calc(d, vid, true) > d.inactivity_dist;
 
 }
 
@@ -119,8 +97,7 @@ void compute_distances(Data &d) {
     for(uint vid : d.front) {
         dist = dist_calc(d, vid, d.only_raycast);
         if(!d.only_raycast && dist < d.switch_raycast_threshold)
-            //dist = dist_calc(d, vid, true);
-            dist = d.target_edge_length;
+            dist = std::min(dist_calc(d, vid, true), d.target_edge_length);
         d.m.vert_data(vid).uvw[DIST] = dist;
     }
 
@@ -140,45 +117,42 @@ void avoid_dents(Data &d) {
 }
 
 //guarantees a safe position at the top after the movement
-void line_search(Data &d, uint vid, CGAL_Q *safe_pos) {
+void line_search(Data &d, uint vid, vec3d &safe_pos) {
 
+    vec3d final;
     int bck_cnt = 0, frd_cnt = 0;
-    CGAL_Q mid[3];
-    CGAL_Q final[3];
 
     //check only if surface
     if(!d.m.vert_is_on_srf(vid)) return;
 
     //backup the current position
-    copy(&d.rationals[3*vid], final);
+    final = d.m.vert(vid);
 
     //backward bisection
-    while(bck_cnt < d.line_search_max && check_intersection(d, vid)) {
+    while(bck_cnt < d.line_search_max && (check_intersection(d, vid) || is_vert_flipped(d, vid))) {
         //backward
-        midpoint(&d.rationals[3*vid], safe_pos, mid);
-        copy(mid, &d.rationals[3*vid]);
-        d.m.vert(vid) = to_double(mid);
+        d.m.vert(vid) = (d.m.vert(vid) + safe_pos) / 2;
         //counter
         bck_cnt++;
     }
 
     //forward bisection
-    while(frd_cnt < d.line_search_max && !check_intersection(d, vid)) {
+    while(frd_cnt < d.line_search_max && !check_intersection(d, vid) && !is_vert_flipped(d, vid)) {
         //update safe position
-        copy(&d.rationals[3*vid], safe_pos);
+        safe_pos = d.m.vert(vid);
         //forward
-        midpoint(&d.rationals[3*vid], final, mid);
-        copy(mid, &d.rationals[3*vid]);
-        d.m.vert(vid) = to_double(mid);
+        d.m.vert(vid) = (d.m.vert(vid) + final) / 2;
         //counter
         frd_cnt++;
     }
 
     //go to the last safe position
-    if(check_intersection(d, vid)) {
-        copy(safe_pos, &d.rationals[3 * vid]);
-        d.m.vert(vid) = to_double(safe_pos);
-    }
+    if(check_intersection(d, vid))
+        d.m.vert(vid) = safe_pos;
+
+}
+
+void line_search_refined(Data &d, uint vid, vec3d &safe_pos) {
 
 }
 
@@ -207,10 +181,26 @@ void check_self_intersection(Data &d) {
 
     if(d.verbose) cout << BCYN << "Checking self intersection..." << RST;
     std::set<ipair> intersections;
+    std::unordered_map<uint, uint> m2srf, srf2m;
 
-    export_surface(d.m, d.ms);
+    export_surface(d.m, d.ms, m2srf, srf2m);
     find_intersections(d.ms, intersections);
     d.running = intersections.empty();
+
+    uint face;
+    std::vector<uint> sf(2), sv;
+    for(auto inter : intersections) {
+        sf[0] = inter.first;
+        sf[1] = inter.second;
+
+        for(uint fid : sf) {
+            sv = d.ms.poly_verts_id(sf[0]);
+            face = d.m.face_id({srf2m[sv[0]], srf2m[sv[1]], srf2m[sv[2]]});
+            for (uint pid: d.m.adj_f2p(face))
+                d.m.poly_data(pid).color = Color::RED();
+        }
+
+    }
 
     //feedback
     if(!d.running) cout << BRED << "FOUND" << RST << endl;
@@ -219,226 +209,17 @@ void check_self_intersection(Data &d) {
 
 /* ================================================================================================================== */
 
-void topological_unlock(Data &d, uint vid, CGAL_Q *rt_moved, CGAL_Q *rt_disp) {
-
-    bool blocking = false;
-    std::vector<uint> adj = d.m.adj_v2p(vid);
-    uint n_adj = adj.size();
-    uint pid;
-    uint limit = n_adj * n_adj * n_adj;
-
-    //check for every tet adj to the vid if its blocking
-    CGAL_Q unlock_pos[3];
-    for(uint i = 0; i < n_adj; i++) {
-
-        //get the pid and check if any tet will block the movement
-        pid = adj[i];
-        blocking = will_poly_flip(d, vid, pid, rt_moved);
-
-        if(blocking) {
-            //push forward the unlock_pos to unlock_vert
-            unlock_pos[0] = rt_moved[0] + rt_disp[0] / 2;
-            unlock_pos[1] = rt_moved[1] + rt_disp[1] / 2;
-            unlock_pos[2] = rt_moved[2] + rt_disp[2] / 2;
-            unlock_vert(d, vid, pid, unlock_pos);
-            //restart the for
-            i = 0;
-            adj = d.m.adj_v2p(vid);
-            n_adj = adj.size();
-            assert(adj.size() < limit);
-        }
-
-        //visual debug
-        if(!d.running && d.render) {
-            vec3d fp_moved = to_double(rt_moved);
-            d.gui->push_marker(d.m.vert(vid), "og", Color::BLUE(), 2, 4);
-            d.gui->push_marker(fp_moved, "new", Color::BLUE(), 2, 4);
-            d.running = false;
-            return;
-        }
-
-    }
-
-}
-
-void unlock_vert(Data &d, const uint vid, const uint pid, CGAL_Q *target) {
-
-    CGAL_Q orient;
-    std::vector<uint> vids, see_target;
-
-    //get how many faces are blocking the movement
-    for(uint fid : d.m.adj_p2f(pid))
-        if(!will_face_flip(d, pid, fid, target)) see_target.push_back(fid);
-
-    switch (see_target.size()) {
-        case 3:
-            unlock_see3(d, vid, pid, target, see_target);
-            break;
-        case 2:
-            unlock_see2(d, vid, pid, target, see_target);
-            break;
-        case 1:
-            unlock_see1(d, vid, pid, target, see_target);
-            break;
-        default:
-            cout << BRED << "This is not meant to happen" << rendl;
-            break;
-
-    }
-}
-
-void unlock_see3(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> &see_target) {
-
-    //stats
-    d.unlock3_count++;
-
-    //sanity checks
-    if (see_target.size() != 3) cout << "see_target.size(): " << see_target.size() << endl;
-    assert(see_target.size()==3);
-    std::vector<uint> p_vids = d.m.poly_verts_id(pid);
-    assert(orient3d(&d.rationals[p_vids[0]*3], &d.rationals[p_vids[1]*3], &d.rationals[p_vids[2]*3], &d.rationals[p_vids[3]*3]) * d.orient_sign > 0);
-
-    int f_hid = -1;
-    for(uint fid : d.m.adj_p2f(pid)) {
-        if(will_face_flip(d, pid, fid, target)) {
-            assert(f_hid==-1);
-            f_hid = fid;
-        }
-    }
-
-    //error check -- this should never happen
-    if(f_hid==-1) {
-        cout << "f_hid: " << f_hid << endl;
-        cout << "see_target: ";
-        for(auto fid : see_target) cout << fid << " ";
-        cout << endl;
-        cout << "pid: " << pid << endl;
-        d.m.poly_data(pid).color = Color::RED();
-        d.m.updateGL();
-        d.running = false;
-        return;
-    }
-
-    //get the intersection point
-    CGAL_Q P[3];
-    std::vector<uint> f_vids = d.m.face_verts_id(f_hid);
-    plane_line_intersection(&d.rationals[3*f_vids[0]],&d.rationals[3*f_vids[1]],&d.rationals[3*f_vids[2]],&d.rationals[3*d.m.poly_vert_opposite_to(pid,f_hid)],target, P);
-
-    //split the face & update the coords
-    uint new_vid = d.m.face_split(f_hid);
-    d.rationals.push_back(P[0]);
-    d.rationals.push_back(P[1]);
-    d.rationals.push_back(P[2]);
-    d.m.vert(new_vid) = to_double(P);
-
-    //set activity flag
-    if(d.m.vert_is_on_srf(new_vid)) {
-        d.m.vert_data(new_vid).flags[ACTIVE] = dist_calc(d, new_vid, true) > d.inactivity_dist;
-        if(d.m.vert_data(new_vid).flags[ACTIVE]) d.front.push_back(new_vid);
-    }
-
-    //mark how vert was created
-    d.m.vert_data(new_vid).flags[SPLIT] = false;
-    d.m.vert_data(new_vid).flags[TOPOLOGICAL] = true;
-
-    for(uint ppid : d.m.adj_v2p(vid)) {
-        std::vector<uint> vids = d.m.poly_verts_id(ppid);
-        assert(orient3d(&d.rationals[vids[0]*3], &d.rationals[vids[1]*3], &d.rationals[vids[2]*3], &d.rationals[vids[3]*3]) * d.orient_sign > 0);
-    }
-    for(uint ppid : d.m.adj_v2p(new_vid)) {
-        std::vector<uint> vids = d.m.poly_verts_id(ppid);
-        assert(orient3d(&d.rationals[vids[0]*3], &d.rationals[vids[1]*3], &d.rationals[vids[2]*3], &d.rationals[vids[3]*3]) * d.orient_sign > 0);
-    }
-}
-
-void unlock_see2(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> &see_target) {
-
-    //stats
-    d.unlock2_count++;
-    //sanity checks
-    std::vector<uint> p_vids = d.m.poly_verts_id(pid);
-    assert(orient3d(&d.rationals[p_vids[0]*3], &d.rationals[p_vids[1]*3], &d.rationals[p_vids[2]*3], &d.rationals[p_vids[3]*3]) * d.orient_sign > 0);
-    uint f0 = see_target[0];
-    uint f1 = see_target[1];
-    assert(f0!=f1);
-    assert(d.m.poly_contains_face(pid,f0));
-    assert(d.m.poly_contains_face(pid,f1));
-    assert(d.m.face_contains_vert(f0,vid) || d.m.face_contains_vert(f1,vid));
-
-    uint eid = d.m.face_shared_edge(f0,f1);
-    uint opp = d.m.poly_edge_opposite_to(pid,eid);
-    uint v0  = d.m.edge_vert_id(eid,0);
-    uint v1  = d.m.edge_vert_id(eid,1);
-    uint v2  = d.m.edge_vert_id(opp,0);
-    uint v3  = d.m.edge_vert_id(opp,1);
-
-    CGAL_Q P[3];
-    plane_line_intersection(&d.rationals[3*v0],&d.rationals[3*v1],target,&d.rationals[3*v2],&d.rationals[3*v3],P);
-    // makes sure P is in between v2 and v3
-    assert(orient3d(&d.rationals[3*v0],&d.rationals[3*v1],P,&d.rationals[3*v2])*
-           orient3d(&d.rationals[3*v0],&d.rationals[3*v1],P,&d.rationals[3*v3])<0);
-
-    uint new_vid = d.m.edge_split(opp);
-    d.rationals.push_back(P[0]);
-    d.rationals.push_back(P[1]);
-    d.rationals.push_back(P[2]);
-    d.m.vert(new_vid) = to_double(P);
-
-    //set activity flag
-    if(d.m.vert_is_on_srf(new_vid)) {
-        d.m.vert_data(new_vid).flags[ACTIVE] = dist_calc(d, new_vid, true) > d.inactivity_dist;
-        if(d.m.vert_data(new_vid).flags[ACTIVE]) d.front.push_back(new_vid);
-    }
-
-    //mark how vert was created
-    d.m.vert_data(new_vid).flags[SPLIT] = false;
-    d.m.vert_data(new_vid).flags[TOPOLOGICAL] = true;
-
-    //sanity checks
-    for(uint ppid : d.m.adj_v2p(vid)) {
-        std::vector<uint> vids = d.m.poly_verts_id(ppid);
-        assert(orient3d(&d.rationals[vids[0]*3], &d.rationals[vids[1]*3], &d.rationals[vids[2]*3], &d.rationals[vids[3]*3]) * d.orient_sign > 0);
-    }
-    for(uint ppid : d.m.adj_v2p(new_vid)) {
-        std::vector<uint> vids = d.m.poly_verts_id(ppid);
-        assert(orient3d(&d.rationals[vids[0]*3], &d.rationals[vids[1]*3], &d.rationals[vids[2]*3], &d.rationals[vids[3]*3]) * d.orient_sign > 0);
-    }
-}
-
-void unlock_see1(Data &d, uint vid, uint pid, CGAL_Q *target, std::vector<uint> &see_target) {
-    CGAL_Q orient = orient3d(&d.rationals[d.m.face_vert_id(see_target[0],0)*3],
-                             &d.rationals[d.m.face_vert_id(see_target[0],1)*3],
-                             &d.rationals[d.m.face_vert_id(see_target[0],2)*3],
-                             target);
-
-    cout << BRED << endl;
-    cout << "you should not be here" << endl;
-    cout << "unlock_by_edge_split: " << see_target.size() << endl;
-    cout << "vid: " << vid << " - fid seen: " << see_target[0] << endl;
-    cout << "orient: ";
-    cout << orient.exact().numerator() << "/" << orient.exact().denominator() << endl;
-    cout << "pid blocking: " << pid << endl;
-    cout << "pid adj face: " << RST;
-
-    d.m.poly_data(d.m.adj_f2p(see_target[0])[0]).color = Color::CYAN();
-    d.m.poly_data(d.m.adj_f2p(see_target[0])[1]).color = Color::GREEN();
-
-    cout << endl << endl;
-
-    d.m.updateGL();
-    d.running = false;
-}
 
 /* ================================================================================================================== */
 
-void refine(Data &d) {
+void refine(Data &d, bool all) {
 
     if(d.verbose) cout << BCYN << "Refining model..." << RST;
-    split(d);
+    split(d, all);
 
     if(d.verbose) cout << BCYN << "Adjusting the topology..." << RST;
     flip(d);
-    try_flips(d);
+    //try_flips(d);
 
     if(d.verbose && d.running) cout << BGRN << "DONE" << RST << endl;
 
@@ -448,28 +229,45 @@ void refine(Data &d) {
     assert(d.etf.empty());
 }
 
-void edges_to_split(Data &d) {
+bool refine_again(Data &d) {
 
-    for(uint vid : d.front) {
-        for (uint eid: d.m.adj_v2e(vid)) {
-            if (d.m.edge_length(eid) > d.target_edge_length) {
-                if(d.m.edge_is_on_srf(eid)) {
-                    for (uint fid : d.m.edge_adj_srf_faces(eid)) {
-                        d.ets.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(), d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
+    std::vector<uint> srf_edges = d.m.get_surface_edges();
+    double lenght = 0;
+    for(uint eid : srf_edges)
+        lenght += d.m.edge_length(eid);
+    lenght /= double(srf_edges.size());
+
+    return lenght > d.target_edge_length;
+
+}
+
+void edges_to_split(Data &d, bool all) {
+
+    if(all) { //if you need to split everything
+        for(uint eid = 0; eid < d.m.num_edges(); eid++) {
+            d.ets.insert(eid);
+        }
+    } else { //if you need to split only the too long
+        for (uint vid: d.front) { //for every vid in the front
+            for (uint eid: d.m.adj_v2e(vid)) { //get the edges adj
+                if (d.m.edge_length(eid) > d.target_edge_length) {
+                    if (d.m.edge_is_on_srf(eid)) { //if the vid is on srf get every edge adj
+                        for (uint fid: d.m.edge_adj_srf_faces(eid)) {
+                            d.ets.insert(d.m.adj_p2e(d.m.adj_f2p(fid)[0]).begin(),d.m.adj_p2e(d.m.adj_f2p(fid)[0]).end());
+                        }
+                    } else { //if its internal get only that edge
+                        d.ets.insert(eid);
                     }
-                } else {
-                    d.ets.insert(eid);
                 }
             }
         }
     }
 }
 
-void split(Data &d) {
+void split(Data &d, bool all) {
 
     //search for edges to split
-    d.ets.clear();
-    edges_to_split(d);
+    edges_to_split(d, all);
 
     //initial number of verts
     uint nv = d.m.num_verts();
@@ -496,20 +294,8 @@ void split(Data &d) {
             }
         }
 
-        //get the midpoint where split
-        CGAL_Q rmid[3];
-        uint vid_left = d.m.edge_vert_id(eid, 0);
-        uint vid_right = d.m.edge_vert_id(eid, 1);
-        midpoint(&d.rationals[3*vid_left], &d.rationals[3*vid_right], rmid);
-
         //split
-        vec3d fmid = to_double(rmid);
-        new_vid = d.m.edge_split(eid, fmid);
-
-        //rationals coords
-        d.rationals.push_back(rmid[0]);
-        d.rationals.push_back(rmid[1]);
-        d.rationals.push_back(rmid[2]);
+        new_vid = d.m.edge_split(eid);
 
         //mark how the vert is created
         d.m.vert_data(new_vid).flags[SPLIT] = d.step > 0;
@@ -599,11 +385,14 @@ void try_flips(Data &d) {
         lenght_opp = d.m.vert(vid0).dist(d.m.vert(vid1));
 
         if(lenght_opp < lenght && d.m.adj_e2p(eid).size() == 2) {
+            flip2to2(d.m, eid);
+            /*
             result = flip2to2(d.m, eid);
             if(result) {
                 new_eid = d.m.edge_id(vid0, vid1);
                 d.m.edge_data(new_eid).flags[MARKED] = true;
             }
+            */
         }
 
     }
@@ -720,10 +509,10 @@ void smooth(Data &d) {
     if(d.verbose) cout << BCYN << "Smoothing the model..." << rendl;
 
     //parameters
-    bool can_smooth;
-    CGAL_Q rt_bary[3];
-    std::vector<uint> adjs;
+    vec3d bary;
     size_t adjs_size;
+    std::vector<uint> adjs;
+    bool can_smooth;
 
     //for the number of iteration selected
     /*
@@ -760,30 +549,23 @@ void smooth(Data &d) {
         for(uint vid = 0; vid < d.m.num_verts(); vid++) {
             //skip surface
             if(d.m.vert_is_on_srf(vid)) continue;
-            //get the rationals coord
-            copy(&d.rationals[3*vid], rt_bary);
+            //get initial barycenter
+            bary = d.m.vert(vid);
             //sum
             adjs = d.m.adj_v2v(vid);
             adjs_size = adjs.size() + 1;
-            for(uint adj : adjs) {
-                rt_bary[0] += d.rationals[3*adj+0];
-                rt_bary[1] += d.rationals[3*adj+1];
-                rt_bary[2] += d.rationals[3*adj+2];
-            }
+            for(uint adj : adjs)
+                bary += d.m.vert(adj);
             //avg
-            rt_bary[0] = rt_bary[0] / int(adjs_size);
-            rt_bary[1] = rt_bary[1] / int(adjs_size);
-            rt_bary[2] = rt_bary[2] / int(adjs_size);
+            bary = bary / double(adjs_size);
             //check if legal move
             for(uint pid : d.m.adj_v2p(vid)) {
-                can_smooth = !will_poly_flip(d, vid, pid, rt_bary);
+                can_smooth = !does_movement_flip(d, vid, pid, bary);
                 if(!can_smooth) break;
             }
             //move
-            if(can_smooth) {
-                copy(rt_bary, &d.rationals[3*vid]);
-                d.m.vert(vid) = to_double(rt_bary);
-            }
+            if(can_smooth)
+                d.m.vert(vid) = bary;
         }
     }
 
