@@ -29,8 +29,8 @@ int main(int argc, char *argv[]) {
     }
 
     //models to load
-    d.str_model = "";
-    d.str_target = "../data/duck.mesh";
+    d.path_model = "";
+    d.path_target = "../data/duck.mesh";
     setup(d, &oct);
     d.m.updateGL();
 
@@ -48,8 +48,6 @@ int main(int argc, char *argv[]) {
 
     //sphere mapping
     if(d.map) {
-        d.mm = d.m;
-        d.mm.mesh_data().filename = "Sphere Mapped";
         gui_map.push(&d.mm);
         gui_map.push(new VolumeMeshControls<DrawableTetmesh<>>(&d.mm, &gui_map));
     }

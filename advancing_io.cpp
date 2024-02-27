@@ -3,16 +3,18 @@
 
 void setup(Data &d, Octree *oct) {
 
-    //name
-    if(!d.str_model.empty()) d.name = get_file_name(d.str_model, false);
-    else d.name = get_file_name(d.str_target, false);
+    bool loading = !d.path_model.empty();
+
+    //name of the model
+    if(loading) d.name = get_file_name(d.path_model, false);
+    else d.name = get_file_name(d.path_target, false);
 
     //target volume
-    d.tv = DrawableTetmesh<>(d.str_target.c_str());
+    d.tv = DrawableTetmesh<>(d.path_target.c_str());
     //target surface
     export_surface(d.tv, d.ts);
+    d.ts.mesh_data().filename = "target_" + d.name;
     d.ts.show_mesh_points();
-    d.ts.mesh_data().filename = "Target";
     d.ts.updateGL();
     //octree
     oct->build_from_mesh_polys(d.ts);
@@ -23,7 +25,9 @@ void setup(Data &d, Octree *oct) {
     d.inactivity_dist           *= d.ts.edge_avg_length();
 
     //model
-    init_model(d);
+    if(loading) d.m = DrawableTetmesh<>(d.path_model.c_str());
+    else init_model(d);
+    d.m.mesh_data().filename = "model_" + d.name;
 
     //fronts init (all active)
     for(uint vid : d.m.get_surface_verts()) {
@@ -34,4 +38,11 @@ void setup(Data &d, Octree *oct) {
     //initial refinement of the model
     while(d.start_refinement && refine_again(d)) refine(d, true);
 
+    //sphere mapping
+    if(d.map) {
+        if (loading) d.mm = DrawableTetmesh<>(d.path_map.c_str());
+        else d.mm = d.m;
+        d.mm.mesh_data().filename = "map_" + d.name;
+    }
 }
+

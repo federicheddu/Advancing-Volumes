@@ -53,8 +53,10 @@ typedef struct data {
 
     //strings
     std::string name;
-    std::string str_model;
-    std::string str_target;
+    std::string path_model;
+    std::string path_target;
+    std::string path_map;
+    std::string path_log;
 
     //execution
     int step = 0;
