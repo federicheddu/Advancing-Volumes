@@ -1,8 +1,10 @@
 #ifndef ADVANCING_VOLUMES_ADVANCING_VOLUMES_H
 #define ADVANCING_VOLUMES_ADVANCING_VOLUMES_H
 #undef NDEBUG
+
+#include "advancing_data.h"
 #include "advancing_io.h"
-#include <cinolib/find_intersections.h>
+#include "advancing_commands.h"
 
 void advancing_volume(Data &d);
 

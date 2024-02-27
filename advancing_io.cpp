@@ -1,4 +1,5 @@
 #include "advancing_io.h"
+#undef NDEBUG
 
 void setup(Data &d, Octree *oct) {
 
@@ -29,5 +30,8 @@ void setup(Data &d, Octree *oct) {
         d.front.emplace_back(vid);
         d.m.vert_data(vid).flags[ACTIVE] = true;
     }
+
+    //initial refinement of the model
+    while(d.start_refinement && refine_again(d)) refine(d, true);
 
 }

@@ -1,6 +1,4 @@
 #include "advancing_volumes.h"
-#include "advancing_commands.h"
-
 #undef NDEBUG
 
 using namespace cinolib;
@@ -34,12 +32,13 @@ int main(int argc, char *argv[]) {
     d.str_model = "";
     d.str_target = "../data/duck.mesh";
     setup(d, &oct);
-    while(d.start_refinement && refine_again(d)) refine(d, true);
     d.m.updateGL();
 
     //render
     GLcanvas gui(1080, 720);
+    GLcanvas gui_map(1080, 720);
     d.render = true;
+
     //push on gui
     gui.push(&d.m, false);
     gui.push(&d.ts, true);
@@ -47,10 +46,19 @@ int main(int argc, char *argv[]) {
     gui.push(new SurfaceMeshControls<DrawableTrimesh<>>(&d.ts, &gui));
     d.gui = &gui;
 
+    //sphere mapping
+    if(d.map) {
+        d.mm = d.m;
+        d.mm.mesh_data().filename = "Sphere Mapped";
+        gui_map.push(&d.mm);
+        gui_map.push(new VolumeMeshControls<DrawableTetmesh<>>(&d.mm, &gui_map));
+    }
+
     //app commands -> SPACE for one iteration
     gui.callback_app_controls = [&]() {gui_commands(d);};
     gui.callback_key_pressed = [&](int key, int modifier) { return key_commands(d, key, modifier);};
     gui.callback_mouse_left_click = [&](int modifier) -> bool {return click_commands(d, modifier);};
 
-    return gui.launch();
+    if(d.map) return gui.launch({&gui_map});
+    else return gui.launch();
 }

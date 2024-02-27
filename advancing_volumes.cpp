@@ -273,7 +273,7 @@ void split(Data &d, bool all) {
     uint nv = d.m.num_verts();
 
     //parameters
-    uint new_vid;
+    uint new_vid, map_vid;
     ipair og_edge;
     edge_to_flip etf;
 
@@ -296,6 +296,10 @@ void split(Data &d, bool all) {
 
         //split
         new_vid = d.m.edge_split(eid);
+        if(d.map && d.step > 0) { //update sphere mapping
+            map_vid = d.mm.edge_split(eid);
+            assert(new_vid == map_vid);
+        }
 
         //mark how the vert is created
         d.m.vert_data(new_vid).flags[SPLIT] = d.step > 0;
@@ -342,10 +346,20 @@ void flip(Data &d) {
 
             //flip
             result = flip4to4(d.m, eid, vid0, vid1);
+            //update the map
+            if(d.map && d.step > 0 && result) {
+                result = flip4to4(d.mm, eid, vid0, vid1);
+                assert(result);
+            }
 
         } else if(d.m.vert_data(etf.opp_vid).flags[ACTIVE]) {
-            //flip (no query needed, i can have only one setup)
+            //flip (no query needed, I can have only one setup)
             result = flip2to2(d.m, eid);
+            //update the map
+            if(d.map && d.step > 0 && result) {
+                result = flip2to2(d.mm, eid);
+                assert(result);
+            }
         }
 
         //if the flip is good and is a 'try_again' the edge is removed
@@ -385,14 +399,21 @@ void try_flips(Data &d) {
         lenght_opp = d.m.vert(vid0).dist(d.m.vert(vid1));
 
         if(lenght_opp < lenght && d.m.adj_e2p(eid).size() == 2) {
-            flip2to2(d.m, eid);
-            /*
+            //flip to get a shorter edge
             result = flip2to2(d.m, eid);
+            //update the map
+            if(d.map && d.step > 0 && result) {
+                result = flip2to2(d.mm, eid);
+                assert(result);
+            }
+
+            /* UNCOMMENT TO MARK IN RED THE EDGE FLIPPED
             if(result) {
                 new_eid = d.m.edge_id(vid0, vid1);
                 d.m.edge_data(new_eid).flags[MARKED] = true;
             }
             */
+
         }
 
     }
@@ -506,7 +527,7 @@ bool flip2to2(Tetmesh<> &m, uint eid) {
 
 void smooth(Data &d) {
 
-    if(d.verbose) cout << BCYN << "Smoothing the model..." << rendl;
+    if(d.verbose) cout << BCYN << "Smoothing the model..." << RST;
 
     //parameters
     vec3d bary;

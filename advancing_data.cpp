@@ -1,4 +1,5 @@
 #include "advancing_data.h"
+#undef NDEBUG
 
 //get the initial model
 DrawableTetmesh<> hardcode_model() {

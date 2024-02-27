@@ -8,6 +8,7 @@
 #include <cinolib/gl/surface_mesh_controls.h>
 #include <cinolib/gl/volume_mesh_controls.h>
 #include <cinolib/octree.h>
+#include <cinolib/find_intersections.h>
 #include <cinolib/smoother.h>
 
 #include "ANSI_color_codes.h"
@@ -57,12 +58,14 @@ typedef struct data {
 
     //execution
     int step = 0;
+    bool map = true;
     bool running = true;
     bool step_by_step = false;
     int save_every = 1;
 
     //structures
     DrawableTetmesh<> m;    //model
+    DrawableTetmesh<> mm;   //model map (sphere)
     DrawableTrimesh<> ms;   //model surface
     DrawableTetmesh<> tv;   //target volume
     DrawableTrimesh<> ts;   //target surface
@@ -88,6 +91,7 @@ typedef struct data {
     //gui
     bool render = false;
     GLcanvas *gui = nullptr;
+    GLcanvas *gui_map = nullptr;
 
 } Data;
 

@@ -15,6 +15,7 @@ bool key_commands(Data &d, int key, int modifier) {
         case GLFW_KEY_SPACE: {
             advancing_volume(d);
             d.m.updateGL();
+            if(d.map) d.mm.updateGL();
             break;
         }
         //show the target
@@ -97,10 +98,12 @@ bool click_commands(Data &d, int modifiers) {
         vec2d click = d.gui->cursor_pos();
         if(d.gui->unproject(click, p)) {
             uint eid = d.m.pick_edge(p);
-            uint vid = d.m.edge_split(eid);
-            d.m.vert_data(vid).flags[ACTIVE] = dist_calc(d, vid, true) > d.inactivity_dist;
-            if(d.m.vert_data(vid).flags[ACTIVE]) d.front.emplace_back(vid);
+            d.m.edge_data(eid).flags[MARKED] = true;
             d.m.updateGL();
+            if(d.map) {
+                d.mm.edge_data(eid).flags[MARKED] = true;
+                d.mm.updateGL();
+            }
         }
     }
 
