@@ -40,9 +40,60 @@ void setup(Data &d, Octree *oct) {
 
     //sphere mapping
     if(d.map) {
-        if (loading) d.mm = DrawableTetmesh<>(d.path_map.c_str());
+        if(loading) d.mm = DrawableTetmesh<>(d.path_map.c_str());
         else d.mm = d.m;
         d.mm.mesh_data().filename = "map_" + d.name;
     }
 }
 
+
+void parse(Data &d, int argc, char *argv[]) {
+
+    int arg;
+    std::string arg_str;
+    bool loading = false;
+
+    for(int i=1; i<argc; i++) {
+
+        //get the type of parameter
+        arg_str = argv[i];
+        arg = which_arg(arg_str);
+        //get the parameter index
+        i++;
+
+        switch (arg) {
+            case ARG_TARGET:
+                d.path_target = argv[i];
+                break;
+            case ARG_MODEL:
+                d.path_model = argv[i];
+                loading = true;
+                break;
+            case ARG_MAP:
+                d.path_map = argv[i];
+                break;
+            case ARG_LOG:
+                d.path_log = argv[i];
+                break;
+            default:
+                assert(false && "Parameters not valid");
+                break;
+        }
+
+        //make sure there is a target to load
+        assert(d.path_target.empty() && "No target");
+        //only way to deactivate map is loading and no path_map
+        d.map = !(loading && d.path_map.empty());
+    }
+
+}
+
+int which_arg(std::string &arg) {
+
+    if(arg == "-t") return ARG_TARGET;
+    if(arg == "-m") return ARG_MODEL;
+    if(arg == "-s") return ARG_MAP;
+    if(arg == "-l") return ARG_LOG;
+    return ARG_ERR;
+
+}

@@ -29,8 +29,10 @@ int main(int argc, char *argv[]) {
     }
 
     //models to load
-    d.path_model = "";
     d.path_target = "../data/duck.mesh";
+    d.path_model = "";
+    d.path_map = "";
+    d.path_log = "";
     setup(d, &oct);
     d.m.updateGL();
 

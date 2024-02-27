@@ -15,6 +15,15 @@
 
 using namespace cinolib;
 
+//enum to load
+enum {
+    ARG_TARGET,
+    ARG_MODEL,
+    ARG_MAP,
+    ARG_LOG,
+    ARG_ERR
+};
+
 //double uvw overwrite
 enum {
     DIST,
