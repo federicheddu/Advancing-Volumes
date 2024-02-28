@@ -350,7 +350,7 @@ void flip(Data &d) {
             //update the map
             if(d.map && d.step > 0 && result) {
                 result = flip4to4(d.mm, eid, vid0, vid1);
-                my_assert(d, d.mm.edge_is_on_srf(eid), "The edge flip 4-4 failed in the map", __FILE__, __LINE__);
+                my_assert(d, result, "The edge flip 4-4 failed in the map", __FILE__, __LINE__);
             }
 
         } else if(d.m.vert_data(etf.opp_vid).flags[ACTIVE]) {
@@ -359,7 +359,7 @@ void flip(Data &d) {
             //update the map
             if(d.map && d.step > 0 && result) {
                 result = flip2to2(d.mm, eid);
-                my_assert(d, d.mm.edge_is_on_srf(eid), "The edge flip 2-2 failed in the map", __FILE__, __LINE__);
+                my_assert(d, result, "The edge flip 2-2 failed in the map", __FILE__, __LINE__);
             }
         }
 
@@ -405,7 +405,7 @@ void try_flips(Data &d) {
             //update the map
             if(d.map && d.step > 0 && result) {
                 result = flip2to2(d.mm, eid);
-                my_assert(d, d.mm.edge_is_on_srf(eid), "The edge flip 2-2 failed in the map", __FILE__, __LINE__);
+                my_assert(d, result, "The edge flip 2-2 failed in the map", __FILE__, __LINE__);
             }
 
             /* UNCOMMENT TO MARK IN RED THE EDGE FLIPPED
