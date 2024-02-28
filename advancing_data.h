@@ -66,6 +66,7 @@ typedef struct data {
     std::string path_target;
     std::string path_map;
     std::string path_log;
+    std::string path_res;
 
     //execution
     int step = 0;

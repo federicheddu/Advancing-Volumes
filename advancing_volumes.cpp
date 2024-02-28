@@ -8,6 +8,7 @@ void advancing_volume(Data &d) {
     cout << BMAG << "Advancing Volume ITERATION " << d.step << RST << endl;
 
     if(d.running) expand(d);
+    if(d.running) smooth(d);
     if(d.running) do { refine(d); } while(d.multiple_refinement && refine_again(d));
     if(d.running) smooth(d);
     update_front(d);
@@ -97,7 +98,7 @@ void compute_distances(Data &d) {
     for(uint vid : d.front) {
         dist = dist_calc(d, vid, d.only_raycast);
         if(!d.only_raycast && dist < d.switch_raycast_threshold)
-            dist = std::min(dist_calc(d, vid, true), d.target_edge_length);
+            dist = dist_calc(d, vid, true);
         d.m.vert_data(vid).uvw[DIST] = dist;
     }
 
@@ -147,7 +148,7 @@ void line_search(Data &d, uint vid, vec3d &safe_pos) {
     }
 
     //go to the last safe position
-    if(check_intersection(d, vid))
+    if(check_intersection(d, vid) || is_vert_flipped(d, vid))
         d.m.vert(vid) = safe_pos;
 
 }
@@ -226,7 +227,7 @@ void refine(Data &d, bool all) {
     //free memory
     d.ets.clear();
     d.v_map.clear();
-    assert(d.etf.empty());
+    my_assert(d, d.etf.empty(), "The queue of edges to flip is not empty after the flips", __FILE__, __LINE__);
 }
 
 bool refine_again(Data &d) {
@@ -298,7 +299,7 @@ void split(Data &d, bool all) {
         new_vid = d.m.edge_split(eid);
         if(d.map && d.step > 0) { //update sphere mapping
             map_vid = d.mm.edge_split(eid);
-            assert(new_vid == map_vid);
+            my_assert(d, new_vid == map_vid, "The new vid is not the same in the model and in the map", __FILE__, __LINE__);
         }
 
         //mark how the vert is created
@@ -349,7 +350,7 @@ void flip(Data &d) {
             //update the map
             if(d.map && d.step > 0 && result) {
                 result = flip4to4(d.mm, eid, vid0, vid1);
-                assert(result);
+                my_assert(d, d.mm.edge_is_on_srf(eid), "The edge flip 4-4 failed in the map", __FILE__, __LINE__);
             }
 
         } else if(d.m.vert_data(etf.opp_vid).flags[ACTIVE]) {
@@ -358,7 +359,7 @@ void flip(Data &d) {
             //update the map
             if(d.map && d.step > 0 && result) {
                 result = flip2to2(d.mm, eid);
-                assert(result);
+                my_assert(d, d.mm.edge_is_on_srf(eid), "The edge flip 2-2 failed in the map", __FILE__, __LINE__);
             }
         }
 
@@ -390,7 +391,7 @@ void try_flips(Data &d) {
     for(uint eid : d.m.get_surface_edges()) {
 
         adj_f = d.m.edge_adj_srf_faces(eid);
-        assert(adj_f.size() == 2);
+        my_assert(d, adj_f.size() == 2, "Edge on srf has more than 2 adjacent srf faces", __FILE__, __LINE__);
 
         vid0 = d.m.face_vert_opposite_to(adj_f[0], eid);
         vid1 = d.m.face_vert_opposite_to(adj_f[1], eid);
@@ -404,7 +405,7 @@ void try_flips(Data &d) {
             //update the map
             if(d.map && d.step > 0 && result) {
                 result = flip2to2(d.mm, eid);
-                assert(result);
+                my_assert(d, d.mm.edge_is_on_srf(eid), "The edge flip 2-2 failed in the map", __FILE__, __LINE__);
             }
 
             /* UNCOMMENT TO MARK IN RED THE EDGE FLIPPED
@@ -530,65 +531,55 @@ void smooth(Data &d) {
     if(d.verbose) cout << BCYN << "Smoothing the model..." << RST;
 
     //parameters
-    vec3d bary;
-    size_t adjs_size;
+    uint aux;
+    double dist;
+    vec3d bary, og, norm;
     std::vector<uint> adjs;
-    bool can_smooth;
+    bool srf, can_smooth;
 
-    //for the number of iteration selected
-    /*
-    for(int iter = 0; iter < d.smooth_mesh_iters; iter++) {
-
-        Octree oct_srf;
-        export_surface(d.m, d.ms);
-        mesh_smoother(d.ms, d.ms);
-        oct_srf.build_from_mesh_polys(d.ms);
-
-        for(uint vid : d.m.get_surface_verts()) {
-
-            vec3d pos = oct_srf.closest_point(d.m.vert(vid));
-            CGAL_Q rt_pos[3];
-            to_rational(pos, rt_pos);
-
-            //diplacement
-            rt_pos[0] = d.rationals[3*vid+0] - rt_pos[0];
-            rt_pos[1] = d.rationals[3*vid+1] - rt_pos[1];
-            rt_pos[2] = d.rationals[3*vid+2] - rt_pos[2];
-
-            //porco dio
-            move(d, vid, rt_pos);
-            if(!d.running) return;
-
-        }
-
-    }
-    */
+    //get srf
+    Octree octree;
+    export_surface(d.m, d.ms);
+    octree.build_from_mesh_polys(d.ms);
 
     //internal smoothing
     for(int iter = 0; iter < d.smooth_mesh_iters; iter++) {
         //for every vert
         for(uint vid = 0; vid < d.m.num_verts(); vid++) {
-            //skip surface
-            if(d.m.vert_is_on_srf(vid)) continue;
-            //get initial barycenter
-            bary = d.m.vert(vid);
+            //check if the vert is on srf
+            srf = d.m.vert_is_on_srf(vid);
+            //skip vids not active
+            if(srf && !d.m.vert_data(vid).flags[ACTIVE]) continue;
+            //get adjs (only srf for srf verts)
+            if(srf) adjs = d.m.vert_adj_srf_verts(vid);
+            else adjs = d.m.adj_v2v(vid);
+            //get initial barycenter and normal
+            og = bary = d.m.vert(vid);
+            norm = d.m.vert_data(vid).normal;
             //sum
-            adjs = d.m.adj_v2v(vid);
-            adjs_size = adjs.size() + 1;
-            for(uint adj : adjs)
-                bary += d.m.vert(adj);
+            for(uint adj : adjs) bary += d.m.vert(adj);
             //avg
-            bary = bary / double(adjs_size);
+            bary = bary / double(adjs.size() + 1);
+            //reproject if srf
+            if(srf) {
+                octree.intersects_ray(d.m.vert(vid), norm, dist, aux);
+                bary = bary + (norm * dist);
+            }
             //check if legal move
             for(uint pid : d.m.adj_v2p(vid)) {
                 can_smooth = !does_movement_flip(d, vid, pid, bary);
                 if(!can_smooth) break;
             }
             //move
-            if(can_smooth)
+            if(can_smooth) {
                 d.m.vert(vid) = bary;
+                line_search(d, vid, og);
+            }
         }
     }
+
+    //update all normals
+    d.m.update_normals();
 
     if(d.verbose) cout << BGRN << "DONE" << rendl;
 }

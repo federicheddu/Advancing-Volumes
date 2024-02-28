@@ -78,6 +78,13 @@ bool key_commands(Data &d, int key, int modifier) {
 
 void gui_commands(Data &d) {
 
+    ImVec2 bsize(100,50);
+
+    if(ImGui::Button("Check Orient", bsize)) {
+
+    }
+
+
 }
 
 bool click_commands(Data &d, int modifiers) {
@@ -172,7 +179,7 @@ void view_possible_flip(Data &d) {
     for(uint eid : d.m.get_surface_edges()) {
 
         adj_f = d.m.edge_adj_srf_faces(eid);
-        assert(adj_f.size() == 2);
+        my_assert(d, adj_f.size() == 2, "Edge has more than 2 adjacent faces", __FILE__, __LINE__);
 
         vid0 = d.m.face_vert_opposite_to(adj_f[0], eid);
         vid1 = d.m.face_vert_opposite_to(adj_f[1], eid);

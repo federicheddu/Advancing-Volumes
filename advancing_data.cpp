@@ -377,7 +377,7 @@ double dist_calc(Data &d, uint vid, bool raycast) {
 
 //check if the future position will flip the tet
 bool does_movement_flip(Data &d, uint vid, uint pid, vec3d &target) {
-    assert(d.m.poly_contains_vert(pid,vid));
+    my_assert(d, d.m.poly_contains_vert(pid,vid), "poly does not contain vert", __FILE__, __LINE__);
 
     uint f_opp = d.m.poly_face_opposite_to(pid,vid);
     uint v0 = d.m.face_vert_id(f_opp,0);

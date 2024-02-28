@@ -44,6 +44,11 @@ void setup(Data &d, Octree *oct) {
         else d.mm = d.m;
         d.mm.mesh_data().filename = "map_" + d.name;
     }
+
+    //get file results folder path and log file path
+    d.path_res = __FILE__;
+    d.path_res += "results/";
+    d.path_log = d.path_res + "log.txt";
 }
 
 void parse(Data &d, int argc, char *argv[]) {
@@ -71,11 +76,8 @@ void parse(Data &d, int argc, char *argv[]) {
             case ARG_MAP:
                 d.path_map = argv[i];
                 break;
-            case ARG_LOG:
-                d.path_log = argv[i];
-                break;
             default:
-                assert(false && "Parameters not valid");
+                my_assert(d, false, "Parameters not valid", __FILE__, __LINE__);
                 break;
         }
 
@@ -87,12 +89,15 @@ void parse(Data &d, int argc, char *argv[]) {
 
 }
 
+void save(Data &d) {
+
+}
+
 int which_arg(std::string &arg) {
 
     if(arg == "-t") return ARG_TARGET;
     if(arg == "-m") return ARG_MODEL;
     if(arg == "-s") return ARG_MAP;
-    if(arg == "-l") return ARG_LOG;
     return ARG_ERR;
 
 }

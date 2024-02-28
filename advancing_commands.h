@@ -7,7 +7,6 @@ bool key_commands(Data &d, int key, int modifier);
 void gui_commands(Data &d);
 bool click_commands(Data &d, int modifiers);
 
-
 //algorithm
 
 //view commands
