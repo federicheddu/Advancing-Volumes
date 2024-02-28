@@ -46,7 +46,6 @@ void setup(Data &d, Octree *oct) {
     }
 }
 
-
 void parse(Data &d, int argc, char *argv[]) {
 
     int arg;

@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
     }
 
     //models to load
-    d.path_target = "../data/duck.mesh";
+    d.path_target = "../data/bunny.mesh";
     d.path_model = "";
     d.path_map = "";
     d.path_log = "";
@@ -50,6 +50,7 @@ int main(int argc, char *argv[]) {
 
     //sphere mapping
     if(d.map) {
+        d.mm.updateGL();
         gui_map.push(&d.mm);
         gui_map.push(new VolumeMeshControls<DrawableTetmesh<>>(&d.mm, &gui_map));
     }
