@@ -47,8 +47,15 @@ void setup(Data &d, Octree *oct) {
 
     //get file results folder path and log file path
     d.path_res = get_file_path(__FILE__, false);
-    d.path_res += "results/";
+    d.path_res = d.path_res + "results/";
     d.path_log = d.path_res + "log.txt";
+
+    //system calls
+    std::string command;
+    command = "mkdir -p " + d.path_res;
+    system(command.c_str());
+    command = "touch " + d.path_log;
+    system(command.c_str());
 }
 
 void parse(Data &d, int argc, char *argv[]) {
