@@ -32,7 +32,6 @@ int main(int argc, char *argv[]) {
     d.path_target = "../data/bunny.mesh";
     d.path_model = "";
     d.path_map = "";
-    d.path_log = "";
     setup(d, &oct);
     d.m.updateGL();
 

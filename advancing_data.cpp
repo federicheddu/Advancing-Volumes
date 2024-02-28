@@ -424,9 +424,9 @@ bool is_orient_ok(Data &d) {
             cout << TBLU << "No Flips" << rendl << endl;
 
         if (count > 0) d.m.updateGL();
-    } else {
-        my_assert(d, false, "some polys are flipped", __FILE__, __LINE__);
     }
+
+    return count > 0;
 }
 
 //my assert with log
