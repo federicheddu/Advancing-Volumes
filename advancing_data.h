@@ -115,7 +115,5 @@ double dist_calc(Data &d, uint vid, bool raycast);
 bool does_movement_flip(Data &d, uint vid, uint pid, vec3d &target);
 bool is_vert_flipped(Data &d, uint vid);
 bool is_orient_ok(Data &d);
-//my assert
-void my_assert(Data &d, bool condition, std::string log, std::string file = "", int line = 0);
 
 #endif //ADVANCING_VOLUMES_ADVANCING_DATA_H

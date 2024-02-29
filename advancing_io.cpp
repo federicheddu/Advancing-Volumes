@@ -89,14 +89,10 @@ void parse(Data &d, int argc, char *argv[]) {
         }
 
         //make sure there is a target to load
-        assert(d.path_target.empty() && "No target");
+        assert(!d.path_target.empty() && "No target");
         //only way to deactivate map is loading and no path_map
         d.map = !(loading && d.path_map.empty());
     }
-
-}
-
-void save(Data &d) {
 
 }
 
@@ -106,5 +102,18 @@ int which_arg(std::string &arg) {
     if(arg == "-m") return ARG_MODEL;
     if(arg == "-s") return ARG_MAP;
     return ARG_ERR;
+
+}
+
+void save(Data &d) {
+
+    std::string save_path;
+    std::string step = std::to_string(d.step);
+
+    save_path = d.path_res + d.m.mesh_data().filename + "_" + step + ".mesh";
+    d.m.save(save_path.c_str());
+
+    save_path = d.path_res + d.mm.mesh_data().filename + "_" + step + ".mesh";
+    d.mm.save(save_path.c_str());
 
 }

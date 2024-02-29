@@ -377,7 +377,7 @@ double dist_calc(Data &d, uint vid, bool raycast) {
 
 //check if the future position will flip the tet
 bool does_movement_flip(Data &d, uint vid, uint pid, vec3d &target) {
-    my_assert(d, d.m.poly_contains_vert(pid,vid), "poly does not contain vert", __FILE__, __LINE__);
+    assert(d.m.poly_contains_vert(pid,vid));
 
     uint f_opp = d.m.poly_face_opposite_to(pid,vid);
     uint v0 = d.m.face_vert_id(f_opp,0);
@@ -427,76 +427,4 @@ bool is_orient_ok(Data &d) {
     }
 
     return count > 0;
-}
-
-//my assert with log
-void my_assert(Data &d, bool condition, std::string log, std::string file, int line) {
-
-    if(!condition) {
-
-        //params
-        std::string name = d.name;
-        int step = d.step;
-        int active = d.front.size();
-        int verts = d.m.num_verts();
-        int srf_verts = d.m.get_surface_verts().size();
-        int polys = d.m.num_polys();
-        double vol = d.m.mesh_volume();
-        int target_verts = d.ts.num_verts();
-        double target_vol = d.tv.mesh_volume();
-        double percent = d.m.mesh_volume() / d.tv.mesh_volume();
-
-        if(!d.path_log.empty()) {
-            //open
-            FILE *f = fopen(d.path_log.c_str(), "a");
-            //mesh name
-            fprintf(f, "\n%s;", name.c_str());
-            //step
-            fprintf(f, "%d;", step);
-            //active fronts
-            fprintf(f, "%d;", active);
-            //num of verts
-            fprintf(f, "%d;", verts);
-            //num of srf verts
-            fprintf(f, "%d;", srf_verts);
-            //num of polys
-            fprintf(f, "%d;", polys);
-            //mesh volume
-            fprintf(f, "%f;", vol);
-            //target surface verts
-            fprintf(f, "%d;", target_verts);
-            //target volume
-            fprintf(f, "%f;", target_vol);
-            // % of the volume
-            fprintf(f, "%f;", percent);
-            //msg
-            fprintf(f, "%s;", log.c_str());
-            //end
-            fprintf(f, "%d", line);
-            fprintf(f, "%s", file.c_str());
-            //close
-            fclose(f);
-        }
-
-        cout << BRED << endl << endl;
-        cout << "Mesh: " << name << "; ";
-        cout << "Step: " << step << "; ";
-        cout << "Actives: " << active << "; ";
-        cout << "Verts: " << verts << "; ";
-        cout << "Srf Verts: " << srf_verts << "; ";
-        cout << "Polys: " << polys << "; ";
-        cout << "Volume: " << vol << "; ";
-        cout << "Target verts: " << target_verts << "; ";
-        cout << "Target volume: " << target_vol << "; ";
-        cout << "Percent: " << percent << "; ";
-        cout << "Log: " << log << "; ";
-        cout << "File: " << file << "; ";
-        cout << "Line: " << line << "; ";
-        cout << rendl;
-        cout << name << ";" << step << ";" << active << ";" << verts << ";" << srf_verts << ";" << polys << ";" << vol << ";" << target_verts << ";" << target_vol << ";" << percent << ";" << log << ";" << file << ";" << line << ";" << endl;
-        cout << endl;
-
-        d.running = false;
-        if(!d.render) exit(98);
-    }
 }

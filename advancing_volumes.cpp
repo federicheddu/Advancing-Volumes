@@ -205,6 +205,7 @@ void check_self_intersection(Data &d) {
 
     //feedback
     if(!d.running) cout << BRED << "FOUND" << RST << endl;
+    if(!d.running && !d.render) my_assert(d, false, "SELF INTERSECTION", __FILE__, __LINE__);
 
 }
 
@@ -584,7 +585,6 @@ void smooth(Data &d) {
     if(d.verbose) cout << BGRN << "DONE" << rendl;
 }
 
-/* ================================================================================================================== */
 
 //delete inactive verts from the front
 void update_front(Data &d) {
@@ -592,4 +592,81 @@ void update_front(Data &d) {
     //remove inactive verts from the front
     d.front.erase(std::remove_if(d.front.begin(), d.front.end(), [&](uint vid) { return !d.m.vert_data(vid).flags[ACTIVE]; }), d.front.end());
 
+}
+
+/* ================================================================================================================== */
+
+//my assert with log
+void my_assert(Data &d, bool condition, std::string log, std::string file, int line) {
+
+    if(!condition) {
+
+        //params
+        std::string name = d.name;
+        int step = d.step;
+        int active = d.front.size();
+        int verts = d.m.num_verts();
+        int srf_verts = d.m.get_surface_verts().size();
+        int polys = d.m.num_polys();
+        double vol = d.m.mesh_volume();
+        int target_verts = d.ts.num_verts();
+        double target_vol = d.tv.mesh_volume();
+        double percent = d.m.mesh_volume() / d.tv.mesh_volume();
+
+        if(!d.path_log.empty()) {
+            //open
+            FILE *f = fopen(d.path_log.c_str(), "a");
+            //mesh name
+            fprintf(f, "\n%s;", name.c_str());
+            //step
+            fprintf(f, "%d;", step);
+            //active fronts
+            fprintf(f, "%d;", active);
+            //num of verts
+            fprintf(f, "%d;", verts);
+            //num of srf verts
+            fprintf(f, "%d;", srf_verts);
+            //num of polys
+            fprintf(f, "%d;", polys);
+            //mesh volume
+            fprintf(f, "%f;", vol);
+            //target surface verts
+            fprintf(f, "%d;", target_verts);
+            //target volume
+            fprintf(f, "%f;", target_vol);
+            // % of the volume
+            fprintf(f, "%f;", percent);
+            //msg
+            fprintf(f, "%s;", log.c_str());
+            //end
+            fprintf(f, "%d", line);
+            fprintf(f, "%s", file.c_str());
+            //close
+            fclose(f);
+        }
+
+        cout << BRED << endl << endl;
+        cout << "Mesh: " << name << "; ";
+        cout << "Step: " << step << "; ";
+        cout << "Actives: " << active << "; ";
+        cout << "Verts: " << verts << "; ";
+        cout << "Srf Verts: " << srf_verts << "; ";
+        cout << "Polys: " << polys << "; ";
+        cout << "Volume: " << vol << "; ";
+        cout << "Target verts: " << target_verts << "; ";
+        cout << "Target volume: " << target_vol << "; ";
+        cout << "Percent: " << percent << "; ";
+        cout << "Log: " << log << "; ";
+        cout << "File: " << file << "; ";
+        cout << "Line: " << line << "; ";
+        cout << rendl;
+        cout << name << ";" << step << ";" << active << ";" << verts << ";" << srf_verts << ";" << polys << ";" << vol << ";" << target_verts << ";" << target_vol << ";" << percent << ";" << log << ";" << file << ";" << line << ";" << endl;
+        cout << endl;
+
+        d.running = false;
+        if(!d.render) {
+            save(d);
+            exit(98);
+        }
+    }
 }

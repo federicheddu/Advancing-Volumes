@@ -34,4 +34,7 @@ bool flip2to2(Tetmesh<> &m, uint eid);
 //front functions
 void update_front(Data &d);
 
+//my assert
+void my_assert(Data &d, bool condition, std::string log, std::string file = "", int line = 0);
+
 #endif //ADVANCING_VOLUMES_ADVANCING_VOLUMES_H
