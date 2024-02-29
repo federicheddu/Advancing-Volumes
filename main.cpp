@@ -20,11 +20,34 @@ int main(int argc, char *argv[]) {
     //algorithm data
     Data d;
     Octree oct;
+    std::string output;
 
     //input parameters -> no render
     if(argc > 1) {
-        while(!d.front.empty())
+
+        //set up the env
+        parse(d, argc, argv);
+
+        //cout << BYEL;
+        //cout << "Model: " << d.path_target << endl;
+        //cout << "Log: " << d.path_log << endl;
+        //cout << "Res: " << d.path_res << endl;
+        //cout << rendl;
+
+        setup(d, &oct);
+
+        //algorithm loop
+        while(!d.front.empty() && d.running && d.step < 100)
             advancing_volume(d);
+
+        //log output
+        if(d.running && d.step < 100)
+            my_assert(d, false, "COMPLETE");
+        else if(d.running)
+            my_assert(d, false, "100 REACHED");
+        else
+            my_assert(d, false, "SOMETHING WRONG");
+
         return 0;
     }
 
