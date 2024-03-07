@@ -10,12 +10,40 @@ bool key_commands(Data &d, int key, int modifier) {
     static bool show_disp = false;
     static bool show_long = false;
     static bool show_flips = false;
+    static int substep = 0;
 
     switch (key) {
+        //algorithm
         case GLFW_KEY_SPACE: {
-            advancing_volume(d);
+            if(!d.step_by_step) advancing_volume(d);
+            else cout << endl << TYEL << "Pls end the step by step..." << rendl << endl;
             d.m.updateGL();
             if(d.map) d.mm.updateGL();
+            break;
+        }
+        case GLFW_KEY_SLASH: {
+            d.step_by_step = true;
+
+            if(substep == 0) {
+                d.step++;
+                cout << BMAG << "Advancing Volume ITERATION " << d.step << RST << endl;
+            }
+
+            if(substep == 0 && d.running) expand(d);
+            if(substep == 1 && d.running) smooth(d);
+            if(substep == 2 && d.running) do { refine(d); } while(d.multiple_refinement && refine_again(d));
+            if(substep == 3 && d.running) smooth(d);
+            if(substep == 4) update_front(d);
+            substep++;
+
+            substep = substep % 5;
+            d.step_by_step = substep != 0;
+            d.m.updateGL();
+            if(d.map) d.mm.updateGL();
+
+            if(substep == 0)
+                cout << BMAG << "Advancing Volume ITERATION - Actives: " << d.front.size() << "/" << d.m.num_srf_verts() << RST << endl << endl;
+
             break;
         }
         //show the target
@@ -23,6 +51,31 @@ bool key_commands(Data &d, int key, int modifier) {
             cout << TYEL << "Show/Unshow Target" << rendl;
             show_target = !show_target;
             d.ts.show_mesh(show_target);
+            break;
+        }
+        case GLFW_KEY_1: {
+            expand(d);
+            d.m.updateGL();
+            if(d.map) d.mm.updateGL();
+            break;
+        }
+        case GLFW_KEY_2: {
+            refine(d);
+            d.m.updateGL();
+            if(d.map) d.mm.updateGL();
+            break;
+        }
+        case GLFW_KEY_3: {
+            smooth(d);
+            d.m.updateGL();
+            if(d.map) d.mm.updateGL();
+            break;
+        }
+        case GLFW_KEY_4: {
+            compute_distances(d);
+            update_front(d);
+            d.m.updateGL();
+            if(d.map) d.mm.updateGL();
             break;
         }
         //show the displacement (BLUE) vs normal (RED)
