@@ -221,7 +221,7 @@ void refine(Data &d, bool all) {
 
     if(d.verbose) cout << BCYN << "Adjusting the topology..." << RST;
     flip(d);
-    //try_flips(d);
+    try_flips(d);
 
     if(d.verbose && d.running) cout << BGRN << "DONE" << RST << endl;
 
@@ -406,7 +406,7 @@ void try_flips(Data &d) {
             //update the map
             if(d.map && d.step > 0 && result) {
                 result = flip2to2(d.mm, eid);
-                my_assert(d, result, "The edge flip 2-2 failed in the map", __FILE__, __LINE__);
+                if(!result) flip2to2(d.m, d.m.edge_id(vid0, vid1));
             }
 
             /* UNCOMMENT TO MARK IN RED THE EDGE FLIPPED
@@ -563,8 +563,9 @@ void smooth(Data &d) {
             bary = bary / double(adjs.size() + 1);
             //reproject if srf
             if(srf) {
-                octree.intersects_ray(d.m.vert(vid), norm, dist, aux);
+                octree.intersects_ray(bary, norm, dist, aux);
                 bary = bary + (norm * dist);
+                //bary = octree.closest_point(bary);
             }
             //check if legal move
             for(uint pid : d.m.adj_v2p(vid)) {
@@ -589,9 +590,12 @@ void smooth(Data &d) {
 //delete inactive verts from the front
 void update_front(Data &d) {
 
+    if(d.verbose) cout << BCYN << "Updating the front..." << RST;
+
     //remove inactive verts from the front
     d.front.erase(std::remove_if(d.front.begin(), d.front.end(), [&](uint vid) { return !d.m.vert_data(vid).flags[ACTIVE]; }), d.front.end());
 
+    if(d.verbose) cout << BGRN << "DONE" << rendl;
 }
 
 /* ================================================================================================================== */
