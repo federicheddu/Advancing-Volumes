@@ -5,7 +5,8 @@
 #RES=/home/federico/Documents/GitHub/Advancing-Volumes/results/
 #EXE=/home/federico/Documents/GitHub/Advancing-Volumes/cmake-build-release/Advancing-Volumes
 #set the folders (mac)
-FLD=/Users/federicheddu/Documents/VOLMAP/G1
+FLD=/Users/federicheddu/Documents/VOLMAP/G2
+RES=/Users/federicheddu//Documents/GitHub/Advancing-Volumes/results/
 EXE=/Users/federicheddu/Documents/GitHub/Advancing-Volumes/cmake-build-release/Advancing-Volumes
 
 #execution counter
@@ -32,18 +33,17 @@ do
   #rm -f $RES/$(basename $MESH .mesh)/*.mesh
 
   #append the date to the log file with a blank line before and after
-  #echo "" >> $RES/$(basename $MESH .mesh)/log.txt
-  #echo "NEW EXECUTION" >> $RES/$(basename $MESH .mesh)/log.txt
-  #echo $(date) >> $RES/$(basename $MESH .mesh)/log.txt
-  #echo "" >> $RES/$(basename $MESH .mesh)/log.txt
+  NAME=$(basename "$MESH" .mesh)
+  LOG="$RES""/log_""$NAME"".txt"
+  touch "$LOG"
 
   #echo the name and the time of start of the execution of the program
   #echo "[$CNT] Executing $(basename $MESH .mesh) at $(date)"
   echo "[$CNT] Executing $MESH at $(date)"
 
   #start the execution of the program with the mesh file passed as argument
-  #timeout 30m $EXE -t $MESH &
-  gtimeout 30m $EXE -t $MESH &
+  #timeout 30m $EXE -t $MESH >> "$LOG" &
+  gtimeout 30m $EXE -t $MESH >> "$LOG" &
 
   #increment the counter
   ((CNT++))
@@ -55,4 +55,4 @@ do
 
 done
 
-echo "End - ($(date))" >> $RES/log.txt
+echo "End - ($(date))"

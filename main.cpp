@@ -58,7 +58,6 @@ int main(int argc, char *argv[]) {
 
         //log output
         if(d.running) my_assert(d, false, "COMPLETE");
-        else my_assert(d, false, "SOMETHING WRONG");
 
         return 0;
     }
