@@ -428,3 +428,64 @@ bool is_orient_ok(Data &d) {
 
     return count > 0;
 }
+
+void map_check(Data &d) {
+
+    bool same = true;
+    std::vector<uint> adj, adj_m;
+
+    for(uint vert = 0; vert < d.m.num_verts(); vert++) {
+        adj = d.m.adj_v2v(vert);
+        adj_m = d.mm.adj_v2v(vert);
+        same = adj.size() == adj_m.size();
+        if (!same) {
+            cout << BRED << "Different sizes of vert adj" << rendl;
+            break;
+        }
+        for (uint vid: adj) {
+            same = CONTAINS_VEC(adj_m, vid);
+            if (!same) break;
+        }
+        if(!same) break;
+    }
+    if (same) cout << BGRN << "Same verts adj" << rendl;
+    else cout << BRED << "Not same verts adj" << rendl;
+
+    for(uint vert = 0; vert < d.m.num_verts(); vert++) {
+        adj = d.m.adj_v2e(vert);
+        adj_m = d.mm.adj_v2e(vert);
+        same = adj.size() == adj_m.size();
+        if (!same) {
+            cout << BRED << "Different sizes of edge adj" << rendl;
+            break;
+        }
+        for (uint eid: adj) {
+            same = CONTAINS_VEC(adj_m, eid);
+            if (!same) break;
+        }
+        if (!same) break;
+    }
+    if (same) cout << BGRN << "Same edge adj" << rendl;
+    else cout << BRED << "Not same edges adj" << rendl;
+
+    for(uint vert = 0; vert < d.m.num_verts(); vert++) {
+        adj = d.m.adj_v2p(vert);
+        adj_m = d.mm.adj_v2p(vert);
+        same = adj.size() == adj_m.size();
+        if(!same) {
+            cout << BRED << "Different sizes of pid adj" << rendl;
+            break;
+        }
+        for(uint pid : adj) {
+            same = CONTAINS_VEC(adj_m, pid);
+            if(!same) break;
+        }
+        if(!same) break;
+
+    }
+    if(same) cout << BGRN << "Same tet adj" << rendl;
+    else cout << BRED << "Not same tet adj" << rendl;
+
+    if(same) cout << BGRN << "GOOD MAP" << rendl;
+    else cout << BRED << "BAD MAP" << rendl;
+}

@@ -21,7 +21,29 @@ bool key_commands(Data &d, int key, int modifier) {
             if(d.map) d.mm.updateGL();
             break;
         }
-        case GLFW_KEY_SLASH: {
+        case GLFW_KEY_ENTER: {
+            int active_prev = d.front.size(), counter = 0;
+            double target_vol = d.tv.mesh_volume();
+
+            while(!d.front.empty() && d.running) {
+                //algorithm
+                advancing_volume(d);
+
+                //check for progress
+                if(active_prev == d.front.size()) counter++; else counter = 0;
+                active_prev = d.front.size();
+
+                if(counter > 10) {
+                    cout << TYEL << "NO PROGRESS" << rendl;
+                    cout << TYEL << "Volume: " << d.m.mesh_volume() / target_vol << rendl;
+                    break;
+                }
+            }
+            d.m.updateGL();
+            if(d.map) d.mm.updateGL();
+            break;
+        }
+        case GLFW_KEY_BACKSLASH: {
             d.step_by_step = true;
 
             if(substep == 0) {
@@ -133,9 +155,8 @@ void gui_commands(Data &d) {
 
     ImVec2 bsize(100,50);
 
-    if(ImGui::Button("Check Orient", bsize)) {
-
-    }
+    if(ImGui::Button("Check MAP", bsize))
+        map_check(d);
 
 
 }

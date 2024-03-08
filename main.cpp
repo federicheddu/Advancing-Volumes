@@ -18,7 +18,7 @@ using namespace cinolib;
 int main(int argc, char *argv[]) {
 
     //algorithm data
-    Data d;
+    Data d, d_prev;
     Octree oct;
     std::string output;
 
@@ -27,34 +27,57 @@ int main(int argc, char *argv[]) {
 
         //set up the env
         parse(d, argc, argv);
-
-        cout << BYEL;
-        cout << "Model: " << d.path_target << endl;
-        cout << "Log: " << d.path_log << endl;
-        cout << "Res: " << d.path_res << endl;
-        cout << rendl;
-
         setup(d, &oct);
+        d.prev = &d_prev;
+
+        cout << endl << BYEL;
+        cout << "Target: " << d.path_target << endl;
+        cout << "Model: " << (!d.path_model.empty() ? d.path_model : "NONE") << endl;
+        cout << "Log: " << (!d.path_map.empty() ? d.path_map : "NONE") << rendl;
+        cout << BCYN << "Mapping: " << (d.map ? "ON" : "OFF") << rendl << endl;
+
+        //to early top and save
+        int active_prev = d.front.size(), counter = 0;
+        double target_vol = d.tv.mesh_volume();
 
         //algorithm loop
-        while(!d.front.empty() && d.running)
+        while(!d.front.empty() && d.running) {
+
+            //for undo
+            d_prev =  d;
+
+            //algorithm
             advancing_volume(d);
 
+            //check for progress
+            if(active_prev == d.front.size()) counter++; else counter = 0;
+            my_assert(d, counter < 10, "NO PROGRESS");
+            active_prev = d.front.size();
+
+        }
+
         //log output
-        if(d.running)
-            my_assert(d, false, "COMPLETE");
-        else
-            my_assert(d, false, "SOMETHING WRONG");
+        if(d.running) my_assert(d, false, "COMPLETE");
+        else my_assert(d, false, "SOMETHING WRONG");
 
         return 0;
     }
+    /**/
 
     //models to load
-    d.path_target = "../data/bunny.mesh";
+    d.path_target = "/Users/federicheddu/Documents/VOLMAP/G1/bone.mesh";
     d.path_model = "";
     d.path_map = "";
+    //setup
     setup(d, &oct);
+    d.prev = &d_prev;
     d.m.updateGL();
+
+    cout << endl << BYEL;
+    cout << "Target: " << d.path_target << endl;
+    cout << "Model: " << (!d.path_model.empty() ? d.path_model : "NONE") << endl;
+    cout << "Log: " << (!d.path_map.empty() ? d.path_map : "NONE") << rendl;
+    cout << BCYN << "Mapping: " << (d.map ? "ON" : "OFF") << rendl << endl;
 
     //render
     GLcanvas gui(1080, 720);

@@ -90,8 +90,6 @@ void parse(Data &d, int argc, char *argv[]) {
 
         //make sure there is a target to load
         assert(!d.path_target.empty() && "No target");
-        //only way to deactivate map is loading and no path_map
-        d.map = !(loading && d.path_map.empty());
     }
 
 }
@@ -113,7 +111,8 @@ void save(Data &d) {
     save_path = d.path_res + d.m.mesh_data().filename + "_" + step + ".mesh";
     d.m.save(save_path.c_str());
 
-    save_path = d.path_res + d.mm.mesh_data().filename + "_" + step + ".mesh";
-    d.mm.save(save_path.c_str());
-
+    if(d.map) {
+        save_path = d.path_res + d.mm.mesh_data().filename + "_" + step + ".mesh";
+        d.mm.save(save_path.c_str());
+    }
 }

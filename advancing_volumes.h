@@ -30,6 +30,7 @@ void flip(Data &d);
 void try_flips(Data &d);
 bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1);
 bool flip2to2(Tetmesh<> &m, uint eid);
+bool flip2to2(Tetmesh<> &m, uint eid, uint &evid0, uint &evid1);
 
 //front functions
 void update_front(Data &d);

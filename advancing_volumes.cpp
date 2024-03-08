@@ -351,15 +351,18 @@ void flip(Data &d) {
             //update the map
             if(d.map && d.step > 0 && result) {
                 result = flip4to4(d.mm, eid, vid0, vid1);
+                if(!result) result = flip4to4(d.m, d.m.edge_id(vid0, vid1), eid_pair.first, eid_pair.second);
                 my_assert(d, result, "The edge flip 4-4 failed in the map", __FILE__, __LINE__);
             }
 
         } else if(d.m.vert_data(etf.opp_vid).flags[ACTIVE]) {
             //flip (no query needed, I can have only one setup)
-            result = flip2to2(d.m, eid);
+            uint vid0, vid1;
+            result = flip2to2(d.m, eid, vid0, vid1);
             //update the map
             if(d.map && d.step > 0 && result) {
                 result = flip2to2(d.mm, eid);
+                if(!result) result = flip2to2(d.m, d.m.edge_id(vid0, vid1));
                 my_assert(d, result, "The edge flip 2-2 failed in the map", __FILE__, __LINE__);
             }
         }
@@ -475,6 +478,11 @@ bool flip4to4(Tetmesh<> &m, uint eid, uint vid0, uint vid1) {
 }
 
 bool flip2to2(Tetmesh<> &m, uint eid) {
+    uint vid0, vid1;
+    return flip2to2(m, eid, vid0, vid1);
+}
+
+bool flip2to2(Tetmesh<> &m, uint eid, uint &vid0, uint &vid1) {
 
     //edge must be on the surface and with only two polys adj
     if(!m.edge_is_on_srf(eid))
@@ -490,7 +498,11 @@ bool flip2to2(Tetmesh<> &m, uint eid) {
     //for every adj face to the edge
     for(uint fid : m.poly_e2f(pid_ov, eid))
         if(m.face_is_on_srf(fid))
-            opp = m.face_vert_opposite_to(fid, eid);
+            vid0 = m.face_vert_opposite_to(fid, eid);
+    for(uint fid : m.poly_e2f(pid_of, eid))
+        if(m.face_is_on_srf(fid))
+            vid1 = m.face_vert_opposite_to(fid, eid);
+    opp = vid0;
 
     // construct all new elements
     uint tets[2][4];
@@ -650,26 +662,29 @@ void my_assert(Data &d, bool condition, std::string log, std::string file, int l
         }
 
         cout << BRED << endl << endl;
-        cout << "Mesh: " << name << "; ";
-        cout << "Step: " << step << "; ";
-        cout << "Actives: " << active << "; ";
-        cout << "Verts: " << verts << "; ";
-        cout << "Srf Verts: " << srf_verts << "; ";
-        cout << "Polys: " << polys << "; ";
-        cout << "Volume: " << vol << "; ";
-        cout << "Target verts: " << target_verts << "; ";
-        cout << "Target volume: " << target_vol << "; ";
-        cout << "Percent: " << percent << "; ";
-        cout << "Log: " << log << "; ";
-        cout << "File: " << file << "; ";
-        cout << "Line: " << line << "; ";
+        cout << "Mesh: " << name << "; " << endl;
+        cout << "Step: " << step << "; " << endl;
+        cout << "Actives: " << active << "; " << endl;
+        cout << "Verts: " << verts << "; " << endl;
+        cout << "Srf Verts: " << srf_verts << "; " << endl;
+        cout << "Polys: " << polys << "; " << endl;
+        cout << "Volume: " << vol << "; " << endl;
+        cout << "Target verts: " << target_verts << "; " << endl;
+        cout << "Target volume: " << target_vol << "; " << endl;
+        cout << "Percent: " << percent << "; " << endl;
+        cout << "Log: " << log << "; " << endl;
+        cout << "File: " << file << "; " << endl;
+        cout << "Line: " << line << "; " << endl;
         cout << rendl;
-        cout << name << ";" << step << ";" << active << ";" << verts << ";" << srf_verts << ";" << polys << ";" << vol << ";" << target_verts << ";" << target_vol << ";" << percent << ";" << log << ";" << file << ";" << line << ";" << endl;
+        //cout << name << ";" << step << ";" << active << ";" << verts << ";" << srf_verts << ";" << polys << ";" << vol << ";" << target_verts << ";" << target_vol << ";" << percent << ";" << log << ";" << file << ";" << line << ";" << endl;
         cout << endl;
 
         d.running = false;
         if(!d.render) {
-            save(d);
+            if(percent > 0.9) {
+                save(d);
+                save(*d.prev);
+            }
             exit(98);
         }
     }

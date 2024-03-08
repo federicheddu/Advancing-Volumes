@@ -56,7 +56,7 @@ typedef struct data {
     //smoothing
     int smooth_mesh_iters = 5;
     //text and debug
-    bool verbose = true;                // print sub-steps
+    bool verbose = false;                // print sub-steps
     //other
     bool enable_snap_rounding = false;  // snap the rational coords to the closest double
 
@@ -70,15 +70,16 @@ typedef struct data {
 
     //execution
     int step = 0;
-    bool map = true;
+    bool map = false;
     bool running = true;
     bool step_by_step = false;
-    int save_every = 1;
+    bool save_prev = false;
 
     //structures
     DrawableTetmesh<> m;    //model
-    DrawableTetmesh<> mm;   //model map (sphere)
     DrawableTrimesh<> ms;   //model surface
+    DrawableTetmesh<> mm;   //model map (sphere)
+    DrawableTrimesh<> mms;  //model map surface
     DrawableTetmesh<> tv;   //target volume
     DrawableTrimesh<> ts;   //target surface
     Octree *oct;            //octree from ts
@@ -99,6 +100,7 @@ typedef struct data {
 
     //utility
     int orient_sign = -1;               // sign for the orientation of the mesh (1 or -1)
+    struct data *prev;
 
     //gui
     bool render = false;
@@ -115,5 +117,7 @@ double dist_calc(Data &d, uint vid, bool raycast);
 bool does_movement_flip(Data &d, uint vid, uint pid, vec3d &target);
 bool is_vert_flipped(Data &d, uint vid);
 bool is_orient_ok(Data &d);
+//map
+void map_check(Data &d);
 
 #endif //ADVANCING_VOLUMES_ADVANCING_DATA_H
