@@ -337,6 +337,12 @@ void init_model(Data &d) {
 
     //get the model
     d.m = hardcode_model();
+    /*
+    std::string sphere_path = get_file_path(__FILE__, false) + "sphere.mesh";
+    d.m = DrawableTetmesh<>(sphere_path.c_str());
+    d.m.scale(1/(d.m.bbox().delta_x()/2));
+    d.m.translate(-d.m.centroid());
+     */
     d.m.mesh_data().filename = d.name;
 
     //get info for placing the sphere
@@ -452,23 +458,6 @@ void map_check(Data &d) {
     else cout << BRED << "Not same verts adj" << rendl;
 
     for(uint vert = 0; vert < d.m.num_verts(); vert++) {
-        adj = d.m.adj_v2e(vert);
-        adj_m = d.mm.adj_v2e(vert);
-        same = adj.size() == adj_m.size();
-        if (!same) {
-            cout << BRED << "Different sizes of edge adj" << rendl;
-            break;
-        }
-        for (uint eid: adj) {
-            same = CONTAINS_VEC(adj_m, eid);
-            if (!same) break;
-        }
-        if (!same) break;
-    }
-    if (same) cout << BGRN << "Same edge adj" << rendl;
-    else cout << BRED << "Not same edges adj" << rendl;
-
-    for(uint vert = 0; vert < d.m.num_verts(); vert++) {
         adj = d.m.adj_v2p(vert);
         adj_m = d.mm.adj_v2p(vert);
         same = adj.size() == adj_m.size();
@@ -476,12 +465,21 @@ void map_check(Data &d) {
             cout << BRED << "Different sizes of pid adj" << rendl;
             break;
         }
+
         for(uint pid : adj) {
-            same = CONTAINS_VEC(adj_m, pid);
+            std::vector<uint> opp = d.m.face_verts_id(d.m.poly_face_opposite_to(pid, vert), true);
+            for(uint pid_m : adj_m) {
+                std::vector<uint> opp_m = d.mm.face_verts_id(d.mm.poly_face_opposite_to(pid_m, vert), true);
+                int count = 0;
+                for(int i = 0; i < 3; i++) {
+                    if(opp[i] == opp_m[i]) count++;
+                }
+                same = count == 3;
+                if(same) break;
+            }
             if(!same) break;
         }
         if(!same) break;
-
     }
     if(same) cout << BGRN << "Same tet adj" << rendl;
     else cout << BRED << "Not same tet adj" << rendl;
