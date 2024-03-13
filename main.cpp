@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
     std::string output;
 
     //input parameters -> no render
-    if(argc > 1) {
+    if(argc == 3) {
 
         //set up the env
         parse(d, argc, argv);
@@ -63,10 +63,14 @@ int main(int argc, char *argv[]) {
     }
     /**/
 
-    //models to load
-    d.path_target = "/Users/federicheddu/Documents/VOLMAP/G1/bone.mesh";
-    d.path_model = "";
-    d.path_map = "";
+    if(argc > 1) {
+        parse(d, argc, argv);
+    } else {
+        //models to load
+        d.path_target = "/Users/federicheddu/Documents/VOLMAP/G2/squirrel.mesh";
+        d.path_model = "";
+        d.path_map = "";
+    }
     //setup
     setup(d, &oct);
     d.prev = &d_prev;
