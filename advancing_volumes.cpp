@@ -350,9 +350,9 @@ void flip(Data &d) {
             result = flip4to4(d.m, eid, vid0, vid1);
             //update the map
             if(d.map && d.step > 0 && result) {
-                result = flip4to4(d.mm, eid, vid0, vid1);
+                result = flip4to4(d.mm, d.mm.edge_id(eid_pair.first, eid_pair.second), vid0, vid1);
                 if(!result) result = flip4to4(d.m, d.m.edge_id(vid0, vid1), eid_pair.first, eid_pair.second);
-                my_assert(d, result, "The edge flip 4-4 failed in the map", __FILE__, __LINE__);
+                my_assert(d, result, "Wrong restoring of the model in flip4to4", __FILE__, __LINE__);
             }
 
         } else if(d.m.vert_data(etf.opp_vid).flags[ACTIVE]) {
@@ -361,9 +361,9 @@ void flip(Data &d) {
             result = flip2to2(d.m, eid, vid0, vid1);
             //update the map
             if(d.map && d.step > 0 && result) {
-                result = flip2to2(d.mm, eid);
+                result = flip2to2(d.mm, d.mm.edge_id(eid_pair.first, eid_pair.second));
                 if(!result) result = flip2to2(d.m, d.m.edge_id(vid0, vid1));
-                my_assert(d, result, "The edge flip 2-2 failed in the map", __FILE__, __LINE__);
+                my_assert(d, result, "Wrong restoring of the model in flip2to2", __FILE__, __LINE__);
             }
         }
 
@@ -405,11 +405,13 @@ void try_flips(Data &d) {
 
         if(lenght_opp < lenght && d.m.adj_e2p(eid).size() == 2) {
             //flip to get a shorter edge
+            std::vector<uint> evid = d.m.edge_vert_ids(eid);
             result = flip2to2(d.m, eid);
             //update the map
             if(d.map && d.step > 0 && result) {
-                result = flip2to2(d.mm, eid);
-                if(!result) flip2to2(d.m, d.m.edge_id(vid0, vid1));
+                result = flip2to2(d.mm, d.mm.edge_id(evid[0], evid[1]));
+                if(!result) result = flip2to2(d.m, d.m.edge_id(vid0, vid1));
+                my_assert(d, result, "Bad restore in try_flips");
             }
 
             /* UNCOMMENT TO MARK IN RED THE EDGE FLIPPED
