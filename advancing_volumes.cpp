@@ -8,9 +8,9 @@ void advancing_volume(Data &d) {
     cout << BMAG << "Advancing Volume ITERATION " << d.step << RST << endl;
 
     if(d.running) expand(d);
-    if(d.running) smooth(d);
+    if(d.running) smooth(d, MODEL);
     if(d.running) do { refine(d); } while(d.multiple_refinement && refine_again(d));
-    if(d.running) smooth(d);
+    if(d.running) smooth(d, MODEL);
     update_front(d);
 
     cout << BMAG << "Advancing Volume ITERATION - Actives: " << d.front.size() << "/" << d.m.num_srf_verts() << RST << endl << endl;
@@ -541,11 +541,15 @@ bool flip2to2(Tetmesh<> &m, uint eid, uint &vid0, uint &vid1) {
 
 /* ================================================================================================================== */
 
-void smooth(Data &d) {
+void smooth(Data &d, int mesh) {
 
-    if(d.verbose) cout << BCYN << "Smoothing the model..." << RST;
+    if(d.verbose && mesh == MODEL) cout << BCYN << "Smoothing the model..." << RST;
+    if(d.verbose && mesh == MAP) cout << BCYN << "Smoothing the map..." << RST;
+    if(mesh != MODEL && mesh != MAP) assert(false && "Bad enum in smoothing function");
 
     //parameters
+    DrawableTetmesh<> &m = mesh == MODEL ? d.m : d.mm;
+    DrawableTrimesh<> &ms = mesh == MODEL ? d.ms : d.mms;
     uint aux;
     double dist;
     vec3d bary, og, norm;
@@ -554,52 +558,127 @@ void smooth(Data &d) {
 
     //get srf
     Octree octree;
-    export_surface(d.m, d.ms);
-    octree.build_from_mesh_polys(d.ms);
+    export_surface(m, ms);
+    octree.build_from_mesh_polys(ms);
 
     //internal smoothing
     for(int iter = 0; iter < d.smooth_mesh_iters; iter++) {
         //for every vert
-        for(uint vid = 0; vid < d.m.num_verts(); vid++) {
+        for(uint vid = 0; vid < m.num_verts(); vid++) {
             //check if the vert is on srf
-            srf = d.m.vert_is_on_srf(vid);
+            srf = m.vert_is_on_srf(vid);
             //skip vids not active
-            if(srf && !d.m.vert_data(vid).flags[ACTIVE]) continue;
+            if(srf && mesh == MODEL && !m.vert_data(vid).flags[ACTIVE]) continue;
             //get adjs (only srf for srf verts)
-            if(srf) adjs = d.m.vert_adj_srf_verts(vid);
-            else adjs = d.m.adj_v2v(vid);
+            if(srf) adjs = m.vert_adj_srf_verts(vid);
+            else adjs = m.adj_v2v(vid);
             //get initial barycenter and normal
-            og = bary = d.m.vert(vid);
-            norm = d.m.vert_data(vid).normal;
+            og = bary = m.vert(vid);
+            norm = m.vert_data(vid).normal;
             //sum
-            for(uint adj : adjs) bary += d.m.vert(adj);
+            for(uint adj : adjs) bary += m.vert(adj);
             //avg
             bary = bary / double(adjs.size() + 1);
             //reproject if srf
-            if(srf) {
+            if(srf && mesh == MODEL) {
                 octree.intersects_ray(bary, norm, dist, aux);
                 bary = bary + (norm * dist);
                 //bary = octree.closest_point(bary);
             }
             //check if legal move
-            for(uint pid : d.m.adj_v2p(vid)) {
-                can_smooth = !does_movement_flip(d, vid, pid, bary);
+            for(uint pid : m.adj_v2p(vid)) {
+                can_smooth = !does_movement_flip(d, vid, pid, bary, mesh);
                 if(!can_smooth) break;
             }
             //move
             if(can_smooth) {
-                d.m.vert(vid) = bary;
-                line_search(d, vid, og);
+                m.vert(vid) = bary;
+                if(mesh == MODEL) line_search(d, vid, og);
             }
         }
     }
 
     //update all normals
-    d.m.update_normals();
+    m.update_normals();
+    if(mesh == MAP) m.scale(1/m.bbox().delta_x());
 
     if(d.verbose) cout << BGRN << "DONE" << rendl;
 }
 
+void smooth_pierre(Data &d, int mesh) {
+
+    if(d.verbose && mesh == MODEL) cout << BCYN << "Smoothing [Pierre] the model..." << RST;
+    if(d.verbose && mesh == MAP) cout << BCYN << "Smoothing [Pierre] the map..." << RST;
+    if(mesh != MODEL && mesh != MAP) assert(false && "Bad enum in smoothing function");
+
+    //parameters
+    DrawableTetmesh<> &m = mesh == MODEL ? d.m : d.mm;
+    DrawableTrimesh<> &ms = mesh == MODEL ? d.ms : d.mms;
+    uint aux;
+    bool srf, can_smooth;
+    double vol, tvol, dist;
+    vec3d center, og, norm;
+    std::vector<uint> adjs;
+    std::vector<vec3d> verts;
+
+    //get srf
+    Octree octree;
+    export_surface(m, ms);
+    octree.build_from_mesh_polys(ms);
+
+    //smoothing iteration
+    for(int iter = 0; iter < d.smooth_mesh_iters; iter++) {
+        //for every vert
+        for(uint vid = 0; vid < m.num_verts(); vid++) {
+            //check if vert is on srf
+            srf = m.vert_is_on_srf(vid);
+            //skip if inactive
+            if(srf && mesh == MODEL && !m.vert_data(vid).flags[ACTIVE]) continue;
+            //get adjs (only srf for srf verts)
+            if(srf) adjs = m.vert_adj_srf_verts(vid);
+            else adjs = m.adj_v2p(vid);
+            //get initial barycenter and normal
+            og = m.vert(vid);
+            norm = m.vert_data(vid).normal;
+
+            //avg
+            tvol= 0;
+            center = vec3d(0, 0, 0);
+            for(uint pid : adjs) {
+                vol = m.poly_volume(pid);
+                center += tetrahedron_circumcenter(m.poly_vert(pid, 0),
+                                                   m.poly_vert(pid, 1),
+                                                   m.poly_vert(pid, 2),
+                                                   m.poly_vert(pid, 3)) * vol;
+                tvol += vol;
+            }
+            center = center / tvol;
+            //re-project if space was lose
+            if(srf) {
+                octree.intersects_ray(center, norm, dist, aux);
+                center = center + (norm * dist);
+            }
+            //check if legal move
+            for(uint pid : m.adj_v2p(vid)) {
+                can_smooth = !does_movement_flip(d, vid, pid, center, mesh);
+                if(!can_smooth) break;
+            }
+            //move
+            if(can_smooth) {
+                m.vert(vid) = center;
+                if(mesh == MODEL) line_search(d, vid, og);
+            }
+        }
+    }
+
+    //restore the normals
+    m.update_normals();
+    if(mesh == MAP) m.scale(1/m.bbox().delta_x());
+
+    if(d.verbose) cout << BGRN << "DONE" << rendl;
+}
+
+/* ================================================================================================================== */
 
 //delete inactive verts from the front
 void update_front(Data &d) {
@@ -629,7 +708,9 @@ void my_assert(Data &d, bool condition, std::string log, std::string file, int l
         double vol = d.m.mesh_volume();
         int target_verts = d.ts.num_verts();
         double target_vol = d.tv.mesh_volume();
-        double percent = d.m.mesh_volume() / d.tv.mesh_volume();
+        double percent = vol / target_vol;
+        double prev_vol = d.prev->m.mesh_volume();
+        double prev_percent = prev_vol / target_vol;
 
         if(!d.path_log.empty()) {
             //open
@@ -654,10 +735,14 @@ void my_assert(Data &d, bool condition, std::string log, std::string file, int l
             fprintf(f, "%f;", target_vol);
             // % of the volume
             fprintf(f, "%f;", percent);
+            // vol at prev step
+            fprintf(f, "%f;", prev_vol);
+            // % at prev step
+            fprintf(f, "%f;", prev_percent);
             //msg
             fprintf(f, "%s;", log.c_str());
             //end
-            fprintf(f, "%d", line);
+            fprintf(f, "%d ", line);
             fprintf(f, "%s", file.c_str());
             //close
             fclose(f);

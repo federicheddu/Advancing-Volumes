@@ -45,9 +45,9 @@ void setup(Data &d, Octree *oct) {
         d.mm.mesh_data().filename = "map_" + d.name;
     }
 
-    //get file results folder path and log file path
+    //get file resultsG1 folder path and log file path
     d.path_res = get_file_path(__FILE__, false);
-    d.path_res = d.path_res + "results/";
+    d.path_res = d.path_res + "resultsG1/";
     d.path_log = d.path_res + "log.txt";
 
     //system calls
@@ -110,6 +110,10 @@ void save(Data &d) {
 
     save_path = d.path_res + d.m.mesh_data().filename + "_" + step + ".mesh";
     d.m.save(save_path.c_str());
+
+    save_path = d.path_res + d.m.mesh_data().filename + "_" + step + ".obj";
+    export_surface(d.m, d.ms);
+    d.ms.save(save_path.c_str());
 
     if(d.map) {
         save_path = d.path_res + d.mm.mesh_data().filename + "_" + step + ".mesh";

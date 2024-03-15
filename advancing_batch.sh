@@ -2,11 +2,11 @@
 
 #set the folders (linux)
 #FLD=/home/federico/Documents/GitHub/Advancing-Volumes/data/
-#RES=/home/federico/Documents/GitHub/Advancing-Volumes/results/
+#RES=/home/federico/Documents/GitHub/Advancing-Volumes/resultsG1/
 #EXE=/home/federico/Documents/GitHub/Advancing-Volumes/cmake-build-release/Advancing-Volumes
 #set the folders (mac)
-FLD=/Users/federicheddu/Documents/VOLMAP/G2
-RES=/Users/federicheddu//Documents/GitHub/Advancing-Volumes/results/
+FLD=/Users/federicheddu/Documents/VOLMAP/G6
+RES=/Users/federicheddu//Documents/GitHub/Advancing-Volumes/results
 EXE=/Users/federicheddu/Documents/GitHub/Advancing-Volumes/cmake-build-release/Advancing-Volumes
 
 #execution counter
@@ -19,18 +19,11 @@ CNT=0
 #echo "" >> $RES/log.txt
 #echo "NEW EXECUTION - $(date)" >> $RES/log.txt
 
+#create a folder with the name of the mesh file
+mkdir -p $RES
+
 for MESH in `find $FLD -name "*.mesh" -type f`
 do
-
-  #create a folder with the name of the mesh file
-  #mkdir -p $RES/$(basename $MESH .mesh)
-  #create a log file inside the folder
-  #touch $RES/$(basename $MESH .mesh)/log.txt
-  #create line for log
-  #touch $RES/$(basename $MESH .mesh)/line.txt
-
-  #delete every .mesh file in the folder
-  #rm -f $RES/$(basename $MESH .mesh)/*.mesh
 
   #append the date to the log file with a blank line before and after
   NAME=$(basename "$MESH" .mesh)
@@ -48,7 +41,7 @@ do
   #increment the counter
   ((CNT++))
   #wait until there are more than 10 programs running
-  while [ $(jobs -pr | wc -l) -ge 10 ]
+  while [ $(jobs -pr | wc -l) -ge 2 ]
   do
     sleep 1
   done

@@ -43,7 +43,7 @@ bool key_commands(Data &d, int key, int modifier) {
             if(d.map) d.mm.updateGL();
             break;
         }
-        case GLFW_KEY_BACKSLASH: {
+        case GLFW_KEY_P: {
             d.step_by_step = true;
 
             if(substep == 0) {
@@ -54,7 +54,7 @@ bool key_commands(Data &d, int key, int modifier) {
             if(substep == 0 && d.running) expand(d);
             if(substep == 1 && d.running) smooth(d);
             if(substep == 2 && d.running) do { refine(d); } while(d.multiple_refinement && refine_again(d));
-            if(substep == 3 && d.running) smooth(d);
+            if(substep == 3 && d.running) smooth_pierre(d);
             if(substep == 4) update_front(d);
             substep++;
 
@@ -99,6 +99,12 @@ bool key_commands(Data &d, int key, int modifier) {
             d.m.updateGL();
             if(d.map) d.mm.updateGL();
             break;
+        }
+        case GLFW_KEY_5: {
+            if(d.map) {
+                smooth(d, MAP);
+                d.mm.updateGL();
+            }
         }
         //show the displacement (BLUE) vs normal (RED)
         case GLFW_KEY_N: {

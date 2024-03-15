@@ -11,7 +11,8 @@ void advancing_volume(Data &d);
 //main steps
 void expand(Data &d);
 void refine(Data &d, bool all = false);
-void smooth(Data &d);
+void smooth(Data &d, int mesh = MODEL);
+void smooth_pierre(Data &d, int mesh = MODEL);
 
 //expand functions
 void move(Data &d, uint vid, vec3d &disp);

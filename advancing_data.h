@@ -38,6 +38,13 @@ enum {
     TOPOLOGICAL = UNUSED_2      //vert origined from topological unlock_vert
 };
 
+//to know work on the model or on the map
+enum {
+    MODEL,
+    MAP,
+    BOTH
+};
+
 //struct to query the edges to flip after the split
 typedef struct edge_to_flip {
     uint opp_vid = 0;
@@ -56,7 +63,7 @@ typedef struct data {
     //smoothing
     int smooth_mesh_iters = 5;
     //text and debug
-    bool verbose = false;                // print sub-steps
+    bool verbose = true;                // print sub-steps
     //other
     bool enable_snap_rounding = false;  // snap the rational coords to the closest double
 
@@ -70,7 +77,7 @@ typedef struct data {
 
     //execution
     int step = 0;
-    bool map = false;
+    bool map = true;
     bool running = true;
     bool step_by_step = false;
     bool save_prev = false;
@@ -114,7 +121,7 @@ DrawableTetmesh<> hardcode_model();
 void init_model(Data &d);
 //utility
 double dist_calc(Data &d, uint vid, bool raycast);
-bool does_movement_flip(Data &d, uint vid, uint pid, vec3d &target);
+bool does_movement_flip(Data &d, uint vid, uint pid, vec3d &target, int mesh = MODEL);
 bool is_vert_flipped(Data &d, uint vid);
 bool is_orient_ok(Data &d);
 //map

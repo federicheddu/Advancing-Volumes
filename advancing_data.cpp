@@ -337,13 +337,11 @@ void init_model(Data &d) {
 
     //get the model
     d.m = hardcode_model();
-    /*
-    std::string sphere_path = get_file_path(__FILE__, false) + "sphere.mesh";
-    d.m = DrawableTetmesh<>(sphere_path.c_str());
-    d.m.scale(1/(d.m.bbox().delta_x()/2));
-    d.m.translate(-d.m.centroid());
-     */
-    d.m.mesh_data().filename = d.name;
+    //std::string sphere_path = get_file_path(__FILE__, false) + "sphere.mesh";
+    //d.m = DrawableTetmesh<>(sphere_path.c_str());
+    //d.m.scale(1/(d.m.bbox().delta_x()/2));
+    //d.m.translate(-d.m.centroid());
+    //d.m.mesh_data().filename = d.name;
 
     //get info for placing the sphere
     double dist;
@@ -382,18 +380,20 @@ double dist_calc(Data &d, uint vid, bool raycast) {
 }
 
 //check if the future position will flip the tet
-bool does_movement_flip(Data &d, uint vid, uint pid, vec3d &target) {
-    assert(d.m.poly_contains_vert(pid,vid));
+bool does_movement_flip(Data &d, uint vid, uint pid, vec3d &target, int mesh) {
 
-    uint f_opp = d.m.poly_face_opposite_to(pid,vid);
-    uint v0 = d.m.face_vert_id(f_opp,0);
-    uint v1 = d.m.face_vert_id(f_opp,1);
-    uint v2 = d.m.face_vert_id(f_opp,2);
-    if(d.m.poly_face_is_CCW(pid,f_opp)) std::swap(v0,v1);
+    DrawableTetmesh<> &m = mesh == MODEL ? d.m : d.mm;
+    assert(m.poly_contains_vert(pid,vid));
+
+    uint f_opp = m.poly_face_opposite_to(pid,vid);
+    uint v0 = m.face_vert_id(f_opp,0);
+    uint v1 = m.face_vert_id(f_opp,1);
+    uint v2 = m.face_vert_id(f_opp,2);
+    if(m.poly_face_is_CCW(pid,f_opp)) std::swap(v0,v1);
 
     // it the positive half space of the edge opposite to front_vert
     // does not contain the new_pos, the triangle is blocking
-    return orient3d(d.m.vert(v0), d.m.vert(v1), d.m.vert(v2),target) * d.orient_sign <=0;
+    return orient3d(m.vert(v0), m.vert(v1), m.vert(v2),target) * d.orient_sign <=0;
 }
 
 //check if the current position flipped some poly adj

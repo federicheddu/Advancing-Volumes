@@ -63,14 +63,17 @@ int main(int argc, char *argv[]) {
     }
     /**/
 
+    /* === GUI === */
+
+    //loading parameters
     if(argc > 1) {
         parse(d, argc, argv);
     } else {
-        //models to load
-        d.path_target = "/Users/federicheddu/Documents/VOLMAP/G2/squirrel.mesh";
+        d.path_target = "/Users/federicheddu/Documents/VOLMAP/G1/bunny.mesh";
         d.path_model = "";
         d.path_map = "";
     }
+
     //setup
     setup(d, &oct);
     d.prev = &d_prev;
@@ -98,7 +101,7 @@ int main(int argc, char *argv[]) {
     if(d.map) {
         d.mm.updateGL();
         gui_map.push(&d.mm);
-        gui_map.push(new VolumeMeshControls<DrawableTetmesh<>>(&d.mm, &gui_map));
+        gui.push(new VolumeMeshControls<DrawableTetmesh<>>(&d.mm, &gui_map));
     }
 
     //app commands -> SPACE for one iteration
