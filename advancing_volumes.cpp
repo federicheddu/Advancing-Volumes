@@ -7,10 +7,27 @@ void advancing_volume(Data &d) {
     d.step++;
     cout << BMAG << "Advancing Volume ITERATION " << d.step << RST << endl;
 
-    if(d.running) expand(d);
-    if(d.running) smooth(d, MODEL);
+    //moving the vertices
+    if(d.running) {
+        expand(d);
+    }
+
+    //smoothing the model
+    if(d.running) {
+        smooth(d, MODEL);
+        check_self_intersection(d, "SMOOTH (first)");
+        if(d.running) cout << BGRN << "DONE" << rendl;
+    }
+
+    //refine the model
     if(d.running) do { refine(d); } while(d.multiple_refinement && refine_again(d));
-    if(d.running) smooth(d, MODEL);
+
+    //smoothing (again) the model
+    if(d.running) {
+        smooth(d, MODEL);
+        check_self_intersection(d, "SMOOTH (second)");
+        if(d.running) cout << BGRN << "DONE" << rendl;
+    }
     update_front(d);
 
     cout << BMAG << "Advancing Volume ITERATION - Actives: " << d.front.size() << "/" << d.m.num_srf_verts() << RST << endl << endl;
@@ -42,7 +59,7 @@ void expand(Data &d) {
 
     //restore normals, update fronts, check for self intersections
     d.m.update_normals();
-    check_self_intersection(d);
+    check_self_intersection(d, "MOVE");
     if(!d.running) return;
 
     if(d.verbose && d.running) cout << BGRN << "DONE" << RST << endl;
@@ -178,7 +195,7 @@ bool check_intersection(Data &d, uint vid) {
 }
 
 //check intersection with himself
-void check_self_intersection(Data &d) {
+void check_self_intersection(Data &d, std::string where) {
 
     if(d.verbose) cout << BCYN << "Checking self intersection..." << RST;
     std::set<ipair> intersections;
@@ -205,7 +222,8 @@ void check_self_intersection(Data &d) {
 
     //feedback
     if(!d.running) cout << BRED << "FOUND" << RST << endl;
-    if(!d.running && !d.render) my_assert(d, false, "SELF INTERSECTION", __FILE__, __LINE__);
+    std::string output = "SELF INTERSECTION in " + where;
+    if(!d.running && !d.render) my_assert(d, false, output, __FILE__, __LINE__);
 
 }
 

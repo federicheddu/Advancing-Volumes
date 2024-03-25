@@ -23,7 +23,6 @@ int main(int argc, char *argv[]) {
     std::string output;
 
     //input parameters -> no render
-    /*
     if(argc == 3) {
 
         //set up the env
@@ -62,7 +61,6 @@ int main(int argc, char *argv[]) {
 
         return 0;
     }
-    /**/
 
     /* === GUI === */
 
@@ -70,9 +68,9 @@ int main(int argc, char *argv[]) {
     if(argc > 1) {
         parse(d, argc, argv);
     } else {
-        d.path_target = "/Users/federicheddu/Documents/VOLMAP/G1/bumpy_sphere.mesh";
-        d.path_model = "";
-        d.path_map = "";
+        d.path_target = "/Users/federicheddu/Documents/VOLMAP/G5/airplane1.mesh";
+        //d.path_model = "/Users/federicheddu/Documents/GitHub/Advancing-Volumes/resultsG2/model_head1_7.mesh";
+        //d.path_map = "/Users/federicheddu/Documents/GitHub/Advancing-Volumes/resultsG2/map_head1_7.mesh";
     }
 
     //setup
