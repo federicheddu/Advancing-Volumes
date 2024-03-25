@@ -47,7 +47,7 @@ void setup(Data &d, Octree *oct) {
 
     //get file resultsG1 folder path and log file path
     d.path_res = get_file_path(__FILE__, false);
-    d.path_res = d.path_res + "resultsG1/";
+    d.path_res = d.path_res + "results/";
     d.path_log = d.path_res + "log.txt";
 
     //system calls
