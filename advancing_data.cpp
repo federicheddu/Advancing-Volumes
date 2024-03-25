@@ -336,12 +336,12 @@ DrawableTetmesh<> hardcode_model() {
 void init_model(Data &d) {
 
     //get the model
-    d.m = hardcode_model();
-    //std::string sphere_path = get_file_path(__FILE__, false) + "sphere.mesh";
-    //d.m = DrawableTetmesh<>(sphere_path.c_str());
-    //d.m.scale(1/(d.m.bbox().delta_x()/2));
-    //d.m.translate(-d.m.centroid());
-    //d.m.mesh_data().filename = d.name;
+    //d.m = hardcode_model();
+    std::string sphere_path = get_file_path(__FILE__, false) + "sphere_one.mesh";
+    d.m = DrawableTetmesh<>(sphere_path.c_str());
+    d.m.scale(1/(d.m.bbox().delta_x()/2));
+    d.m.translate(-d.m.centroid());
+    d.m.mesh_data().filename = d.name;
 
     //get info for placing the sphere
     double dist;

@@ -23,6 +23,7 @@ int main(int argc, char *argv[]) {
     std::string output;
 
     //input parameters -> no render
+    /*
     if(argc == 3) {
 
         //set up the env
@@ -69,7 +70,7 @@ int main(int argc, char *argv[]) {
     if(argc > 1) {
         parse(d, argc, argv);
     } else {
-        d.path_target = "/Users/federicheddu/Documents/VOLMAP/G1/bunny.mesh";
+        d.path_target = "/Users/federicheddu/Documents/VOLMAP/G1/bumpy_sphere.mesh";
         d.path_model = "";
         d.path_map = "";
     }

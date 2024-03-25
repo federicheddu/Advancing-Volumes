@@ -54,7 +54,7 @@ bool key_commands(Data &d, int key, int modifier) {
             if(substep == 0 && d.running) expand(d);
             if(substep == 1 && d.running) smooth(d);
             if(substep == 2 && d.running) do { refine(d); } while(d.multiple_refinement && refine_again(d));
-            if(substep == 3 && d.running) smooth_pierre(d);
+            if(substep == 3 && d.running) smooth(d);
             if(substep == 4) update_front(d);
             substep++;
 
@@ -163,6 +163,13 @@ void gui_commands(Data &d) {
 
     if(ImGui::Button("Check MAP", bsize))
         map_check(d);
+
+    if(ImGui::Button("How much volume")) {
+        double target_volume = d.tv.mesh_volume();
+        double model_volume = d.m.mesh_volume();
+
+        cout << "Volume: " << model_volume / target_volume << endl;
+    }
 
 
 }

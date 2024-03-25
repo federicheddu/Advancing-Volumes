@@ -98,7 +98,7 @@ void compute_distances(Data &d) {
     for(uint vid : d.front) {
         dist = dist_calc(d, vid, d.only_raycast);
         if(!d.only_raycast && dist < d.switch_raycast_threshold)
-            dist = dist_calc(d, vid, true);
+            dist = std::min(dist_calc(d, vid, true), d.target_edge_length);
         d.m.vert_data(vid).uvw[DIST] = dist;
     }
 
@@ -221,7 +221,7 @@ void refine(Data &d, bool all) {
 
     if(d.verbose) cout << BCYN << "Adjusting the topology..." << RST;
     flip(d);
-    try_flips(d);
+    //try_flips(d);
 
     if(d.verbose && d.running) cout << BGRN << "DONE" << RST << endl;
 
